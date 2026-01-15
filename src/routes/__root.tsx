@@ -9,32 +9,25 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 
 import Header from "../components/Header";
-import { auth } from "../lib/auth";
+import { getServerSession } from "../lib/auth";
 
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
+import { getRequestHeaders } from "@tanstack/react-start/server";
 
 interface MyRouterContext {
   queryClient: QueryClient;
+  isAuthenticated?: boolean;
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  // @ts-expect-error - Types will be correct after router regeneration
-  loader: async ({ request }) => {
-    try {
-      const headers = request?.headers || new Headers();
-      const session = await auth.api.getSession({
-        headers: headers as Headers,
-      });
-      return { isAuthenticated: !!session?.user };
-    } catch (error) {
-      console.error("Error in root route loader:", error);
-      // Return default state on error to prevent blank page
-      return { isAuthenticated: false };
-    }
+  beforeLoad: async () => {
+    const headers = getRequestHeaders();
+    const session = await getServerSession(headers);
+    return { isAuthenticated: !!session?.user };
   },
   head: () => ({
     meta: [
@@ -65,22 +58,22 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const router = useRouterState();
   const pathname = router.location.pathname;
 
-  // Safely get loader data with fallback
+  // Safely get route context with fallback
   let isAuthenticated = false;
   try {
-    const loaderData = Route.useLoaderData();
-    isAuthenticated = loaderData?.isAuthenticated ?? false;
+    const context = Route.useRouteContext();
+    isAuthenticated = context?.isAuthenticated ?? false;
   } catch (error) {
-    console.error("Error getting root loader data:", error);
+    console.error("Error getting root route context:", error);
     // Default to not authenticated on error
     isAuthenticated = false;
   }
 
-  // Hide header on:
-  // 1. Auth pages (/auth/*)
-  // 2. Landing page (/) when not authenticated
   const hideHeader =
-    pathname.startsWith("/auth/") || (pathname === "/" && !isAuthenticated);
+    pathname.startsWith("/auth/") ||
+    (pathname === "/" && !isAuthenticated) ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/models");
 
   return (
     <html lang="en">

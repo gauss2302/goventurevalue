@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import Footer from "./Footer";
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Set mounted to true after component mounts to trigger animations
     setMounted(true);
   }, []);
 
@@ -21,48 +21,6 @@ export default function LandingPage() {
         className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse z-0"
         style={{ animationDelay: "2s" }}
       />
-
-      {/* Navigation */}
-      <nav
-        className={`relative z-20 px-4 sm:px-6 lg:px-8 py-6 transition-all duration-700 ${
-          mounted ? "opacity-100 translate-y-0" : "opacity-100 translate-y-0"
-        }`}
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer hover:scale-105 transition-transform">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-white">GoVentureValue</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              to="/auth/signin"
-              className="text-slate-300 hover:text-white font-medium transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/auth/signup"
-              className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
 
       {/* Hero Section */}
       <div className="relative z-10 overflow-hidden">
@@ -299,56 +257,30 @@ export default function LandingPage() {
       {/* Floating Formulas Section */}
       <div className="py-16 relative z-10 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative h-64 md:h-80">
-            {/* Floating Formula Elements */}
-            <FloatingFormula
-              formula="DCF = Σ(CFₜ / (1+r)ᵗ)"
-              position={{ top: "10%", left: "5%" }}
-              delay={0}
-              mounted={mounted}
-            />
-            <FloatingFormula
-              formula="NPV = Σ(CFₜ / (1+r)ᵗ) - I₀"
-              position={{ top: "20%", right: "10%" }}
-              delay={200}
-              mounted={mounted}
-            />
-            <FloatingFormula
-              formula="IRR: NPV = 0"
-              position={{ top: "50%", left: "15%" }}
-              delay={400}
-              mounted={mounted}
-            />
-            <FloatingFormula
-              formula="ARR = (Avg Profit / Investment) × 100"
-              position={{ bottom: "20%", right: "8%" }}
-              delay={600}
-              mounted={mounted}
-            />
-            <FloatingFormula
-              formula="ROI = (Gain - Cost) / Cost"
-              position={{ bottom: "10%", left: "20%" }}
-              delay={800}
-              mounted={mounted}
-            />
-            <FloatingFormula
-              formula="P/E = Price / Earnings"
-              position={{ top: "35%", right: "25%" }}
-              delay={300}
-              mounted={mounted}
-            />
-            <FloatingFormula
-              formula="EV = Market Cap + Debt - Cash"
-              position={{ top: "60%", left: "8%" }}
-              delay={500}
-              mounted={mounted}
-            />
-            <FloatingFormula
-              formula="EBITDA = Revenue - COGS - OpEx"
-              position={{ bottom: "30%", left: "12%" }}
-              delay={700}
-              mounted={mounted}
-            />
+          <div className="relative h-64 md:h-80 overflow-hidden">
+            {/* Infinite scrolling formulas container */}
+            <div className="absolute inset-0 flex items-center">
+              <div className="flex animate-scroll-left gap-8 whitespace-nowrap">
+                {/* First set of formulas */}
+                <ScrollingFormula formula="DCF = Σ(CFₜ / (1+r)ᵗ)" />
+                <ScrollingFormula formula="NPV = Σ(CFₜ / (1+r)ᵗ) - I₀" />
+                <ScrollingFormula formula="IRR: NPV = 0" />
+                <ScrollingFormula formula="ARR = (Avg Profit / Investment) × 100" />
+                <ScrollingFormula formula="ROI = (Gain - Cost) / Cost" />
+                <ScrollingFormula formula="P/E = Price / Earnings" />
+                <ScrollingFormula formula="EV = Market Cap + Debt - Cash" />
+                <ScrollingFormula formula="EBITDA = Revenue - COGS - OpEx" />
+                {/* Duplicate set for seamless loop */}
+                <ScrollingFormula formula="DCF = Σ(CFₜ / (1+r)ᵗ)" />
+                <ScrollingFormula formula="NPV = Σ(CFₜ / (1+r)ᵗ) - I₀" />
+                <ScrollingFormula formula="IRR: NPV = 0" />
+                <ScrollingFormula formula="ARR = (Avg Profit / Investment) × 100" />
+                <ScrollingFormula formula="ROI = (Gain - Cost) / Cost" />
+                <ScrollingFormula formula="P/E = Price / Earnings" />
+                <ScrollingFormula formula="EV = Market Cap + Debt - Cash" />
+                <ScrollingFormula formula="EBITDA = Revenue - COGS - OpEx" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -386,34 +318,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-white/10 py-8 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 cursor-pointer hover:scale-105 transition-transform">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <span className="text-white font-semibold">GoVentureValue</span>
-            </div>
-            <p className="text-slate-500 text-sm">
-              © {new Date().getFullYear()} GoVentureValue. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
@@ -459,28 +364,9 @@ function FeatureCard({
   );
 }
 
-function FloatingFormula({
-  formula,
-  position,
-  delay,
-  mounted,
-}: {
-  formula: string;
-  position: { top?: string; bottom?: string; left?: string; right?: string };
-  delay: number;
-  mounted: boolean;
-}) {
+function ScrollingFormula({ formula }: { formula: string }) {
   return (
-    <div
-      className={`absolute backdrop-blur-md bg-emerald-500/10 border border-emerald-400/30 rounded-xl px-4 py-3 text-emerald-300 font-mono text-sm md:text-base shadow-lg shadow-emerald-500/20 animate-float hover:scale-110 hover:bg-emerald-500/20 hover:border-emerald-400/50 ${
-        mounted ? "opacity-100" : "opacity-0"
-      }`}
-      style={{
-        ...position,
-        animationDelay: `${delay}ms`,
-        transition: `opacity 0.8s ease-in-out ${delay}ms`,
-      }}
-    >
+    <div className="backdrop-blur-md bg-emerald-500/10 border border-emerald-400/30 rounded-xl px-6 py-4 text-emerald-300 font-mono text-sm md:text-base shadow-lg shadow-emerald-500/20 flex-shrink-0 hover:scale-110 hover:bg-emerald-500/20 hover:border-emerald-400/50 transition-transform">
       {formula}
     </div>
   );

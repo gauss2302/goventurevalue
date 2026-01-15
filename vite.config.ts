@@ -1,23 +1,26 @@
-import { defineConfig } from 'vite'
-import { devtools } from '@tanstack/devtools-vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
-import viteTsConfigPaths from 'vite-tsconfig-paths'
-import tailwindcss from '@tailwindcss/vite'
-import { nitro } from 'nitro/vite'
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteTsConfigPaths from "vite-tsconfig-paths";
+import tailwindcss from "@tailwindcss/vite";
 
-const config = defineConfig({
+export default defineConfig({
   plugins: [
-    devtools(),
-    nitro(),
-    // this is the plugin that enables path aliases
+    // TanStack Start plugin should be first to generate virtual modules
+    tanstackStart(),
     viteTsConfigPaths({
-      projects: ['./tsconfig.json'],
+      projects: ["./tsconfig.json"],
     }),
     tailwindcss(),
-    tanstackStart(),
-    viteReact(),
   ],
-})
-
-export default config
+  optimizeDeps: {
+    exclude: [
+      "#tanstack-router-entry",
+      "#tanstack-start-entry",
+      "tanstack-start-manifest:v",
+      "tanstack-start-injected-head-scripts:v",
+    ],
+  },
+  ssr: {
+    noExternal: ["@tanstack/react-start"],
+  },
+});

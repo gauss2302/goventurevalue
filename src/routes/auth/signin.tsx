@@ -1,58 +1,96 @@
-import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
-import { authClient } from '@/lib/auth'
+import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { authClient, useSessionWithMock } from "@/lib/auth";
 
-export const Route = createFileRoute('/auth/signin')({
+export const Route = createFileRoute("/auth/signin")({
   component: SignIn,
-})
+});
 
 function SignIn() {
-  const router = useRouter()
-  const { data: session } = authClient.useSession()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const { data: session } = useSessionWithMock();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Redirect if already signed in
   useEffect(() => {
     if (session) {
-      router.navigate({ to: '/' })
+      router.navigate({ to: "/" });
     }
-  }, [session, router])
+  }, [session, router]);
+
+  // Check for error in URL params (from OAuth error callback)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get("error");
+    if (errorParam === "google_auth_failed") {
+      setError("Google authentication failed. Please try again.");
+      // Clean up URL
+      window.history.replaceState({}, "", "/auth/signin");
+    }
+  }, []);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
     try {
       const result = await authClient.signIn.email({
         email,
         password,
-      })
+      });
 
       if (result.error) {
-        setError(result.error.message || 'Invalid email or password')
+        setError(result.error.message || "Invalid email or password");
       } else {
-        router.navigate({ to: '/' })
+        router.navigate({ to: "/" });
       }
     } catch (err) {
-      setError('An error occurred. Please try again.')
+      setError("An error occurred. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setIsGoogleLoading(true);
+
+    try {
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/dashboard",
+        errorCallbackURL: "/auth/signin?error=google_auth_failed",
+      });
+
+      // Better Auth may return a redirect URL that we need to navigate to
+      if (result?.data?.url) {
+        window.location.href = result.data.url;
+      } else if (result?.error) {
+        setIsGoogleLoading(false);
+        setError(result.error.message || "Failed to sign in with Google");
+      }
+      // If no URL is returned, Better Auth should have redirected automatically
+    } catch (err) {
+      setIsGoogleLoading(false);
+      setError("An error occurred with Google sign-in. Please try again.");
+      console.error("Google sign-in error:", err);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
         {/* Glass Card */}
         <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl p-8 border border-white/20">
           {/* Logo and Title */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <div className="w-16 h-16 bg-linear-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
                 <svg
                   className="w-9 h-9 text-white"
                   fill="none"
@@ -68,9 +106,7 @@ function SignIn() {
                 </svg>
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Welcome Back
-            </h1>
+            <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
             <p className="text-slate-300">
               Sign in to your GoVentureValue account
             </p>
@@ -86,7 +122,10 @@ function SignIn() {
           {/* Email/Password Form */}
           <form onSubmit={handleEmailSignIn} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Email Address
               </label>
               <input
@@ -100,7 +139,10 @@ function SignIn() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Password
               </label>
               <input
@@ -117,18 +159,30 @@ function SignIn() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3.5 bg-linear-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                   Signing in...
                 </span>
               ) : (
-                'Sign In'
+                "Sign In"
               )}
             </button>
           </form>
@@ -139,14 +193,18 @@ function SignIn() {
               <div className="w-full border-t border-white/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-transparent text-slate-400">or continue with</span>
+              <span className="px-4 bg-transparent text-slate-400">
+                or continue with
+              </span>
             </div>
           </div>
 
           {/* Google Sign In */}
-          <a
-            href="/api/auth/sign-in/social?provider=google"
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white/10 border border-white/20 rounded-xl hover:bg-white/20 transition-all font-medium text-white"
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white/10 border border-white/20 rounded-xl hover:bg-white/20 transition-all font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -167,11 +225,11 @@ function SignIn() {
               />
             </svg>
             <span>Google</span>
-          </a>
+          </button>
 
           {/* Sign Up Link */}
           <p className="mt-8 text-center text-slate-400">
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link
               to="/auth/signup"
               className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
@@ -187,8 +245,18 @@ function SignIn() {
             to="/"
             className="text-slate-400 hover:text-white text-sm font-medium transition-colors inline-flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
             </svg>
             Back to home
           </Link>
@@ -200,5 +268,5 @@ function SignIn() {
         </p>
       </div>
     </div>
-  )
+  );
 }

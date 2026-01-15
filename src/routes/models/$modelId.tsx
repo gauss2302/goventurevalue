@@ -1,5 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeaders } from "@tanstack/react-start/server";
+import { useMemo } from "react";
 import { db } from "@/db/index";
 import {
   financialModels,
@@ -8,19 +10,17 @@ import {
   modelSettings,
 } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { auth } from "@/lib/auth";
-import {
-  calculateProjections,
-  DEFAULT_SETTINGS,
-  DEFAULT_MARKET_SIZING,
-} from "@/lib/calculations";
-import FinancialModel from "@/components/FinancialModel";
-import type { ScenarioType } from "@/lib/dto";
+import { getServerSession } from "@/lib/auth";
+import { DEFAULT_SETTINGS, DEFAULT_MARKET_SIZING } from "@/lib/calculations";
+import FinancialModelEditor from "@/components/FinancialModelEditor";
+import { useServerFn } from "@tanstack/react-start";
 import type {
-  ProjectionData,
-  ModelSettings,
-  MarketSizing,
-} from "@/lib/calculations";
+  ScenarioType,
+  UpdateScenarioDto,
+  UpdateSettingsDto,
+  MarketSizingDto,
+} from "@/lib/dto";
+import type { ModelSettings, MarketSizing } from "@/lib/calculations";
 
 type LoaderData = {
   model: {
@@ -42,14 +42,194 @@ type LoaderData = {
   settings: ModelSettings | null;
 };
 
+// Server functions for updating model data
+const updateScenario = createServerFn({ method: "POST" })
+  .inputValidator(
+    (data: {
+      modelId: number;
+      scenarioType: ScenarioType;
+      data: UpdateScenarioDto;
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const headers = getRequestHeaders();
+    const session = await getServerSession(headers);
+
+    if (!session?.user) {
+      throw new Error("Unauthorized");
+    }
+
+    // Verify model ownership
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    // Update or insert scenario
+    const existing = await db.query.modelScenarios.findFirst({
+      where: and(
+        eq(modelScenarios.modelId, data.modelId),
+        eq(modelScenarios.scenarioType, data.scenarioType)
+      ),
+    });
+
+    if (existing) {
+      await db
+        .update(modelScenarios)
+        .set({
+          userGrowth: data.data.userGrowth.toString(),
+          arpu: data.data.arpu.toString(),
+          churnRate: data.data.churnRate.toString(),
+          farmerGrowth: data.data.farmerGrowth.toString(),
+          cac: data.data.cac.toString(),
+          updatedAt: new Date(),
+        })
+        .where(eq(modelScenarios.id, existing.id));
+    } else {
+      await db.insert(modelScenarios).values({
+        modelId: data.modelId,
+        scenarioType: data.scenarioType,
+        userGrowth: data.data.userGrowth.toString(),
+        arpu: data.data.arpu.toString(),
+        churnRate: data.data.churnRate.toString(),
+        farmerGrowth: data.data.farmerGrowth.toString(),
+        cac: data.data.cac.toString(),
+      });
+    }
+
+    return { success: true };
+  });
+
+const updateSettings = createServerFn({ method: "POST" })
+  .inputValidator((data: { modelId: number; data: UpdateSettingsDto }) => data)
+  .handler(async ({ data }) => {
+    const headers = getRequestHeaders();
+    const session = await getServerSession(headers);
+
+    if (!session?.user) {
+      throw new Error("Unauthorized");
+    }
+
+    // Verify model ownership
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    // Update or insert settings
+    const existing = await db.query.modelSettings.findFirst({
+      where: eq(modelSettings.modelId, data.modelId),
+    });
+
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (data.data.startUsers !== undefined)
+      updateData.startUsers = data.data.startUsers;
+    if (data.data.startFarmers !== undefined)
+      updateData.startFarmers = data.data.startFarmers;
+    if (data.data.taxRate !== undefined)
+      updateData.taxRate = data.data.taxRate.toString();
+    if (data.data.discountRate !== undefined)
+      updateData.discountRate = data.data.discountRate.toString();
+    if (data.data.terminalGrowth !== undefined)
+      updateData.terminalGrowth = data.data.terminalGrowth.toString();
+    if (data.data.safetyBuffer !== undefined)
+      updateData.safetyBuffer = data.data.safetyBuffer;
+    if (data.data.personnelByYear !== undefined)
+      updateData.personnelByYear = data.data.personnelByYear;
+    if (data.data.employeesByYear !== undefined)
+      updateData.employeesByYear = data.data.employeesByYear;
+    if (data.data.capexByYear !== undefined)
+      updateData.capexByYear = data.data.capexByYear;
+    if (data.data.depreciationByYear !== undefined)
+      updateData.depreciationByYear = data.data.depreciationByYear;
+    if (data.data.projectionYears !== undefined)
+      updateData.projectionYears = data.data.projectionYears;
+
+    if (existing) {
+      await db
+        .update(modelSettings)
+        .set(updateData)
+        .where(eq(modelSettings.id, existing.id));
+    } else {
+      await db.insert(modelSettings).values({
+        modelId: data.modelId,
+        ...updateData,
+      });
+    }
+
+    return { success: true };
+  });
+
+const updateMarketSizing = createServerFn({ method: "POST" })
+  .inputValidator((data: { modelId: number; data: MarketSizingDto }) => data)
+  .handler(async ({ data }) => {
+    const headers = getRequestHeaders();
+    const session = await getServerSession(headers);
+
+    if (!session?.user) {
+      throw new Error("Unauthorized");
+    }
+
+    // Verify model ownership
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    // Update or insert market sizing
+    const existing = await db.query.marketSizing.findFirst({
+      where: eq(marketSizing.modelId, data.modelId),
+    });
+
+    if (existing) {
+      await db
+        .update(marketSizing)
+        .set({
+          tam: data.data.tam,
+          sam: data.data.sam,
+          som: data.data.som,
+          updatedAt: new Date(),
+        })
+        .where(eq(marketSizing.id, existing.id));
+    } else {
+      await db.insert(marketSizing).values({
+        modelId: data.modelId,
+        tam: data.data.tam,
+        sam: data.data.sam,
+        som: data.data.som,
+      });
+    }
+
+    return { success: true };
+  });
+
 export const Route = createFileRoute("/models/$modelId")({
   component: ModelDetail,
   // @ts-expect-error - Types will be correct after router regeneration
   loader: async ({ params, request }) => {
     const headers = request?.headers || new Headers();
-    const session = await auth.api.getSession({
-      headers: headers as Headers,
-    });
+    const session = await getServerSession(headers as Headers);
 
     if (!session?.user) {
       throw new Error("Unauthorized");
@@ -125,8 +305,6 @@ function ModelDetail() {
   const data = Route.useLoaderData();
   const { model, scenarios, market, settings: loadedSettings } = data;
   const router = useRouter();
-  const [scenario, setScenario] = useState<ScenarioType>("base");
-  const [projections, setProjections] = useState<ProjectionData[]>([]);
 
   const settings = useMemo(
     () => loadedSettings || DEFAULT_SETTINGS,
@@ -137,80 +315,10 @@ function ModelDetail() {
     [market]
   );
 
-  // Get scenario params from loaded data
-  const getScenarioParams = useCallback(
-    (scenarioType: ScenarioType) => {
-      const scenarioData = scenarios.find(
-        (s: { scenarioType: ScenarioType }) => s.scenarioType === scenarioType
-      );
-      if (scenarioData) {
-        return {
-          userGrowth: parseFloat(scenarioData.userGrowth),
-          arpu: parseFloat(scenarioData.arpu),
-          churnRate: parseFloat(scenarioData.churnRate),
-          farmerGrowth: parseFloat(scenarioData.farmerGrowth),
-          cac: parseFloat(scenarioData.cac),
-        };
-      }
-      // Default scenario params
-      const defaults = {
-        conservative: {
-          userGrowth: 0.15,
-          arpu: 2.5,
-          churnRate: 0.08,
-          farmerGrowth: 0.1,
-          cac: 12,
-        },
-        base: {
-          userGrowth: 0.25,
-          arpu: 4.0,
-          churnRate: 0.05,
-          farmerGrowth: 0.2,
-          cac: 18,
-        },
-        optimistic: {
-          userGrowth: 0.4,
-          arpu: 6.0,
-          churnRate: 0.03,
-          farmerGrowth: 0.35,
-          cac: 24,
-        },
-      };
-      return defaults[scenarioType];
-    },
-    [scenarios]
-  );
-
-  // Calculate projections when scenario changes
-  useEffect(() => {
-    const scenarioParams = getScenarioParams(scenario);
-    const proj = calculateProjections(
-      scenarioParams,
-      settings,
-      marketSizingData
-    );
-    setProjections(proj);
-  }, [scenario, getScenarioParams, settings, marketSizingData]);
-
-  const handleScenarioChange = useCallback((newScenario: ScenarioType) => {
-    setScenario(newScenario);
-  }, []);
-
-  const currentScenarioParams = useMemo(
-    () => getScenarioParams(scenario),
-    [getScenarioParams, scenario]
-  );
-
-  if (projections.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading financial model...</p>
-        </div>
-      </div>
-    );
-  }
+  // Use server functions
+  const updateScenarioFn = useServerFn(updateScenario);
+  const updateSettingsFn = useServerFn(updateSettings);
+  const updateMarketSizingFn = useServerFn(updateMarketSizing);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -246,14 +354,27 @@ function ModelDetail() {
           </span>
         </div>
       </div>
-      <FinancialModel
-        scenario={scenario}
-        onScenarioChange={handleScenarioChange}
-        projections={projections}
-        marketSizing={marketSizingData}
-        settings={settings}
-        scenarioParams={currentScenarioParams}
+      <FinancialModelEditor
+        modelId={model.id}
+        initialScenarios={scenarios}
+        initialSettings={settings}
+        initialMarket={marketSizingData}
+        updateScenarioFn={async (data) => {
+          const result = await updateScenarioFn({ data });
+          return result;
+        }}
+        updateSettingsFn={async (data) => {
+          const result = await updateSettingsFn({ data });
+          return result;
+        }}
+        updateMarketSizingFn={async (data) => {
+          const result = await updateMarketSizingFn({ data });
+          return result;
+        }}
       />
     </div>
   );
 }
+
+// Export server functions for use in editor component
+export { updateScenario, updateSettings, updateMarketSizing };

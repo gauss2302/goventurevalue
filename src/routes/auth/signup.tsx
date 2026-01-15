@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
-import { authClient } from '@/lib/auth'
+import { authClient, useSessionWithMock } from '@/lib/auth'
 
 export const Route = createFileRoute('/auth/signup')({
   component: SignUp,
@@ -8,13 +8,14 @@ export const Route = createFileRoute('/auth/signup')({
 
 function SignUp() {
   const router = useRouter()
-  const { data: session } = authClient.useSession()
+  const { data: session } = useSessionWithMock()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
 
   // Redirect if already signed in
   useEffect(() => {
@@ -22,6 +23,16 @@ function SignUp() {
       router.navigate({ to: '/' })
     }
   }, [session, router])
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const errorParam = urlParams.get('error')
+    if (errorParam === 'google_auth_failed') {
+      setError('Google authentication failed. Please try again.')
+      // Clean up URL
+      window.history.replaceState({}, '', '/auth/signup')
+    }
+  }, [])
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,21 +51,69 @@ function SignUp() {
     setIsLoading(true)
 
     try {
+      console.log('[SignUp] Attempting to sign up:', { email, name: name || 'not provided' })
+      
       const result = await authClient.signUp.email({
         email,
         password,
-        name,
+        name: name || undefined,
       })
 
+      console.log('[SignUp] Result:', result)
+
       if (result.error) {
+        console.error('[SignUp] Error:', result.error)
         setError(result.error.message || 'Failed to create account')
-      } else {
+      } else if (result.data) {
+        console.log('[SignUp] Success, redirecting...')
+        // Wait a bit for session to be set
+        await new Promise(resolve => setTimeout(resolve, 100))
         router.navigate({ to: '/' })
+      } else {
+        setError('Unexpected response from server')
       }
     } catch (err) {
-      setError('An error occurred. Please try again.')
+      console.error('[SignUp] Exception:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignUp = async (e?: React.MouseEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
+    
+    console.log('[Google SignUp] Button clicked, handler called')
+    setError('')
+    setIsGoogleLoading(true)
+
+    try {
+      console.log('[Google SignUp] Calling signIn.social...')
+      const result = await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: '/dashboard',
+        errorCallbackURL: '/auth/signup?error=google_auth_failed',
+      })
+
+      console.log('[Google SignUp] Result:', result)
+
+      // Better Auth may return a redirect URL that we need to navigate to
+      if (result?.data?.url) {
+        console.log('[Google SignUp] Redirecting to:', result.data.url)
+        window.location.href = result.data.url
+      } else if (result?.error) {
+        setIsGoogleLoading(false)
+        setError(result.error.message || 'Failed to sign up with Google')
+        console.error('[Google SignUp] Error:', result.error)
+      } else {
+        console.log('[Google SignUp] No URL returned, Better Auth should redirect automatically')
+      }
+      // If no URL is returned, Better Auth should have redirected automatically
+    } catch (err) {
+      setIsGoogleLoading(false)
+      setError('An error occurred with Google sign-up. Please try again.')
+      console.error('[Google SignUp] Exception:', err)
     }
   }
 
@@ -188,9 +247,11 @@ function SignUp() {
           </div>
 
           {/* Google Sign Up */}
-          <a
-            href="/api/auth/sign-in/social?provider=google"
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white/10 border border-white/20 rounded-xl hover:bg-white/20 transition-all font-medium text-white"
+          <button
+            type="button"
+            onClick={handleGoogleSignUp}
+            disabled={isGoogleLoading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white/10 border border-white/20 rounded-xl hover:bg-white/20 transition-all font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -211,7 +272,7 @@ function SignUp() {
               />
             </svg>
             <span>Google</span>
-          </a>
+          </button>
 
           {/* Sign In Link */}
           <p className="mt-8 text-center text-slate-400">

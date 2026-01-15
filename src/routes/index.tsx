@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { db } from "@/db/index";
 import { financialModels } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import ModelList from "@/components/ModelList";
 import AuthButton from "@/components/AuthButton";
 import LandingPage from "@/components/LandingPage";
@@ -22,17 +22,12 @@ type LoaderData = {
 
 export const Route = createFileRoute("/")({
   component: Home,
-  // @ts-expect-error - Types will be correct after router regeneration
   loader: async ({ request }): Promise<LoaderData> => {
     try {
-      // Handle request headers properly for TanStack Start
-      // Better Auth's tanstackStartCookies plugin handles cookies automatically
       const headers = request?.headers || new Headers();
 
       // Get session from Better Auth
-      const session = await auth.api.getSession({
-        headers: headers as Headers,
-      });
+      const session = await getServerSession(headers as Headers);
 
       const isAuthenticated = !!session?.user;
 

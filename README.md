@@ -9,6 +9,47 @@ pnpm install
 pnpm dev
 ```
 
+## Environment Variables
+
+This application uses Better Auth for authentication with Google OAuth and email/password support. Copy `.env.example` to `.env` and configure the following variables:
+
+### Required Environment Variables
+
+- `DATABASE_URL` - PostgreSQL connection string
+- `BETTER_AUTH_URL` - Base URL for Better Auth (e.g., `http://localhost:3000` for development)
+- `BETTER_AUTH_SECRET` - Secret key for signing tokens (generate with: `openssl rand -base64 32`)
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+
+### Optional Environment Variables
+
+- `MOCK_AUTH` - Set to `"true"` to enable mock authentication for development/testing
+
+### Setting Up Google OAuth
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google+ API
+4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+5. Configure authorized redirect URIs:
+   - Development: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://yourdomain.com/api/auth/callback/google`
+6. Copy the Client ID and Client Secret to your `.env` file
+
+### Database Setup
+
+The application uses PostgreSQL with Drizzle ORM. Make sure PostgreSQL is running and create the database:
+
+```bash
+# Create database (if needed)
+createdb goventurevalue
+
+# Run migrations
+pnpm db:push
+# or for production
+pnpm db:migrate
+```
+
 # Building For Production
 
 To build this application for production:

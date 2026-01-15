@@ -28,6 +28,20 @@ export type MarketSizingDto = {
   som: number[]
 }
 
+export type UpdateSettingsDto = {
+  startUsers?: number
+  startFarmers?: number
+  taxRate?: number
+  discountRate?: number
+  terminalGrowth?: number
+  safetyBuffer?: number
+  personnelByYear?: number[]
+  employeesByYear?: number[]
+  capexByYear?: number[]
+  depreciationByYear?: number[]
+  projectionYears?: number[]
+}
+
 export type ModelResponseDto = {
   id: number
   userId: string

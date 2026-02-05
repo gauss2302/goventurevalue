@@ -1,10 +1,24 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useSessionWithMock } from "@/lib/auth";
+import { useSessionWithMock } from "@/lib/auth/client";
 
 export const Route = createFileRoute("/auth/callback")({
   component: AuthCallback,
 });
+
+const getSafeNextPath = (value: string | null) => {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//")) return null;
+  if (value.includes("://")) return null;
+  if (value.startsWith("/auth")) return null;
+  return value;
+};
+
+const getNextFromLocation = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return getSafeNextPath(urlParams.get("next"));
+};
 
 function AuthCallback() {
   const router = useRouter();
@@ -29,7 +43,8 @@ function AuthCallback() {
     if (!isPending) {
       if (session) {
         // Successfully authenticated, redirect to dashboard
-        router.navigate({ to: "/dashboard" });
+        const next = getNextFromLocation();
+        router.navigate({ to: next || "/dashboard" });
       } else {
         // No session after callback, might be an error
         setError("Authentication failed. Please try again.");

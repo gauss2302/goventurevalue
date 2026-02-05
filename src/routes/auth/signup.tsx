@@ -1,131 +1,157 @@
-import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
-import { authClient, useSessionWithMock } from '@/lib/auth'
+import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { authClient, useSessionWithMock } from "@/lib/auth/client";
 
-export const Route = createFileRoute('/auth/signup')({
+export const Route = createFileRoute("/auth/signup")({
   component: SignUp,
-})
+});
+
+const getSafeNextPath = (value: string | null) => {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//")) return null;
+  if (value.includes("://")) return null;
+  if (value.startsWith("/auth")) return null;
+  return value;
+};
+
+const getNextFromLocation = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return getSafeNextPath(urlParams.get("next"));
+};
 
 function SignUp() {
-  const router = useRouter()
-  const { data: session } = useSessionWithMock()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const router = useRouter();
+  const { data: session } = useSessionWithMock();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Redirect if already signed in
   useEffect(() => {
     if (session) {
-      router.navigate({ to: '/' })
+      const next = getNextFromLocation();
+      router.navigate({ to: next || "/dashboard" });
     }
-  }, [session, router])
+  }, [session, router]);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const errorParam = urlParams.get('error')
-    if (errorParam === 'google_auth_failed') {
-      setError('Google authentication failed. Please try again.')
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get("error");
+    if (errorParam === "google_auth_failed") {
+      setError("Google authentication failed. Please try again.");
       // Clean up URL
-      window.history.replaceState({}, '', '/auth/signup')
+      window.history.replaceState({}, "", "/auth/signup");
     }
-  }, [])
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError("");
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
+      setError("Passwords do not match");
+      return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
-      return
+      setError("Password must be at least 8 characters");
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
-      console.log('[SignUp] Attempting to sign up:', { email, name: name || 'not provided' })
-      
+      console.log("[SignUp] Attempting to sign up:", {
+        email,
+        name: name || "not provided",
+      });
+
       const result = await authClient.signUp.email({
         email,
         password,
-        name: name || undefined,
-      })
+        name: name,
+      });
 
-      console.log('[SignUp] Result:', result)
+      console.log("[SignUp] Result:", result);
 
       if (result.error) {
-        console.error('[SignUp] Error:', result.error)
-        setError(result.error.message || 'Failed to create account')
+        console.error("[SignUp] Error:", result.error);
+        setError(result.error.message || "Failed to create account");
       } else if (result.data) {
-        console.log('[SignUp] Success, redirecting...')
+        console.log("[SignUp] Success, redirecting...");
         // Wait a bit for session to be set
-        await new Promise(resolve => setTimeout(resolve, 100))
-        router.navigate({ to: '/' })
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const next = getNextFromLocation();
+        router.navigate({ to: next || "/dashboard" });
       } else {
-        setError('Unexpected response from server')
+        setError("Unexpected response from server");
       }
     } catch (err) {
-      console.error('[SignUp] Exception:', err)
-      setError(err instanceof Error ? err.message : 'An error occurred. Please try again.')
+      console.error("[SignUp] Exception:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An error occurred. Please try again."
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleGoogleSignUp = async (e?: React.MouseEvent) => {
-    e?.preventDefault()
-    e?.stopPropagation()
-    
-    console.log('[Google SignUp] Button clicked, handler called')
-    setError('')
-    setIsGoogleLoading(true)
+    e?.preventDefault();
+    e?.stopPropagation();
+
+    console.log("[Google SignUp] Button clicked, handler called");
+    setError("");
+    setIsGoogleLoading(true);
 
     try {
-      console.log('[Google SignUp] Calling signIn.social...')
+      const next = getNextFromLocation() || "/dashboard";
+      console.log("[Google SignUp] Calling signIn.social...");
       const result = await authClient.signIn.social({
-        provider: 'google',
-        callbackURL: '/dashboard',
-        errorCallbackURL: '/auth/signup?error=google_auth_failed',
-      })
+        provider: "google",
+        callbackURL: next,
+        errorCallbackURL: "/auth/signup?error=google_auth_failed",
+      });
 
-      console.log('[Google SignUp] Result:', result)
+      console.log("[Google SignUp] Result:", result);
 
       // Better Auth may return a redirect URL that we need to navigate to
       if (result?.data?.url) {
-        console.log('[Google SignUp] Redirecting to:', result.data.url)
-        window.location.href = result.data.url
+        console.log("[Google SignUp] Redirecting to:", result.data.url);
+        window.location.href = result.data.url;
       } else if (result?.error) {
-        setIsGoogleLoading(false)
-        setError(result.error.message || 'Failed to sign up with Google')
-        console.error('[Google SignUp] Error:', result.error)
+        setIsGoogleLoading(false);
+        setError(result.error.message || "Failed to sign up with Google");
+        console.error("[Google SignUp] Error:", result.error);
       } else {
-        console.log('[Google SignUp] No URL returned, Better Auth should redirect automatically')
+        console.log(
+          "[Google SignUp] No URL returned, Better Auth should redirect automatically"
+        );
       }
       // If no URL is returned, Better Auth should have redirected automatically
     } catch (err) {
-      setIsGoogleLoading(false)
-      setError('An error occurred with Google sign-up. Please try again.')
-      console.error('[Google SignUp] Exception:', err)
+      setIsGoogleLoading(false);
+      setError("An error occurred with Google sign-up. Please try again.");
+      console.error("[Google SignUp] Exception:", err);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
         {/* Glass Card */}
         <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl p-8 border border-white/20">
           {/* Logo and Title */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <div className="w-16 h-16 bg-linear-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
                 <svg
                   className="w-9 h-9 text-white"
                   fill="none"
@@ -159,7 +185,10 @@ function SignUp() {
           {/* Sign Up Form */}
           <form onSubmit={handleSignUp} className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Full Name
               </label>
               <input
@@ -173,7 +202,10 @@ function SignUp() {
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Email Address
               </label>
               <input
@@ -187,7 +219,10 @@ function SignUp() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Password
               </label>
               <input
@@ -200,10 +235,15 @@ function SignUp() {
                 minLength={8}
                 required
               />
-              <p className="mt-1.5 text-xs text-slate-400">Must be at least 8 characters</p>
+              <p className="mt-1.5 text-xs text-slate-400">
+                Must be at least 8 characters
+              </p>
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Confirm Password
               </label>
               <input
@@ -225,13 +265,25 @@ function SignUp() {
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                   Creating account...
                 </span>
               ) : (
-                'Create Account'
+                "Create Account"
               )}
             </button>
           </form>
@@ -242,7 +294,9 @@ function SignUp() {
               <div className="w-full border-t border-white/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-transparent text-slate-400">or sign up with</span>
+              <span className="px-4 bg-transparent text-slate-400">
+                or sign up with
+              </span>
             </div>
           </div>
 
@@ -276,7 +330,7 @@ function SignUp() {
 
           {/* Sign In Link */}
           <p className="mt-8 text-center text-slate-400">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <Link
               to="/auth/signin"
               className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
@@ -292,8 +346,18 @@ function SignUp() {
             to="/"
             className="text-slate-400 hover:text-white text-sm font-medium transition-colors inline-flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
             </svg>
             Back to home
           </Link>
@@ -301,9 +365,10 @@ function SignUp() {
 
         {/* Footer */}
         <p className="text-center text-sm text-slate-500 mt-6">
-          By creating an account, you agree to our Terms of Service and Privacy Policy
+          By creating an account, you agree to our Terms of Service and Privacy
+          Policy
         </p>
       </div>
     </div>
-  )
+  );
 }

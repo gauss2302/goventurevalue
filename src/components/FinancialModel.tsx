@@ -67,15 +67,15 @@ export default function FinancialModel({
   ];
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-[var(--page)] min-h-screen">
       {/* Scenario & Tab Navigation */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-white border-b border-[var(--border-soft)] sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Scenario Selector */}
-          <div className="py-3 flex items-center justify-between border-b border-gray-100">
+          <div className="py-3 flex items-center justify-between border-b border-[#EDEDF7]">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-500">Scenario:</span>
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+              <span className="text-sm font-medium text-[var(--brand-muted)]">Scenario:</span>
+              <div className="flex gap-1 bg-[#F6F6FC] p-1 rounded-lg">
                 {(["conservative", "base", "optimistic"] as ScenarioType[]).map(
                   (sc) => (
                     <button
@@ -83,8 +83,8 @@ export default function FinancialModel({
                       onClick={() => onScenarioChange(sc)}
                       className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                         scenario === sc
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
+                          ? "bg-[var(--brand-primary)] text-white shadow-sm"
+                          : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[#EDEDF7]"
                       }`}
                     >
                       {sc.charAt(0).toUpperCase() + sc.slice(1)}
@@ -93,7 +93,7 @@ export default function FinancialModel({
                 )}
               </div>
             </div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-[var(--brand-muted)]">
               EY Finance Navigator methodology
             </div>
           </div>
@@ -106,8 +106,8 @@ export default function FinancialModel({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)] border border-[rgba(79,70,186,0.2)]"
+                    : "text-[var(--brand-muted)] hover:bg-[#F6F6FC]"
                 }`}
               >
                 <span>{tab.icon}</span>
@@ -152,8 +152,8 @@ export default function FinancialModel({
             </div>
 
             {/* Assumptions */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-900 mb-4">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-5">
+              <h3 className="font-semibold text-[var(--brand-ink)] mb-4">
                 Key Assumptions ({scenario.toUpperCase()} CASE)
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -191,56 +191,56 @@ export default function FinancialModel({
             </div>
 
             {/* P&L Summary Table */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="bg-gray-900 text-white px-5 py-3 font-semibold">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+              <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 5-Year P&L Summary
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-[var(--page)] border-b border-[var(--border-soft)]">
                     <tr>
-                      <th className="text-left px-5 py-3 font-medium text-gray-600">
+                      <th className="text-left px-5 py-3 font-medium text-[var(--brand-muted)]">
                         USD
                       </th>
                       {years.map((y) => (
                         <th
                           key={y}
-                          className="text-right px-4 py-3 font-medium text-gray-600"
+                          className="text-right px-4 py-3 font-medium text-[var(--brand-muted)]"
                         >
                           {y}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    <tr className="bg-emerald-50">
-                      <td className="px-5 py-3 font-medium text-emerald-800">
+                  <tbody className="divide-y divide-[#EDEDF7]">
+                    <tr className="bg-[rgba(79,70,186,0.12)]">
+                      <td className="px-5 py-3 font-medium text-[var(--brand-primary)]">
                         Total Revenue
                       </td>
                       {projections.map((p, i) => (
                         <td
                           key={i}
-                          className="text-right px-4 py-3 font-mono text-emerald-800"
+                          className="text-right px-4 py-3 font-mono text-[var(--brand-primary)]"
                         >
                           {fmt(p.totalRevenue)}
                         </td>
                       ))}
                     </tr>
                     <tr>
-                      <td className="px-5 py-3 text-gray-600">Gross Profit</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">Gross Profit</td>
                       {projections.map((p, i) => (
                         <td key={i} className="text-right px-4 py-3 font-mono">
                           {fmt(p.grossProfit)}
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-gray-50">
+                    <tr className="bg-[var(--page)]">
                       <td className="px-5 py-3 font-medium">EBITDA</td>
                       {projections.map((p, i) => (
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono font-medium ${
-                            p.ebitda >= 0 ? "text-green-600" : "text-red-600"
+                            p.ebitda >= 0 ? "text-[var(--brand-primary)]" : "text-red-600"
                           }`}
                         >
                           {p.ebitda >= 0
@@ -250,21 +250,21 @@ export default function FinancialModel({
                       ))}
                     </tr>
                     <tr>
-                      <td className="px-5 py-3 pl-8 text-gray-500 text-sm">
+                      <td className="px-5 py-3 pl-8 text-[var(--brand-muted)] text-sm">
                         → Margin
                       </td>
                       {projections.map((p, i) => (
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono text-sm ${
-                            p.ebitdaMargin >= 0 ? "text-green-600" : "text-red-600"
+                            p.ebitdaMargin >= 0 ? "text-[var(--brand-primary)]" : "text-red-600"
                           }`}
                         >
                           {p.ebitdaMargin}%
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-gray-900 text-white">
+                    <tr className="bg-[var(--brand-ink)] text-white">
                       <td className="px-5 py-3 font-semibold">Net Income</td>
                       {projections.map((p, i) => (
                         <td
@@ -313,51 +313,51 @@ export default function FinancialModel({
               />
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="bg-gray-900 text-white px-5 py-3 font-semibold">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+              <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 Market Penetration Trajectory
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-[var(--page)] border-b border-[var(--border-soft)]">
                     <tr>
-                      <th className="text-left px-5 py-3 font-medium text-gray-600">
+                      <th className="text-left px-5 py-3 font-medium text-[var(--brand-muted)]">
                         Metric
                       </th>
                       {years.map((y) => (
                         <th
                           key={y}
-                          className="text-right px-4 py-3 font-medium text-gray-600"
+                          className="text-right px-4 py-3 font-medium text-[var(--brand-muted)]"
                         >
                           {y}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-[#EDEDF7]">
                     <tr>
-                      <td className="px-5 py-3 text-gray-600">SOM Target</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">SOM Target</td>
                       {marketSizing.som.map((s, i) => (
                         <td key={i} className="text-right px-4 py-3 font-mono">
                           {fmt(s)}
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-emerald-50">
-                      <td className="px-5 py-3 font-medium text-emerald-800">
+                    <tr className="bg-[rgba(79,70,186,0.12)]">
+                      <td className="px-5 py-3 font-medium text-[var(--brand-primary)]">
                         Projected Revenue
                       </td>
                       {projections.map((p, i) => (
                         <td
                           key={i}
-                          className="text-right px-4 py-3 font-mono font-medium text-emerald-800"
+                          className="text-right px-4 py-3 font-mono font-medium text-[var(--brand-primary)]"
                         >
                           {fmt(p.totalRevenue)}
                         </td>
                       ))}
                     </tr>
                     <tr>
-                      <td className="px-5 py-3 text-gray-600">% of SAM</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">% of SAM</td>
                       {projections.map((p, i) => (
                         <td key={i} className="text-right px-4 py-3 font-mono">
                           {p.marketShare}%
@@ -365,7 +365,7 @@ export default function FinancialModel({
                       ))}
                     </tr>
                     <tr>
-                      <td className="px-5 py-3 text-gray-600">Total Users</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">Total Users</td>
                       {projections.map((p, i) => (
                         <td key={i} className="text-right px-4 py-3 font-mono">
                           {fmtNum(p.users)}
@@ -373,7 +373,7 @@ export default function FinancialModel({
                       ))}
                     </tr>
                     <tr>
-                      <td className="px-5 py-3 text-gray-600">Partner Farmers</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">Partner Farmers</td>
                       {projections.map((p, i) => (
                         <td key={i} className="text-right px-4 py-3 font-mono">
                           {fmtNum(p.farmers)}
@@ -389,21 +389,21 @@ export default function FinancialModel({
 
         {/* P&L Statement */}
         {activeTab === "pnl" && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="bg-gray-900 text-white px-5 py-3 font-semibold">
+          <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+            <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
               Profit & Loss Statement (USD)
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-[var(--page)] border-b border-[var(--border-soft)]">
                   <tr>
-                    <th className="text-left px-5 py-3 font-medium text-gray-600 sticky left-0 bg-gray-50">
+                    <th className="text-left px-5 py-3 font-medium text-[var(--brand-muted)] sticky left-0 bg-[var(--page)]">
                       Line Item
                     </th>
                     {years.map((y) => (
                       <th
                         key={y}
-                        className="text-right px-4 py-3 font-medium text-gray-600 min-w-[100px]"
+                        className="text-right px-4 py-3 font-medium text-[var(--brand-muted)] min-w-[100px]"
                       >
                         {y}
                       </th>
@@ -487,7 +487,7 @@ export default function FinancialModel({
                   />
 
                   {/* EBITDA */}
-                  <tr className="bg-gray-800 text-white">
+                  <tr className="bg-[#1E2133] text-white">
                     <td className="px-5 py-3 font-semibold">EBITDA</td>
                     {projections.map((p, i) => (
                       <td
@@ -516,7 +516,7 @@ export default function FinancialModel({
                     indent
                     negative
                   />
-                  <tr className="bg-gray-900 text-white">
+                  <tr className="bg-[var(--brand-ink)] text-white">
                     <td className="px-5 py-3 font-bold">NET INCOME</td>
                     {projections.map((p, i) => (
                       <td
@@ -540,21 +540,21 @@ export default function FinancialModel({
         {/* Cash Flow */}
         {activeTab === "cashflow" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="bg-gray-900 text-white px-5 py-3 font-semibold">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+              <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 Cash Flow Statement (USD)
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-[var(--page)] border-b border-[var(--border-soft)]">
                     <tr>
-                      <th className="text-left px-5 py-3 font-medium text-gray-600">
+                      <th className="text-left px-5 py-3 font-medium text-[var(--brand-muted)]">
                         Line Item
                       </th>
                       {years.map((y) => (
                         <th
                           key={y}
-                          className="text-right px-4 py-3 font-medium text-gray-600"
+                          className="text-right px-4 py-3 font-medium text-[var(--brand-muted)]"
                         >
                           {y}
                         </th>
@@ -595,7 +595,7 @@ export default function FinancialModel({
                       negative
                     />
 
-                    <tr className="bg-gray-800 text-white">
+                    <tr className="bg-[#1E2133] text-white">
                       <td className="px-5 py-3 font-bold">FREE CASH FLOW</td>
                       {projections.map((p, i) => (
                         <td
@@ -610,7 +610,7 @@ export default function FinancialModel({
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-gray-700 text-white">
+                    <tr className="bg-[#2B2E44] text-white">
                       <td className="px-5 py-3">Cumulative Cash</td>
                       {cumulativeCash.map((c, i) => (
                         <td
@@ -635,13 +635,13 @@ export default function FinancialModel({
               </h4>
               <div className="flex flex-wrap items-center gap-6">
                 <div>
-                  <span className="text-gray-600">Max cash deficit:</span>
+                  <span className="text-[var(--brand-muted)]">Max cash deficit:</span>
                   <span className="font-bold text-red-600 ml-2">
                     {fmt(Math.abs(maxNegative))}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-600">+ Safety buffer:</span>
+                  <span className="text-[var(--brand-muted)]">+ Safety buffer:</span>
                   <span className="font-bold ml-2">
                     {fmt(settings.safetyBuffer)}
                   </span>
@@ -682,33 +682,33 @@ export default function FinancialModel({
               />
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="bg-gray-900 text-white px-5 py-3 font-semibold">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+              <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 DCF Calculation
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-[var(--page)] border-b border-[var(--border-soft)]">
                     <tr>
-                      <th className="text-left px-5 py-3 font-medium text-gray-600">
+                      <th className="text-left px-5 py-3 font-medium text-[var(--brand-muted)]">
                         Component
                       </th>
                       {years.map((y) => (
                         <th
                           key={y}
-                          className="text-right px-4 py-3 font-medium text-gray-600"
+                          className="text-right px-4 py-3 font-medium text-[var(--brand-muted)]"
                         >
                           {y}
                         </th>
                       ))}
-                      <th className="text-right px-4 py-3 font-medium text-emerald-700 bg-emerald-50">
+                      <th className="text-right px-4 py-3 font-medium text-[var(--brand-primary)] bg-[rgba(79,70,186,0.12)]">
                         Terminal
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-[#EDEDF7]">
                     <tr>
-                      <td className="px-5 py-3 text-gray-600">Free Cash Flow</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">Free Cash Flow</td>
                       {projections.map((p, i) => (
                         <td
                           key={i}
@@ -721,12 +721,12 @@ export default function FinancialModel({
                             : `(${fmt(Math.abs(p.freeCashFlow))})`}
                         </td>
                       ))}
-                      <td className="text-right px-4 py-3 font-mono bg-emerald-50">
+                      <td className="text-right px-4 py-3 font-mono bg-[rgba(79,70,186,0.12)]">
                         {fmt(dcf.terminalValue)}
                       </td>
                     </tr>
                     <tr>
-                      <td className="px-5 py-3 text-gray-600">Discount Factor</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">Discount Factor</td>
                       {projections.map((_, i) => (
                         <td key={i} className="text-right px-4 py-3 font-mono">
                           {(
@@ -734,28 +734,28 @@ export default function FinancialModel({
                           ).toFixed(3)}
                         </td>
                       ))}
-                      <td className="text-right px-4 py-3 font-mono bg-emerald-50">
+                      <td className="text-right px-4 py-3 font-mono bg-[rgba(79,70,186,0.12)]">
                         {(
                           1 /
                           Math.pow(1 + settings.discountRate, projections.length)
                         ).toFixed(3)}
                       </td>
                     </tr>
-                    <tr className="bg-emerald-50">
-                      <td className="px-5 py-3 font-semibold text-emerald-800">
+                    <tr className="bg-[rgba(79,70,186,0.12)]">
+                      <td className="px-5 py-3 font-semibold text-[var(--brand-primary)]">
                         Present Value
                       </td>
                       {dcf.pvCashFlows.map((pv, i) => (
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono font-semibold ${
-                            pv >= 0 ? "text-emerald-800" : "text-red-600"
+                            pv >= 0 ? "text-[var(--brand-primary)]" : "text-red-600"
                           }`}
                         >
                           {pv >= 0 ? fmt(pv) : `(${fmt(Math.abs(pv))})`}
                         </td>
                       ))}
-                      <td className="text-right px-4 py-3 font-mono font-semibold text-emerald-800">
+                      <td className="text-right px-4 py-3 font-mono font-semibold text-[var(--brand-primary)]">
                         {fmt(dcf.pvTerminal)}
                       </td>
                     </tr>
@@ -860,7 +860,7 @@ function MetricCard({
   color: "emerald" | "blue" | "amber" | "green" | "red";
 }) {
   const colors = {
-    emerald: "bg-emerald-600",
+    emerald: "bg-[var(--brand-primary)]",
     blue: "bg-blue-600",
     amber: "bg-amber-600",
     green: "bg-green-600",
@@ -885,11 +885,11 @@ function AssumptionBox({
   unit: string;
 }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-      <span className="text-gray-500 text-xs block">{label}</span>
-      <span className="font-semibold text-gray-900">
+    <div className="bg-[var(--page)] rounded-lg p-3 border border-[var(--border-soft)]">
+      <span className="text-[var(--brand-muted)] text-xs block">{label}</span>
+      <span className="font-semibold text-[var(--brand-ink)]">
         {value}
-        <span className="text-gray-500 text-xs ml-1">{unit}</span>
+        <span className="text-[var(--brand-muted)] text-xs ml-1">{unit}</span>
       </span>
     </div>
   );
@@ -911,16 +911,16 @@ function MarketCard({
   const colors = {
     amber: "border-l-amber-500",
     orange: "border-l-orange-500",
-    emerald: "border-l-emerald-500",
+    emerald: "border-l-[var(--brand-primary)]",
   };
   return (
     <div
-      className={`bg-white rounded-xl border border-gray-200 border-l-4 ${colors[color]} p-5`}
+      className={`bg-white rounded-xl border border-[var(--border-soft)] border-l-4 ${colors[color]} p-5`}
     >
-      <p className="text-sm text-gray-500">{subtitle}</p>
-      <p className="text-xs font-medium text-gray-400 mb-2">{title}</p>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-sm text-gray-500 mt-2">{description}</p>
+      <p className="text-sm text-[var(--brand-muted)]">{subtitle}</p>
+      <p className="text-xs font-medium text-[var(--brand-muted)] mb-2">{title}</p>
+      <p className="text-2xl font-bold text-[var(--brand-ink)]">{value}</p>
+      <p className="text-sm text-[var(--brand-muted)] mt-2">{description}</p>
     </div>
   );
 }
@@ -938,17 +938,17 @@ function ValuationCard({
 }) {
   return (
     <div
-      className={`rounded-xl p-5 ${highlight ? "bg-emerald-600 text-white" : "bg-white border border-gray-200"}`}
+      className={`rounded-xl p-5 ${highlight ? "bg-[var(--brand-primary)] text-white" : "bg-white border border-[var(--border-soft)]"}`}
     >
-      <p className={`text-sm ${highlight ? "opacity-80" : "text-gray-500"}`}>
+      <p className={`text-sm ${highlight ? "opacity-80" : "text-[var(--brand-muted)]"}`}>
         {title}
       </p>
       <p
-        className={`text-2xl font-bold mt-1 ${highlight ? "" : "text-emerald-700"}`}
+        className={`text-2xl font-bold mt-1 ${highlight ? "" : "text-[var(--brand-primary)]"}`}
       >
         {value}
       </p>
-      <p className={`text-sm mt-1 ${highlight ? "opacity-70" : "text-gray-400"}`}>
+      <p className={`text-sm mt-1 ${highlight ? "opacity-70" : "text-[var(--brand-muted)]"}`}>
         {subtitle}
       </p>
     </div>
@@ -967,10 +967,10 @@ function KPICard({
   const colors = {
     purple: "bg-purple-600",
     blue: "bg-blue-600",
-    emerald: "bg-emerald-600",
+    emerald: "bg-[var(--brand-primary)]",
   };
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
       <div className={`${colors[color]} text-white px-5 py-3 font-semibold`}>
         {title}
       </div>
@@ -978,11 +978,11 @@ function KPICard({
         {items.map((item, i) => (
           <div
             key={i}
-            className="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0"
+            className="flex justify-between items-center pb-3 border-b border-[#EDEDF7] last:border-0"
           >
-            <span className="text-gray-600">{item.label}</span>
+            <span className="text-[var(--brand-muted)]">{item.label}</span>
             <span
-              className={`font-bold ${item.highlight ? "text-green-600" : "text-gray-900"}`}
+              className={`font-bold ${item.highlight ? "text-[var(--brand-primary)]" : "text-[var(--brand-ink)]"}`}
             >
               {item.value}
             </span>
@@ -1001,7 +1001,7 @@ function SectionHeader({
   color: "emerald" | "red" | "orange" | "blue" | "purple";
 }) {
   const colors = {
-    emerald: "bg-emerald-100 text-emerald-800",
+    emerald: "bg-[rgba(79,70,186,0.18)] text-[var(--brand-primary)]",
     red: "bg-red-100 text-red-800",
     orange: "bg-orange-100 text-orange-800",
     blue: "bg-blue-100 text-blue-800",
@@ -1028,8 +1028,8 @@ function DataRow({
   negative?: boolean;
 }) {
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50">
-      <td className={`px-5 py-2.5 text-gray-600 ${indent ? "pl-8" : ""}`}>
+    <tr className="border-b border-[#EDEDF7] hover:bg-[var(--page)]">
+      <td className={`px-5 py-2.5 text-[var(--brand-muted)] ${indent ? "pl-8" : ""}`}>
         {label}
       </td>
       {data.map((d, i) => (
@@ -1053,10 +1053,10 @@ function TotalRow({
   data: string[];
   color?: "emerald" | "blue";
 }) {
-  const bgColor = color === "emerald" ? "bg-emerald-50" : color === "blue" ? "bg-blue-50" : "bg-gray-50";
-  const textColor = color === "emerald" ? "text-emerald-800" : color === "blue" ? "text-blue-800" : "text-gray-900";
+  const bgColor = color === "emerald" ? "bg-[rgba(79,70,186,0.12)]" : color === "blue" ? "bg-blue-50" : "bg-[var(--page)]";
+  const textColor = color === "emerald" ? "text-[var(--brand-primary)]" : color === "blue" ? "text-blue-800" : "text-[var(--brand-ink)]";
   return (
-    <tr className={`${bgColor} border-b-2 border-gray-200`}>
+    <tr className={`${bgColor} border-b-2 border-[var(--border-soft)]`}>
       <td className={`px-5 py-3 font-semibold ${textColor}`}>{label}</td>
       {data.map((d, i) => (
         <td key={i} className={`text-right px-4 py-3 font-mono font-semibold ${textColor}`}>

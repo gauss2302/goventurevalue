@@ -1,55 +1,72 @@
 import { Link } from "@tanstack/react-router";
 import { Clock, ArrowRight } from "lucide-react";
 
-export function RecentActivity() {
-  const activities = [
-    {
-      id: 1,
-      action: "Edited model",
-      target: "SaaS Growth Plan 2026",
-      time: "2 hours ago",
-    },
-    {
-      id: 2,
-      action: "Created new scenario",
-      target: "Conservative Case",
-      time: "5 hours ago",
-    },
-    {
-      id: 3,
-      action: "Exported PDF",
-      target: "Q1 Investor Deck",
-      time: "1 day ago",
-    },
-    {
-      id: 4,
-      action: "Shared model",
-      target: "Series A Projections",
-      time: "2 days ago",
-    },
-  ];
+type ActivityItem = {
+  id: number;
+  action: string;
+  target: string;
+  at: string;
+};
+
+const formatRelativeTime = (date: Date) => {
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString();
+};
+
+export function RecentActivity({ activities }: { activities: ActivityItem[] }) {
+  if (activities.length === 0) {
+    return (
+      <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+        <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
+          Recent Activity
+        </h3>
+        <p className="text-sm text-[var(--brand-muted)]">
+          No recent updates yet. Create your first model to see activity here.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 h-full">
+    <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-bold text-white">Recent Activity</h3>
-        <Link to="/models" className="text-sm text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+        <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
+          Recent Activity
+        </h3>
+        <Link
+          to="/models"
+          className="text-sm text-[var(--brand-primary)] hover:text-[var(--brand-secondary)] flex items-center gap-1"
+        >
           View all <ArrowRight size={14} />
         </Link>
       </div>
       <div className="space-y-6">
-        {activities.map((activity, index) => (
-          <div key={activity.id} className="relative pl-6 pb-6 last:pb-0 border-l border-slate-700 last:border-0">
-            <div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-slate-800" />
+        {activities.map((activity) => (
+          <div
+            key={activity.id}
+            className="relative pl-6 pb-6 last:pb-0 border-l border-[#EDEDF7] last:border-0"
+          >
+            <div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-[var(--brand-primary)] ring-4 ring-white" />
             <div className="flex flex-col gap-1">
-              <p className="text-sm text-slate-300">
-                <span className="font-medium text-white">{activity.action}</span>
+              <p className="text-sm text-[var(--brand-muted)]">
+                <span className="font-semibold text-[var(--brand-ink)]">
+                  {activity.action}
+                </span>
                 {" - "}
-                <span className="text-emerald-400">{activity.target}</span>
+                <span className="text-[var(--brand-primary)]">
+                  {activity.target}
+                </span>
               </p>
-              <div className="flex items-center gap-1 text-xs text-slate-500">
+              <div className="flex items-center gap-1 text-xs text-[var(--brand-muted)]">
                 <Clock size={12} />
-                <span>{activity.time}</span>
+                <span>{formatRelativeTime(new Date(activity.at))}</span>
               </div>
             </div>
           </div>

@@ -17,17 +17,19 @@ type ModelListProps = {
 export default function ModelList({ models }: ModelListProps) {
   if (models.length === 0) {
     return (
-      <div className="text-center py-12 bg-slate-800/50 rounded-2xl border border-slate-700 backdrop-blur-sm">
-        <FileText className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-white mb-2">
+      <div className="text-center py-12 bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgba(79,70,186,0.12)]">
+          <FileText className="w-8 h-8 text-[var(--brand-primary)]" />
+        </div>
+        <h3 className="text-xl font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
           No financial models yet
         </h3>
-        <p className="text-slate-400 mb-6">
+        <p className="text-[var(--brand-muted)] mb-6">
           Create your first financial model to get started
         </p>
         <Link
           to="/models/new"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-colors shadow-lg shadow-emerald-500/20"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-xl transition-colors shadow-[0_12px_24px_rgba(79,70,186,0.25)]"
         >
           <Plus size={20} />
           Create New Model
@@ -39,10 +41,17 @@ export default function ModelList({ models }: ModelListProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Your Financial Models</h2>
+        <div>
+          <h2 className="text-2xl font-[var(--font-display)] text-[var(--brand-ink)]">
+            Your Financial Models
+          </h2>
+          <p className="text-sm text-[var(--brand-muted)]">
+            Track updates, scenarios, and latest revisions
+          </p>
+        </div>
         <Link
           to="/models/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-lg transition-colors shadow-[0_10px_20px_rgba(79,70,186,0.2)]"
         >
           <Plus size={18} />
           New Model
@@ -55,23 +64,28 @@ export default function ModelList({ models }: ModelListProps) {
             key={model.id}
             to="/models/$modelId"
             params={{ modelId: model.id.toString() }}
-            className="block p-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl hover:border-emerald-500/50 hover:bg-slate-800 hover:shadow-lg hover:shadow-emerald-500/10 transition-all group"
+            className="group block p-6 bg-white border border-[var(--border-soft)] rounded-2xl hover:border-[rgba(79,70,186,0.35)] hover:shadow-[0_10px_24px_rgba(79,70,186,0.12)] transition-all"
           >
-            <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+            <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-2 group-hover:text-[var(--brand-primary)] transition-colors">
               {model.name}
             </h3>
             {model.companyName && (
-              <p className="text-sm text-slate-400 mb-2">{model.companyName}</p>
+              <p className="text-sm text-[var(--brand-muted)] mb-2">
+                {model.companyName}
+              </p>
             )}
             {model.description && (
-              <p className="text-sm text-slate-500 mb-4 line-clamp-2">
+              <p className="text-sm text-[rgba(112,122,137,0.8)] mb-4 line-clamp-2">
                 {model.description}
               </p>
             )}
-            <div className="flex items-center gap-2 text-xs text-slate-600 mt-auto">
-              <Calendar size={14} />
-              <span>
+            <div className="flex items-center justify-between text-xs text-[var(--brand-muted)] mt-auto">
+              <span className="inline-flex items-center gap-2">
+                <Calendar size={14} />
                 Updated {new Date(model.updatedAt).toLocaleDateString()}
+              </span>
+              <span className="text-[var(--brand-primary)] font-medium">
+                Open
               </span>
             </div>
           </Link>

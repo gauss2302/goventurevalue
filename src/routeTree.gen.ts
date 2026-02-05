@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AssumptionsRouteImport } from './routes/assumptions'
+import { Route as AcademyRouteImport } from './routes/academy'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ModelsIndexRouteImport } from './routes/models/index'
 import { Route as ModelsNewRouteImport } from './routes/models/new'
@@ -17,11 +19,22 @@ import { Route as ModelsModelIdRouteImport } from './routes/models/$modelId'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as ModelsModelIdCompareRouteImport } from './routes/models/$modelId/compare'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssumptionsRoute = AssumptionsRouteImport.update({
+  id: '/assumptions',
+  path: '/assumptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcademyRoute = AcademyRouteImport.update({
+  id: '/academy',
+  path: '/academy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +72,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ModelsModelIdCompareRoute = ModelsModelIdCompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => ModelsModelIdRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -67,42 +85,53 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/academy': typeof AcademyRoute
+  '/assumptions': typeof AssumptionsRoute
   '/dashboard': typeof DashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/models/$modelId': typeof ModelsModelIdRoute
+  '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
   '/models': typeof ModelsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/academy': typeof AcademyRoute
+  '/assumptions': typeof AssumptionsRoute
   '/dashboard': typeof DashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/models/$modelId': typeof ModelsModelIdRoute
+  '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
   '/models': typeof ModelsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/academy': typeof AcademyRoute
+  '/assumptions': typeof AssumptionsRoute
   '/dashboard': typeof DashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/models/$modelId': typeof ModelsModelIdRoute
+  '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
   '/models/': typeof ModelsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/academy'
+    | '/assumptions'
     | '/dashboard'
     | '/auth/callback'
     | '/auth/signin'
@@ -111,9 +140,12 @@ export interface FileRouteTypes {
     | '/models/new'
     | '/models'
     | '/api/auth/$'
+    | '/models/$modelId/compare'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/academy'
+    | '/assumptions'
     | '/dashboard'
     | '/auth/callback'
     | '/auth/signin'
@@ -122,9 +154,12 @@ export interface FileRouteTypes {
     | '/models/new'
     | '/models'
     | '/api/auth/$'
+    | '/models/$modelId/compare'
   id:
     | '__root__'
     | '/'
+    | '/academy'
+    | '/assumptions'
     | '/dashboard'
     | '/auth/callback'
     | '/auth/signin'
@@ -133,15 +168,18 @@ export interface FileRouteTypes {
     | '/models/new'
     | '/models/'
     | '/api/auth/$'
+    | '/models/$modelId/compare'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcademyRoute: typeof AcademyRoute
+  AssumptionsRoute: typeof AssumptionsRoute
   DashboardRoute: typeof DashboardRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSigninRoute: typeof AuthSigninRoute
   AuthSignupRoute: typeof AuthSignupRoute
-  ModelsModelIdRoute: typeof ModelsModelIdRoute
+  ModelsModelIdRoute: typeof ModelsModelIdRouteWithChildren
   ModelsNewRoute: typeof ModelsNewRoute
   ModelsIndexRoute: typeof ModelsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -154,6 +192,20 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assumptions': {
+      id: '/assumptions'
+      path: '/assumptions'
+      fullPath: '/assumptions'
+      preLoaderRoute: typeof AssumptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/academy': {
+      id: '/academy'
+      path: '/academy'
+      fullPath: '/academy'
+      preLoaderRoute: typeof AcademyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -205,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/models/$modelId/compare': {
+      id: '/models/$modelId/compare'
+      path: '/compare'
+      fullPath: '/models/$modelId/compare'
+      preLoaderRoute: typeof ModelsModelIdCompareRouteImport
+      parentRoute: typeof ModelsModelIdRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -215,13 +274,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ModelsModelIdRouteChildren {
+  ModelsModelIdCompareRoute: typeof ModelsModelIdCompareRoute
+}
+
+const ModelsModelIdRouteChildren: ModelsModelIdRouteChildren = {
+  ModelsModelIdCompareRoute: ModelsModelIdCompareRoute,
+}
+
+const ModelsModelIdRouteWithChildren = ModelsModelIdRoute._addFileChildren(
+  ModelsModelIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcademyRoute: AcademyRoute,
+  AssumptionsRoute: AssumptionsRoute,
   DashboardRoute: DashboardRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSigninRoute: AuthSigninRoute,
   AuthSignupRoute: AuthSignupRoute,
-  ModelsModelIdRoute: ModelsModelIdRoute,
+  ModelsModelIdRoute: ModelsModelIdRouteWithChildren,
   ModelsNewRoute: ModelsNewRoute,
   ModelsIndexRoute: ModelsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

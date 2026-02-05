@@ -9,14 +9,12 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 
 import Header from "../components/Header";
-import { getServerSession } from "../lib/auth";
 
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -25,6 +23,13 @@ interface MyRouterContext {
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   beforeLoad: async () => {
+    if (!import.meta.env.SSR) {
+      return { isAuthenticated: false };
+    }
+
+    const { getRequestHeaders } = await import("@tanstack/react-start/server");
+    const { getServerSession } = await import("@/lib/auth/server");
+
     const headers = getRequestHeaders();
     const session = await getServerSession(headers);
     return { isAuthenticated: !!session?.user };
@@ -73,7 +78,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/auth/") ||
     (pathname === "/" && !isAuthenticated) ||
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/models");
+    pathname.startsWith("/models") ||
+    pathname.startsWith("/academy") ||
+    pathname.startsWith("/assumptions");
 
   return (
     <html lang="en">

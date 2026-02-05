@@ -23,6 +23,7 @@ export const session = pgTable(
     token: text('token').notNull().unique(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
     ipAddress: text('ip_address'),
@@ -52,6 +53,7 @@ export const account = pgTable(
     password: text('password'), // Password hash for email/password auth (providerId='credential')
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
@@ -120,10 +122,10 @@ export const modelScenarios = pgTable('model_scenarios', {
   id: serial().primaryKey(),
   modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'cascade' }).notNull(),
   scenarioType: scenarioTypeEnum('scenario_type').notNull(),
-  userGrowth: decimal('user_growth', { precision: 5, scale: 4 }).notNull(), // e.g., 0.25 for 25%
+  userGrowth: decimal('user_growth', { precision: 8, scale: 4 }).notNull(), // e.g., 0.25 for 25% or 25 for 25%
   arpu: decimal('arpu', { precision: 10, scale: 2 }).notNull(), // Average Revenue Per User
-  churnRate: decimal('churn_rate', { precision: 5, scale: 4 }).notNull(),
-  farmerGrowth: decimal('farmer_growth', { precision: 5, scale: 4 }).notNull(),
+  churnRate: decimal('churn_rate', { precision: 8, scale: 4 }).notNull(),
+  farmerGrowth: decimal('farmer_growth', { precision: 8, scale: 4 }).notNull(),
   cac: decimal('cac', { precision: 10, scale: 2 }).notNull(), // Customer Acquisition Cost
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -203,9 +205,9 @@ export const modelSettings = pgTable('model_settings', {
   startUsers: integer('start_users').default(1000).notNull(),
   startFarmers: integer('start_farmers').default(50).notNull(),
   // Tax and valuation
-  taxRate: decimal('tax_rate', { precision: 5, scale: 4 }).default('0.12').notNull(), // 12% default
-  discountRate: decimal('discount_rate', { precision: 5, scale: 4 }).default('0.30').notNull(), // 30% WACC
-  terminalGrowth: decimal('terminal_growth', { precision: 5, scale: 4 }).default('0.03').notNull(), // 3%
+  taxRate: decimal('tax_rate', { precision: 8, scale: 4 }).default('0.12').notNull(), // 12% default
+  discountRate: decimal('discount_rate', { precision: 8, scale: 4 }).default('0.30').notNull(), // 30% WACC
+  terminalGrowth: decimal('terminal_growth', { precision: 8, scale: 4 }).default('0.03').notNull(), // 3%
   // Funding
   safetyBuffer: integer('safety_buffer').default(50000).notNull(),
   // Personnel by year (JSON array)

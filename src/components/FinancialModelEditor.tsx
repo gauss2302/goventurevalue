@@ -98,10 +98,18 @@ export default function FinancialModelEditor({
           scenarioType,
           data: scenarioData,
         });
-        router.invalidate();
+        try {
+          await router.invalidate();
+        } catch (invalidateError) {
+          console.warn("Scenario saved, but failed to refresh data:", invalidateError);
+        }
       } catch (error) {
         console.error("Failed to save scenario:", error);
-        alert("Failed to save scenario. Please try again.");
+        const message =
+          (error as any)?.message ||
+          (error as any)?.data?.message ||
+          "Failed to save scenario. Please try again.";
+        alert(message);
       } finally {
         setSavingScenario(false);
       }
@@ -117,10 +125,18 @@ export default function FinancialModelEditor({
         modelId,
         data: settings,
       });
-      router.invalidate();
+      try {
+        await router.invalidate();
+      } catch (invalidateError) {
+        console.warn("Settings saved, but failed to refresh data:", invalidateError);
+      }
     } catch (error) {
       console.error("Failed to save settings:", error);
-      alert("Failed to save settings. Please try again.");
+      const message =
+        (error as any)?.message ||
+        (error as any)?.data?.message ||
+        "Failed to save settings. Please try again.";
+      alert(message);
     } finally {
       setSavingSettings(false);
     }
@@ -134,10 +150,18 @@ export default function FinancialModelEditor({
         modelId,
         data: market,
       });
-      router.invalidate();
+      try {
+        await router.invalidate();
+      } catch (invalidateError) {
+        console.warn("Market sizing saved, but failed to refresh data:", invalidateError);
+      }
     } catch (error) {
       console.error("Failed to save market sizing:", error);
-      alert("Failed to save market sizing. Please try again.");
+      const message =
+        (error as any)?.message ||
+        (error as any)?.data?.message ||
+        "Failed to save market sizing. Please try again.";
+      alert(message);
     } finally {
       setSavingMarket(false);
     }
@@ -194,9 +218,9 @@ export default function FinancialModelEditor({
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--page)]">
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+      <div className="bg-white border-b border-[var(--border-soft)] sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex gap-1 py-3 overflow-x-auto">
             {tabs.map((tab) => (
@@ -205,8 +229,8 @@ export default function FinancialModelEditor({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)] border border-[rgba(79,70,186,0.2)]"
+                    : "text-[var(--brand-muted)] hover:bg-[#F6F6FC]"
                 }`}
               >
                 <span>{tab.icon}</span>
@@ -221,8 +245,8 @@ export default function FinancialModelEditor({
         {/* Scenarios Tab */}
         {activeTab === "scenarios" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
                 Параметры сценариев
               </h2>
 
@@ -235,8 +259,8 @@ export default function FinancialModelEditor({
                       onClick={() => setActiveScenarioTab(sc)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         activeScenarioTab === sc
-                          ? "bg-emerald-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-[var(--brand-primary)] text-white"
+                          : "bg-[#F6F6FC] text-[var(--brand-muted)] hover:bg-[#EDEDF7]"
                       }`}
                     >
                       {sc === "conservative"
@@ -252,7 +276,7 @@ export default function FinancialModelEditor({
               {/* Scenario Form */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     User Growth (% в год)
                   </label>
                   <input
@@ -268,12 +292,12 @@ export default function FinancialModelEditor({
                         parseFloat(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     ARPU ($/месяц)
                   </label>
                   <input
@@ -288,12 +312,12 @@ export default function FinancialModelEditor({
                         parseFloat(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Churn Rate (% в месяц)
                   </label>
                   <input
@@ -309,12 +333,12 @@ export default function FinancialModelEditor({
                         parseFloat(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Farmer Growth (% в год)
                   </label>
                   <input
@@ -330,12 +354,12 @@ export default function FinancialModelEditor({
                         parseFloat(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     CAC ($ на пользователя)
                   </label>
                   <input
@@ -350,7 +374,7 @@ export default function FinancialModelEditor({
                         parseFloat(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -359,7 +383,7 @@ export default function FinancialModelEditor({
                 <button
                   onClick={() => handleSaveScenario(activeScenarioTab)}
                   disabled={savingScenario}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingScenario ? "Сохранение..." : "Сохранить сценарий"}
                 </button>
@@ -371,14 +395,14 @@ export default function FinancialModelEditor({
         {/* Settings Tab */}
         {activeTab === "settings" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
                 Настройки модели
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Начальное количество пользователей
                   </label>
                   <input
@@ -388,12 +412,12 @@ export default function FinancialModelEditor({
                     onChange={(e) =>
                       updateSettingsField("startUsers", parseInt(e.target.value) || 0)
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Начальное количество фермеров
                   </label>
                   <input
@@ -406,12 +430,12 @@ export default function FinancialModelEditor({
                         parseInt(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Налоговая ставка (%)
                   </label>
                   <input
@@ -423,12 +447,12 @@ export default function FinancialModelEditor({
                     onChange={(e) =>
                       updateSettingsField("taxRate", parseFloat(e.target.value) || 0)
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Ставка дисконтирования (WACC %)
                   </label>
                   <input
@@ -443,12 +467,12 @@ export default function FinancialModelEditor({
                         parseFloat(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Терминальный рост (%)
                   </label>
                   <input
@@ -463,12 +487,12 @@ export default function FinancialModelEditor({
                         parseFloat(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     Буфер безопасности ($)
                   </label>
                   <input
@@ -481,27 +505,27 @@ export default function FinancialModelEditor({
                         parseInt(e.target.value) || 0
                       )
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Arrays by Year */}
               <div className="mt-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-4">
                   Значения по годам
                 </h3>
 
                 <div className="space-y-6">
                   {/* Personnel by Year */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                       Персонал по годам ($)
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.personnelByYear.map((value, index) => (
                         <div key={index}>
-                          <label className="block text-xs text-gray-500 mb-1">
+                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
                             Год {index + 1}
                           </label>
                           <input
@@ -513,7 +537,7 @@ export default function FinancialModelEditor({
                               newArray[index] = parseInt(e.target.value) || 0;
                               updateSettingsField("personnelByYear", newArray);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
                           />
                         </div>
                       ))}
@@ -522,13 +546,13 @@ export default function FinancialModelEditor({
 
                   {/* Employees by Year */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                       Количество сотрудников по годам
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.employeesByYear.map((value, index) => (
                         <div key={index}>
-                          <label className="block text-xs text-gray-500 mb-1">
+                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
                             Год {index + 1}
                           </label>
                           <input
@@ -540,7 +564,7 @@ export default function FinancialModelEditor({
                               newArray[index] = parseInt(e.target.value) || 0;
                               updateSettingsField("employeesByYear", newArray);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
                           />
                         </div>
                       ))}
@@ -549,13 +573,13 @@ export default function FinancialModelEditor({
 
                   {/* CAPEX by Year */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                       CAPEX по годам ($)
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.capexByYear.map((value, index) => (
                         <div key={index}>
-                          <label className="block text-xs text-gray-500 mb-1">
+                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
                             Год {index + 1}
                           </label>
                           <input
@@ -567,7 +591,7 @@ export default function FinancialModelEditor({
                               newArray[index] = parseInt(e.target.value) || 0;
                               updateSettingsField("capexByYear", newArray);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
                           />
                         </div>
                       ))}
@@ -576,13 +600,13 @@ export default function FinancialModelEditor({
 
                   {/* Depreciation by Year */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                       Амортизация по годам ($)
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.depreciationByYear.map((value, index) => (
                         <div key={index}>
-                          <label className="block text-xs text-gray-500 mb-1">
+                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
                             Год {index + 1}
                           </label>
                           <input
@@ -594,7 +618,7 @@ export default function FinancialModelEditor({
                               newArray[index] = parseInt(e.target.value) || 0;
                               updateSettingsField("depreciationByYear", newArray);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
                           />
                         </div>
                       ))}
@@ -607,7 +631,7 @@ export default function FinancialModelEditor({
                 <button
                   onClick={handleSaveSettings}
                   disabled={savingSettings}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingSettings ? "Сохранение..." : "Сохранить настройки"}
                 </button>
@@ -619,14 +643,14 @@ export default function FinancialModelEditor({
         {/* Market Tab */}
         {activeTab === "market" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
                 Размер рынка
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     TAM - Total Available Market ($)
                   </label>
                   <input
@@ -636,12 +660,12 @@ export default function FinancialModelEditor({
                     onChange={(e) =>
                       updateMarketField("tam", parseInt(e.target.value) || 0)
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                     SAM - Serviceable Available Market ($)
                   </label>
                   <input
@@ -651,19 +675,19 @@ export default function FinancialModelEditor({
                     onChange={(e) =>
                       updateMarketField("sam", parseInt(e.target.value) || 0)
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
                   />
                 </div>
               </div>
 
               <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
                   SOM - Serviceable Obtainable Market по годам ($)
                 </label>
                 <div className="grid grid-cols-5 gap-2">
                   {market.som.map((value, index) => (
                     <div key={index}>
-                      <label className="block text-xs text-gray-500 mb-1">
+                      <label className="block text-xs text-[var(--brand-muted)] mb-1">
                         Год {index + 1}
                       </label>
                       <input
@@ -675,7 +699,7 @@ export default function FinancialModelEditor({
                           newArray[index] = parseInt(e.target.value) || 0;
                           updateMarketField("som", newArray);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
                       />
                     </div>
                   ))}
@@ -686,7 +710,7 @@ export default function FinancialModelEditor({
                 <button
                   onClick={handleSaveMarket}
                   disabled={savingMarket}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingMarket ? "Сохранение..." : "Сохранить размер рынка"}
                 </button>
@@ -699,12 +723,12 @@ export default function FinancialModelEditor({
         {activeTab === "results" && (
           <div>
             {/* Scenario Selector */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-4 mb-6">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-500">
+                <span className="text-sm font-medium text-[var(--brand-muted)]">
                   Сценарий:
                 </span>
-                <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                <div className="flex gap-1 bg-[#F6F6FC] p-1 rounded-lg">
                   {(["conservative", "base", "optimistic"] as ScenarioType[]).map(
                     (sc) => (
                       <button
@@ -712,8 +736,8 @@ export default function FinancialModelEditor({
                         onClick={() => setScenario(sc)}
                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                           scenario === sc
-                            ? "bg-emerald-600 text-white shadow-sm"
-                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
+                            ? "bg-[var(--brand-primary)] text-white shadow-sm"
+                            : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[#EDEDF7]"
                         }`}
                       >
                         {sc === "conservative"

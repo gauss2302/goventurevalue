@@ -1,19 +1,9 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createServerFn, useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
-import { db } from "@/db/index";
-import {
-  financialModels,
-  modelScenarios,
-  marketSizing,
-  modelSettings,
-} from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { getServerSession } from "@/lib/auth";
 import { DEFAULT_SETTINGS, DEFAULT_MARKET_SIZING } from "@/lib/calculations";
 import FinancialModelEditor from "@/components/FinancialModelEditor";
-import { useServerFn } from "@tanstack/react-start";
+import { Sidebar } from "@/components/Sidebar";
 import type {
   ScenarioType,
   UpdateScenarioDto,
@@ -42,6 +32,93 @@ type LoaderData = {
   settings: ModelSettings | null;
 };
 
+const loadModelDetail = createServerFn({ method: "GET" })
+  .inputValidator((data: { modelId: number }) => data)
+  .handler(async ({ data }) => {
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/requireAuth"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
+
+    const { financialModels, modelScenarios, marketSizing, modelSettings } =
+      schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
+
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    const scenariosData = await db.query.modelScenarios.findMany({
+      where: eq(modelScenarios.modelId, data.modelId),
+    });
+
+    const marketData = await db.query.marketSizing.findFirst({
+      where: eq(marketSizing.modelId, data.modelId),
+    });
+
+    const settingsData = await db.query.modelSettings.findFirst({
+      where: eq(modelSettings.modelId, data.modelId),
+    });
+
+    return {
+      model: {
+        id: model.id,
+        name: model.name,
+        companyName: model.companyName,
+        description: model.description,
+        currency: model.currency,
+      },
+      scenarios: scenariosData.map((s) => ({
+        scenarioType: s.scenarioType,
+        userGrowth: s.userGrowth,
+        arpu: s.arpu,
+        churnRate: s.churnRate,
+        farmerGrowth: s.farmerGrowth,
+        cac: s.cac,
+      })),
+      market: marketData
+        ? {
+            tam: marketData.tam,
+            sam: marketData.sam,
+            som: marketData.som,
+          }
+        : null,
+      settings: settingsData
+        ? {
+            startUsers: settingsData.startUsers,
+            startFarmers: settingsData.startFarmers,
+            taxRate: parseFloat(settingsData.taxRate),
+            discountRate: parseFloat(settingsData.discountRate),
+            terminalGrowth: parseFloat(settingsData.terminalGrowth),
+            safetyBuffer: settingsData.safetyBuffer,
+            personnelByYear: settingsData.personnelByYear,
+            employeesByYear: settingsData.employeesByYear,
+            capexByYear: settingsData.capexByYear,
+            depreciationByYear: settingsData.depreciationByYear,
+            projectionYears: settingsData.projectionYears,
+          }
+        : null,
+    } satisfies LoaderData;
+  });
+
 // Server functions for updating model data
 const updateScenario = createServerFn({ method: "POST" })
   .inputValidator(
@@ -52,12 +129,24 @@ const updateScenario = createServerFn({ method: "POST" })
     }) => data
   )
   .handler(async ({ data }) => {
-    const headers = getRequestHeaders();
-    const session = await getServerSession(headers);
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/requireAuth"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
 
-    if (!session?.user) {
-      throw new Error("Unauthorized");
-    }
+    const { financialModels, modelScenarios } = schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
 
     // Verify model ownership
     const model = await db.query.financialModels.findFirst({
@@ -109,12 +198,24 @@ const updateScenario = createServerFn({ method: "POST" })
 const updateSettings = createServerFn({ method: "POST" })
   .inputValidator((data: { modelId: number; data: UpdateSettingsDto }) => data)
   .handler(async ({ data }) => {
-    const headers = getRequestHeaders();
-    const session = await getServerSession(headers);
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/requireAuth"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
 
-    if (!session?.user) {
-      throw new Error("Unauthorized");
-    }
+    const { financialModels, modelSettings } = schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
 
     // Verify model ownership
     const model = await db.query.financialModels.findFirst({
@@ -178,12 +279,24 @@ const updateSettings = createServerFn({ method: "POST" })
 const updateMarketSizing = createServerFn({ method: "POST" })
   .inputValidator((data: { modelId: number; data: MarketSizingDto }) => data)
   .handler(async ({ data }) => {
-    const headers = getRequestHeaders();
-    const session = await getServerSession(headers);
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/requireAuth"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
 
-    if (!session?.user) {
-      throw new Error("Unauthorized");
-    }
+    const { financialModels, marketSizing } = schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
 
     // Verify model ownership
     const model = await db.query.financialModels.findFirst({
@@ -227,77 +340,12 @@ const updateMarketSizing = createServerFn({ method: "POST" })
 export const Route = createFileRoute("/models/$modelId")({
   component: ModelDetail,
   // @ts-expect-error - Types will be correct after router regeneration
-  loader: async ({ params, request }) => {
-    const headers = request?.headers || new Headers();
-    const session = await getServerSession(headers as Headers);
-
-    if (!session?.user) {
-      throw new Error("Unauthorized");
-    }
+  loader: async ({ params, location }) => {
+    const { requireAuthForLoader } = await import("@/lib/auth/requireAuth");
+    await requireAuthForLoader(location);
 
     const modelId = parseInt((params as { modelId: string }).modelId);
-    const model = await db.query.financialModels.findFirst({
-      where: and(
-        eq(financialModels.id, modelId),
-        eq(financialModels.userId, session.user.id)
-      ),
-    });
-
-    if (!model) {
-      throw new Error("Model not found");
-    }
-
-    const scenariosData = await db.query.modelScenarios.findMany({
-      where: eq(modelScenarios.modelId, modelId),
-    });
-
-    const marketData = await db.query.marketSizing.findFirst({
-      where: eq(marketSizing.modelId, modelId),
-    });
-
-    const settingsData = await db.query.modelSettings.findFirst({
-      where: eq(modelSettings.modelId, modelId),
-    });
-
-    return {
-      model: {
-        id: model.id,
-        name: model.name,
-        companyName: model.companyName,
-        description: model.description,
-        currency: model.currency,
-      },
-      scenarios: scenariosData.map((s) => ({
-        scenarioType: s.scenarioType,
-        userGrowth: s.userGrowth,
-        arpu: s.arpu,
-        churnRate: s.churnRate,
-        farmerGrowth: s.farmerGrowth,
-        cac: s.cac,
-      })),
-      market: marketData
-        ? {
-            tam: marketData.tam,
-            sam: marketData.sam,
-            som: marketData.som,
-          }
-        : null,
-      settings: settingsData
-        ? {
-            startUsers: settingsData.startUsers,
-            startFarmers: settingsData.startFarmers,
-            taxRate: parseFloat(settingsData.taxRate),
-            discountRate: parseFloat(settingsData.discountRate),
-            terminalGrowth: parseFloat(settingsData.terminalGrowth),
-            safetyBuffer: settingsData.safetyBuffer,
-            personnelByYear: settingsData.personnelByYear,
-            employeesByYear: settingsData.employeesByYear,
-            capexByYear: settingsData.capexByYear,
-            depreciationByYear: settingsData.depreciationByYear,
-            projectionYears: settingsData.projectionYears,
-          }
-        : null,
-    } satisfies LoaderData;
+    return loadModelDetail({ data: { modelId } });
   },
 });
 
@@ -321,57 +369,73 @@ function ModelDetail() {
   const updateMarketSizingFn = useServerFn(updateMarketSizing);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div>
-          <button
-            onClick={() => router.navigate({ to: "/" })}
-            className="text-emerald-600 hover:text-emerald-800 text-sm font-medium flex items-center gap-1 mb-2"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
+      <Sidebar />
+      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
+        <div className="bg-white border-b border-[var(--border-soft)] px-6 py-4 flex items-center justify-between shadow-sm">
+          <div>
+            <button
+              onClick={() => router.navigate({ to: "/models" })}
+              className="text-[var(--brand-primary)] hover:text-[var(--brand-secondary)] text-sm font-medium flex items-center gap-1 mb-2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to Models
-          </button>
-          <h2 className="text-2xl font-bold text-gray-900">{model.name}</h2>
-          {model.companyName && (
-            <p className="text-sm text-gray-600 mt-1">{model.companyName}</p>
-          )}
-        </div>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back to Models
+            </button>
+            <h2 className="text-2xl font-[var(--font-display)] text-[var(--brand-ink)]">
+              {model.name}
+            </h2>
+            {model.companyName && (
+              <p className="text-sm text-[var(--brand-muted)] mt-1">
+                {model.companyName}
+              </p>
+            )}
+          </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-[var(--brand-muted)]">
             Currency: {model.currency}
           </span>
+          <Link
+            to="/models/$modelId/compare"
+            params={{ modelId: model.id.toString() }}
+            className="px-4 py-2 rounded-full border border-[var(--border-soft)] text-xs text-[var(--brand-muted)] hover:text-[var(--brand-primary)]"
+          >
+            Compare scenarios
+          </Link>
         </div>
       </div>
-      <FinancialModelEditor
-        modelId={model.id}
-        initialScenarios={scenarios}
-        initialSettings={settings}
-        initialMarket={marketSizingData}
-        updateScenarioFn={async (data) => {
-          const result = await updateScenarioFn({ data });
-          return result;
-        }}
-        updateSettingsFn={async (data) => {
-          const result = await updateSettingsFn({ data });
-          return result;
-        }}
-        updateMarketSizingFn={async (data) => {
-          const result = await updateMarketSizingFn({ data });
-          return result;
-        }}
-      />
+        <div className="px-4 py-6">
+          <FinancialModelEditor
+            modelId={model.id}
+            initialScenarios={scenarios}
+            initialSettings={settings}
+            initialMarket={marketSizingData}
+            updateScenarioFn={async (data) => {
+              const result = await updateScenarioFn({ data });
+              return result;
+            }}
+            updateSettingsFn={async (data) => {
+              const result = await updateSettingsFn({ data });
+              return result;
+            }}
+            updateMarketSizingFn={async (data) => {
+              const result = await updateMarketSizingFn({ data });
+              return result;
+            }}
+          />
+        </div>
+      </main>
     </div>
   );
 }

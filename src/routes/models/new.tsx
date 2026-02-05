@@ -1,12 +1,9 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { useState } from "react";
-import { db } from "@/db/index";
-import { financialModels, modelScenarios, marketSizing, modelSettings } from "@/db/schema";
-import { getServerSession } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/calculations";
 import type { CreateModelDto } from "@/lib/dto";
+import { Sidebar } from "@/components/Sidebar";
 
 const createModel = createServerFn({
   method: "POST",
@@ -19,14 +16,19 @@ const createModel = createServerFn({
     return data;
   })
   .handler(async ({ data }) => {
-    const headers = getRequestHeaders();
-    const session = await getServerSession(headers);
-    if (!session?.user) {
-      throw new Error("Unauthorized");
-    }
+    const [{ getRequestHeaders }, { requireAuthFromHeaders }, { db }, schema] =
+      await Promise.all([
+        import("@tanstack/react-start/server"),
+        import("@/lib/auth/requireAuth"),
+        import("@/db/index"),
+        import("@/db/schema"),
+      ]);
 
-    // Prevent creation of new financial models
-    throw new Error("Creating new financial models is currently disabled");
+    const { financialModels, modelScenarios, marketSizing, modelSettings } =
+      schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
 
     // Create model
     const [model] = await db
@@ -114,6 +116,11 @@ const createModel = createServerFn({
   });
 
 export const Route = createFileRoute("/models/new")({
+  loader: async ({ location }) => {
+    const { requireAuthForLoader } = await import("@/lib/auth/requireAuth");
+    await requireAuthForLoader(location);
+    return null;
+  },
   component: NewModel,
 });
 
@@ -174,91 +181,133 @@ function NewModel() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-2xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">
-          Create New Financial Model
-        </h1>
+    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
+      <Sidebar />
+      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
+        <div className="relative px-6 py-10 lg:px-10 max-w-[1100px] mx-auto">
+          <div className="pointer-events-none absolute -top-20 right-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.15),transparent_70%)]" />
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-lg shadow p-6 space-y-6"
-        >
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div>
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
+                  New Model
+                </p>
+                <h1 className="text-3xl font-[var(--font-display)] mb-2">
+                  Create New Financial Model
+                </h1>
+                <p className="text-[var(--brand-muted)]">
+                  Start with a clean template and refine assumptions in minutes.
+                </p>
+              </div>
+
+              <form
+                onSubmit={handleSubmit}
+                className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_4px_16px_rgba(17,24,39,0.06)] p-6 space-y-6"
+              >
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                    {error}
+                  </div>
+                )}
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-[var(--brand-muted)] mb-2"
+                  >
+                    Model Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-xl focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+                    placeholder="e.g., Q1 2025 Financial Model"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="companyName"
+                    className="block text-sm font-medium text-[var(--brand-muted)] mb-2"
+                  >
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    id="companyName"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-xl focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+                    placeholder="e.g., AgroGame Inc."
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="description"
+                    className="block text-sm font-medium text-[var(--brand-muted)] mb-2"
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-xl focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+                    placeholder="Optional description of your financial model..."
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? "Creating..." : "Create Model"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.navigate({ to: "/models" })}
+                    className="px-6 py-3 bg-[#F6F6FC] hover:bg-[#EDEDF7] text-[var(--brand-ink)] font-semibold rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
-          )}
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Model Name *
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="e.g., Q1 2025 Financial Model"
-            />
-          </div>
 
-          <div>
-            <label
-              htmlFor="companyName"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Company Name
-            </label>
-            <input
-              type="text"
-              id="companyName"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="e.g., AgroGame Inc."
-            />
+            <aside className="space-y-6">
+              <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
+                  What you get
+                </p>
+                <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mt-2">
+                  Investor-ready output
+                </h3>
+                <ul className="mt-4 text-sm text-[var(--brand-muted)] space-y-3">
+                  <li>• Auto-built base, optimistic, and conservative scenarios</li>
+                  <li>• Built-in DCF valuation, exports, and charts</li>
+                  <li>• Editable assumptions with version history</li>
+                </ul>
+              </div>
+              <div className="bg-[linear-gradient(135deg,rgba(79,70,186,0.12),rgba(132,232,244,0.18))] rounded-2xl p-6">
+                <p className="text-sm font-semibold text-[var(--brand-ink)]">
+                  Tip
+                </p>
+                <p className="text-sm text-[var(--brand-muted)] mt-2">
+                  Use a clear naming convention like “2026 Seed Plan” to keep
+                  versions organized.
+                </p>
+              </div>
+            </aside>
           </div>
-
-          <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Description
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="Optional description of your financial model..."
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Creating..." : "Create Model"}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.navigate({ to: "/" })}
-              className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

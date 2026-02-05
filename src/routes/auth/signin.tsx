@@ -1,10 +1,24 @@
 import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { authClient, useSessionWithMock } from "@/lib/auth";
+import { authClient, useSessionWithMock } from "@/lib/auth/client";
 
 export const Route = createFileRoute("/auth/signin")({
   component: SignIn,
 });
+
+const getSafeNextPath = (value: string | null) => {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//")) return null;
+  if (value.includes("://")) return null;
+  if (value.startsWith("/auth")) return null;
+  return value;
+};
+
+const getNextFromLocation = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return getSafeNextPath(urlParams.get("next"));
+};
 
 function SignIn() {
   const router = useRouter();
@@ -18,7 +32,8 @@ function SignIn() {
   // Redirect if already signed in
   useEffect(() => {
     if (session) {
-      router.navigate({ to: "/" });
+      const next = getNextFromLocation();
+      router.navigate({ to: next || "/dashboard" });
     }
   }, [session, router]);
 
@@ -47,7 +62,8 @@ function SignIn() {
       if (result.error) {
         setError(result.error.message || "Invalid email or password");
       } else {
-        router.navigate({ to: "/" });
+        const next = getNextFromLocation();
+        router.navigate({ to: next || "/dashboard" });
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -61,9 +77,10 @@ function SignIn() {
     setIsGoogleLoading(true);
 
     try {
+      const next = getNextFromLocation() || "/dashboard";
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/dashboard",
+        callbackURL: next,
         errorCallbackURL: "/auth/signin?error=google_auth_failed",
       });
 

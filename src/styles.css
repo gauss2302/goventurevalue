@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap');
+
 @import 'tailwindcss';
 
 @import 'tw-animate-css';
@@ -6,9 +8,7 @@
 
 body {
   @apply m-0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -19,6 +19,20 @@ code {
 }
 
 :root {
+  --font-sans: "Manrope", "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --brand-primary: #4f46ba;
+  --brand-secondary: #f9896b;
+  --brand-accent: #fdbc64;
+  --brand-ice: #84e8f4;
+  --brand-ink: #1c1e2f;
+  --brand-muted: #707a89;
+  --page: #fafafa;
+  --surface: #ffffff;
+  --border-soft: #e2e2e2;
+  --sidebar-expanded-width: 18rem;
+  --sidebar-collapsed-width: 5rem;
+  --sidebar-width: var(--sidebar-expanded-width);
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);

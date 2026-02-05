@@ -1,41 +1,65 @@
 import { Link } from "@tanstack/react-router";
-import { Plus, Upload, PlayCircle } from "lucide-react";
+import { Plus, Upload, Sparkles } from "lucide-react";
 
 export function QuickActions() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Link
         to="/models/new"
-        className="group flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-1"
+        className="group relative overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-white px-5 py-4 shadow-[0_6px_18px_rgba(79,70,186,0.08)] transition-all hover:-translate-y-1"
       >
-        <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
-          <Plus size={20} />
-        </div>
-        <div className="text-left">
-          <span className="block font-bold text-sm">New Model</span>
-          <span className="block text-xs opacity-90">Start from scratch</span>
+        <div className="absolute -right-6 -top-10 h-20 w-20 rounded-full bg-[rgba(79,70,186,0.12)] blur-2xl" />
+        <div className="relative flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-[var(--brand-primary)] text-white flex items-center justify-center shadow-[0_10px_20px_rgba(79,70,186,0.25)]">
+            <Plus size={20} />
+          </div>
+          <div>
+            <span className="block text-sm font-semibold text-[var(--brand-ink)]">
+              New Model
+            </span>
+            <span className="block text-xs text-[var(--brand-muted)]">
+              Start from a clean slate
+            </span>
+          </div>
         </div>
       </Link>
 
-      <button className="group flex items-center justify-center gap-3 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-white rounded-xl transition-all hover:-translate-y-1">
-        <div className="p-2 bg-slate-700 rounded-lg group-hover:bg-slate-600 transition-colors">
-          <Upload size={20} className="text-blue-400" />
-        </div>
-        <div className="text-left">
-          <span className="block font-bold text-sm">Import Data</span>
-          <span className="block text-xs text-slate-400">CSV or Excel</span>
+      <button className="group relative overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-white px-5 py-4 shadow-[0_6px_18px_rgba(36,88,255,0.08)] transition-all hover:-translate-y-1">
+        <div className="absolute -right-6 -top-10 h-20 w-20 rounded-full bg-[rgba(36,88,255,0.12)] blur-2xl" />
+        <div className="relative flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-[rgba(36,88,255,0.12)] text-[#2458FF] flex items-center justify-center">
+            <Upload size={20} />
+          </div>
+          <div>
+            <span className="block text-sm font-semibold text-[var(--brand-ink)]">
+              Import Data
+            </span>
+            <span className="block text-xs text-[var(--brand-muted)]">
+              CSV or spreadsheet upload
+            </span>
+          </div>
         </div>
       </button>
 
-      <button className="group flex items-center justify-center gap-3 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-white rounded-xl transition-all hover:-translate-y-1">
-        <div className="p-2 bg-slate-700 rounded-lg group-hover:bg-slate-600 transition-colors">
-          <PlayCircle size={20} className="text-purple-400" />
+      <Link
+        to="/academy"
+        className="group relative overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-white px-5 py-4 shadow-[0_6px_18px_rgba(249,137,107,0.08)] transition-all hover:-translate-y-1"
+      >
+        <div className="absolute -right-6 -top-10 h-20 w-20 rounded-full bg-[rgba(249,137,107,0.15)] blur-2xl" />
+        <div className="relative flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-[rgba(249,137,107,0.18)] text-[var(--brand-secondary)] flex items-center justify-center">
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <span className="block text-sm font-semibold text-[var(--brand-ink)]">
+              Guided Walkthrough
+            </span>
+            <span className="block text-xs text-[var(--brand-muted)]">
+              See a valuation in minutes
+            </span>
+          </div>
         </div>
-        <div className="text-left">
-          <span className="block font-bold text-sm">Watch Tutorial</span>
-          <span className="block text-xs text-slate-400">Learn the basics</span>
-        </div>
-      </button>
+      </Link>
     </div>
   );
 }

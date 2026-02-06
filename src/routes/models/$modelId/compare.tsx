@@ -160,7 +160,7 @@ function ScenarioComparePage() {
           </header>
 
           <div className="bg-white border border-[var(--border-soft)] rounded-2xl shadow-[0_4px_16px_rgba(17,24,39,0.06)] overflow-hidden">
-            <div className="grid grid-cols-[1.2fr_repeat(3,1fr)] gap-0 border-b border-[var(--border-soft)] bg-[#F6F6FC] text-sm font-semibold text-[var(--brand-muted)]">
+            <div className="grid grid-cols-[1.2fr_repeat(3,1fr)] gap-0 border-b border-[var(--border-soft)] bg-[var(--surface-muted)] text-sm font-semibold text-[var(--brand-muted)]">
               <div className="px-5 py-3">Metric</div>
               <div className="px-5 py-3 text-center">Conservative</div>
               <div className="px-5 py-3 text-center">Base</div>

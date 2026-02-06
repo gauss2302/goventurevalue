@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "@tanstack/react-router";
-import type { ScenarioType, UpdateScenarioDto, UpdateSettingsDto, MarketSizingDto } from "@/lib/dto";
+import { Info } from "lucide-react";
+import type { ScenarioType, UpdateScenarioDto, UpdateSettingsDto, MarketSizingDto, UpdateMetricsDto } from "@/lib/dto";
 import type { ModelSettings, MarketSizing, ScenarioParams } from "@/lib/calculations";
 import { calculateProjections } from "@/lib/calculations";
 import FinancialModel from "./FinancialModel";
@@ -30,18 +31,57 @@ type FinancialModelEditorProps = {
     modelId: number;
     data: MarketSizingDto;
   }) => Promise<{ success: boolean }>;
+  updateMetricsFn: (data: {
+    modelId: number;
+    data: UpdateMetricsDto;
+  }) => Promise<{ success: boolean }>;
+  initialMetrics: ModelMetrics | null;
 };
 
-type EditorTab = "scenarios" | "settings" | "market" | "results";
+type EditorTab = "scenarios" | "settings" | "market" | "metrics" | "results";
+
+type ModelMetrics = {
+  usersTotal: number | null;
+  dau: number | null;
+  mau: number | null;
+  growthRate: number | null;
+  activationRate: number | null;
+  retentionRate: number | null;
+  churnRate: number | null;
+  mrr: number | null;
+  arr: number | null;
+  arpu: number | null;
+  revenueGrowthRate: number | null;
+  expansionRevenue: number | null;
+  contractionRevenue: number | null;
+  cac: number | null;
+  ltv: number | null;
+  ltvCac: number | null;
+  paybackPeriodMonths: number | null;
+  conversionRate: number | null;
+  cpl: number | null;
+  salesCycleLengthDays: number | null;
+  winRate: number | null;
+  dauMauRatio: number | null;
+  featureAdoptionRate: number | null;
+  timeToValueDays: number | null;
+  nps: number | null;
+  burnRate: number | null;
+  runwayMonths: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
+};
 
 export default function FinancialModelEditor({
   modelId,
   initialScenarios,
   initialSettings,
   initialMarket,
+  initialMetrics,
   updateScenarioFn,
   updateSettingsFn,
   updateMarketSizingFn,
+  updateMetricsFn,
 }: FinancialModelEditorProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<EditorTab>("scenarios");
@@ -65,12 +105,46 @@ export default function FinancialModelEditor({
 
   const [settings, setSettings] = useState<ModelSettings>(initialSettings);
   const [market, setMarket] = useState<MarketSizing>(initialMarket);
+  const [metrics, setMetrics] = useState<ModelMetrics>(
+    initialMetrics || {
+      usersTotal: null,
+      dau: null,
+      mau: null,
+      growthRate: null,
+      activationRate: null,
+      retentionRate: null,
+      churnRate: null,
+      mrr: null,
+      arr: null,
+      arpu: null,
+      revenueGrowthRate: null,
+      expansionRevenue: null,
+      contractionRevenue: null,
+      cac: null,
+      ltv: null,
+      ltvCac: null,
+      paybackPeriodMonths: null,
+      conversionRate: null,
+      cpl: null,
+      salesCycleLengthDays: null,
+      winRate: null,
+      dauMauRatio: null,
+      featureAdoptionRate: null,
+      timeToValueDays: null,
+      nps: null,
+      burnRate: null,
+      runwayMonths: null,
+      grossMargin: null,
+      operatingMargin: null,
+    }
+  );
   const [projections, setProjections] = useState<any[]>([]);
 
   // Loading states
   const [savingScenario, setSavingScenario] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingMarket, setSavingMarket] = useState(false);
+  const [savingMetrics, setSavingMetrics] = useState(false);
 
   // Recalculate projections when any input changes
   useEffect(() => {
@@ -84,6 +158,17 @@ export default function FinancialModelEditor({
     const proj = calculateProjections(currentScenarioParams, settings, market);
     setProjections(proj);
   }, [scenario, scenarios, settings, market]);
+
+  const derivedMetrics = {
+    arr:
+      metrics.mrr != null ? metrics.mrr * 12 : metrics.arr,
+    ltvCac:
+      metrics.ltv != null && metrics.cac
+        ? metrics.ltv / metrics.cac
+        : metrics.ltvCac,
+    dauMauRatio:
+      metrics.dau != null && metrics.mau ? metrics.dau / metrics.mau : metrics.dauMauRatio,
+  };
 
   // Save scenario
   const handleSaveScenario = useCallback(
@@ -167,6 +252,42 @@ export default function FinancialModelEditor({
     }
   }, [modelId, market, updateMarketSizingFn, router]);
 
+  const handleSaveMetrics = useCallback(async () => {
+    setSavingMetrics(true);
+    try {
+      await updateMetricsFn({
+        modelId,
+        data: {
+          ...metrics,
+          arr: derivedMetrics.arr ?? null,
+          ltvCac: derivedMetrics.ltvCac ?? null,
+          dauMauRatio: derivedMetrics.dauMauRatio ?? null,
+        },
+      });
+      try {
+        await router.invalidate();
+      } catch (invalidateError) {
+        console.warn("Metrics saved, but failed to refresh data:", invalidateError);
+      }
+    } catch (error) {
+      console.error("Failed to save metrics:", error);
+      const message =
+        (error as any)?.message ||
+        (error as any)?.data?.message ||
+        "Failed to save metrics. Please try again.";
+      alert(message);
+    } finally {
+      setSavingMetrics(false);
+    }
+  }, [modelId, metrics, derivedMetrics, updateMetricsFn, router]);
+
+  const updateMetricsField = useCallback(
+    <K extends keyof ModelMetrics>(field: K, value: ModelMetrics[K]) => {
+      setMetrics((prev) => ({ ...prev, [field]: value }));
+    },
+    []
+  );
+
   // Update scenario field
   const updateScenarioField = useCallback(
     (scenarioType: ScenarioType, field: keyof ScenarioParams, value: number) => {
@@ -211,10 +332,11 @@ export default function FinancialModelEditor({
   };
 
   const tabs = [
-    { id: "scenarios" as EditorTab, label: "Сценарии", icon: "📊" },
-    { id: "settings" as EditorTab, label: "Настройки", icon: "⚙️" },
-    { id: "market" as EditorTab, label: "Рынок", icon: "🎯" },
-    { id: "results" as EditorTab, label: "Результаты", icon: "📈" },
+    { id: "scenarios" as EditorTab, label: "Scenarios", icon: "📊" },
+    { id: "settings" as EditorTab, label: "Settings", icon: "⚙️" },
+    { id: "market" as EditorTab, label: "Market", icon: "🎯" },
+    { id: "metrics" as EditorTab, label: "Metrics", icon: "📌" },
+    { id: "results" as EditorTab, label: "Results", icon: "📈" },
   ];
 
   return (
@@ -230,7 +352,7 @@ export default function FinancialModelEditor({
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)] border border-[rgba(79,70,186,0.2)]"
-                    : "text-[var(--brand-muted)] hover:bg-[#F6F6FC]"
+                    : "text-[var(--brand-muted)] hover:bg-[var(--surface-muted)]"
                 }`}
               >
                 <span>{tab.icon}</span>
@@ -247,7 +369,7 @@ export default function FinancialModelEditor({
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
               <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
-                Параметры сценариев
+                Scenario parameters
               </h2>
 
               {/* Scenario Type Tabs */}
@@ -260,14 +382,14 @@ export default function FinancialModelEditor({
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         activeScenarioTab === sc
                           ? "bg-[var(--brand-primary)] text-white"
-                          : "bg-[#F6F6FC] text-[var(--brand-muted)] hover:bg-[#EDEDF7]"
+                          : "bg-[var(--surface-muted)] text-[var(--brand-muted)] hover:bg-[var(--surface-muted-border)]"
                       }`}
                     >
                       {sc === "conservative"
-                        ? "Консервативный"
+                        ? "Conservative"
                         : sc === "base"
-                          ? "Базовый"
-                          : "Оптимистичный"}
+                          ? "Base"
+                          : "Optimistic"}
                     </button>
                   )
                 )}
@@ -277,7 +399,7 @@ export default function FinancialModelEditor({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    User Growth (% в год)
+                    User Growth (% per year)
                   </label>
                   <input
                     type="number"
@@ -298,7 +420,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    ARPU ($/месяц)
+                    ARPU ($/month)
                   </label>
                   <input
                     type="number"
@@ -318,7 +440,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Churn Rate (% в месяц)
+                    Churn Rate (% per month)
                   </label>
                   <input
                     type="number"
@@ -339,7 +461,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Farmer Growth (% в год)
+                    Farmer Growth (% per year)
                   </label>
                   <input
                     type="number"
@@ -360,7 +482,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    CAC ($ на пользователя)
+                    CAC ($ per user)
                   </label>
                   <input
                     type="number"
@@ -385,7 +507,7 @@ export default function FinancialModelEditor({
                   disabled={savingScenario}
                   className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {savingScenario ? "Сохранение..." : "Сохранить сценарий"}
+                  {savingScenario ? "Saving..." : "Save scenario"}
                 </button>
               </div>
             </div>
@@ -397,13 +519,13 @@ export default function FinancialModelEditor({
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
               <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
-                Настройки модели
+                Model settings
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Начальное количество пользователей
+                    Starting users
                   </label>
                   <input
                     type="number"
@@ -418,7 +540,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Начальное количество фермеров
+                    Starting farmers
                   </label>
                   <input
                     type="number"
@@ -436,7 +558,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Налоговая ставка (%)
+                    Tax rate (%)
                   </label>
                   <input
                     type="number"
@@ -453,7 +575,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Ставка дисконтирования (WACC %)
+                    Discount rate (WACC %)
                   </label>
                   <input
                     type="number"
@@ -473,7 +595,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Терминальный рост (%)
+                    Terminal growth (%)
                   </label>
                   <input
                     type="number"
@@ -493,7 +615,7 @@ export default function FinancialModelEditor({
 
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Буфер безопасности ($)
+                    Safety buffer ($)
                   </label>
                   <input
                     type="number"
@@ -513,20 +635,20 @@ export default function FinancialModelEditor({
               {/* Arrays by Year */}
               <div className="mt-8">
                 <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-4">
-                  Значения по годам
+                  Values by year
                 </h3>
 
                 <div className="space-y-6">
                   {/* Personnel by Year */}
                   <div>
                     <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      Персонал по годам ($)
+                      Personnel by year ($)
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.personnelByYear.map((value, index) => (
                         <div key={index}>
                           <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Год {index + 1}
+                            Year {index + 1}
                           </label>
                           <input
                             type="number"
@@ -547,13 +669,13 @@ export default function FinancialModelEditor({
                   {/* Employees by Year */}
                   <div>
                     <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      Количество сотрудников по годам
+                      Employees by year
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.employeesByYear.map((value, index) => (
                         <div key={index}>
                           <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Год {index + 1}
+                            Year {index + 1}
                           </label>
                           <input
                             type="number"
@@ -574,13 +696,13 @@ export default function FinancialModelEditor({
                   {/* CAPEX by Year */}
                   <div>
                     <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      CAPEX по годам ($)
+                      CAPEX by year ($)
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.capexByYear.map((value, index) => (
                         <div key={index}>
                           <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Год {index + 1}
+                            Year {index + 1}
                           </label>
                           <input
                             type="number"
@@ -601,13 +723,13 @@ export default function FinancialModelEditor({
                   {/* Depreciation by Year */}
                   <div>
                     <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      Амортизация по годам ($)
+                      Depreciation by year ($)
                     </label>
                     <div className="grid grid-cols-5 gap-2">
                       {settings.depreciationByYear.map((value, index) => (
                         <div key={index}>
                           <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Год {index + 1}
+                            Year {index + 1}
                           </label>
                           <input
                             type="number"
@@ -633,7 +755,7 @@ export default function FinancialModelEditor({
                   disabled={savingSettings}
                   className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {savingSettings ? "Сохранение..." : "Сохранить настройки"}
+                  {savingSettings ? "Saving..." : "Save settings"}
                 </button>
               </div>
             </div>
@@ -645,7 +767,7 @@ export default function FinancialModelEditor({
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
               <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
-                Размер рынка
+                Market sizing
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -682,13 +804,13 @@ export default function FinancialModelEditor({
 
               <div className="mt-6">
                 <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                  SOM - Serviceable Obtainable Market по годам ($)
+                  SOM – Serviceable Obtainable Market by year ($)
                 </label>
                 <div className="grid grid-cols-5 gap-2">
                   {market.som.map((value, index) => (
                     <div key={index}>
                       <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                        Год {index + 1}
+                        Year {index + 1}
                       </label>
                       <input
                         type="number"
@@ -712,7 +834,293 @@ export default function FinancialModelEditor({
                   disabled={savingMarket}
                   className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {savingMarket ? "Сохранение..." : "Сохранить размер рынка"}
+                  {savingMarket ? "Saving..." : "Save market sizing"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Metrics Tab */}
+        {activeTab === "metrics" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
+                Product & business metrics
+              </h2>
+              <p className="text-sm text-[var(--brand-muted)] mb-6">
+                Enter the metrics you track—we&apos;ll help you present them to investors.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--brand-ink)] mb-1">
+                    Growth & Traction
+                  </h3>
+                  <p className="text-xs text-[var(--brand-muted)] mb-3">
+                    VCs look for growth rate and retention; focus on the last 3–6 months.
+                  </p>
+                  <div className="space-y-3">
+                    <MetricInput
+                      label="Users / Customers"
+                      value={metrics.usersTotal}
+                      onChange={(val) => updateMetricsField("usersTotal", val)}
+                      placeholder="e.g. 5000"
+                    />
+                    <MetricInput
+                      label="DAU"
+                      value={metrics.dau}
+                      onChange={(val) => updateMetricsField("dau", val)}
+                      placeholder="e.g. 1200"
+                    />
+                    <MetricInput
+                      label="MAU"
+                      value={metrics.mau}
+                      onChange={(val) => updateMetricsField("mau", val)}
+                      placeholder="e.g. 8000"
+                    />
+                    <MetricInput
+                      label="Growth rate (%)"
+                      value={metrics.growthRate}
+                      onChange={(val) => updateMetricsField("growthRate", val)}
+                      unit="%"
+                      placeholder="0.15 = 15%"
+                    />
+                    <MetricInput
+                      label="Activation rate (%)"
+                      value={metrics.activationRate}
+                      onChange={(val) => updateMetricsField("activationRate", val)}
+                      unit="%"
+                      placeholder="0.25 = 25%"
+                    />
+                    <MetricInput
+                      label="Retention rate (%)"
+                      value={metrics.retentionRate}
+                      onChange={(val) => updateMetricsField("retentionRate", val)}
+                      unit="%"
+                      placeholder="0.80 = 80%"
+                    />
+                    <MetricInput
+                      label="Churn rate (%)"
+                      value={metrics.churnRate}
+                      onChange={(val) => updateMetricsField("churnRate", val)}
+                      unit="%"
+                      placeholder="0.05 = 5%"
+                    />
+                    <MetricDisplay
+                      label="DAU / MAU Ratio"
+                      value={derivedMetrics.dauMauRatio}
+                      suffix="x"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--brand-ink)] mb-1">
+                    Revenue Metrics
+                  </h3>
+                  <p className="text-xs text-[var(--brand-muted)] mb-3">
+                    MRR and ARR are table stakes for investors; show clear growth.
+                  </p>
+                  <div className="space-y-3">
+                    <MetricInput
+                      label="MRR"
+                      value={metrics.mrr}
+                      onChange={(val) => updateMetricsField("mrr", val)}
+                      unit="$"
+                      placeholder="e.g. 12000"
+                      tooltip="Monthly Recurring Revenue"
+                    />
+                    <MetricDisplay
+                      label="ARR (auto)"
+                      value={derivedMetrics.arr}
+                      unit="$"
+                      tooltip="Annual Recurring Revenue (MRR × 12)"
+                    />
+                    <MetricInput
+                      label="ARPU / ARPA"
+                      value={metrics.arpu}
+                      onChange={(val) => updateMetricsField("arpu", val)}
+                      unit="$"
+                      placeholder="e.g. 45"
+                      tooltip="Average Revenue Per User / Account"
+                    />
+                    <MetricInput
+                      label="Revenue growth rate (%)"
+                      value={metrics.revenueGrowthRate}
+                      onChange={(val) => updateMetricsField("revenueGrowthRate", val)}
+                      unit="%"
+                      placeholder="0.20 = 20%"
+                    />
+                    <MetricInput
+                      label="Expansion revenue"
+                      value={metrics.expansionRevenue}
+                      onChange={(val) => updateMetricsField("expansionRevenue", val)}
+                      unit="$"
+                    />
+                    <MetricInput
+                      label="Contraction revenue"
+                      value={metrics.contractionRevenue}
+                      onChange={(val) => updateMetricsField("contractionRevenue", val)}
+                      unit="$"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--brand-ink)] mb-1">
+                    Customer Economics
+                  </h3>
+                  <p className="text-xs text-[var(--brand-muted)] mb-3">
+                    LTV/CAC and payback period show unit economics; VCs expect LTV/CAC &gt; 3.
+                  </p>
+                  <div className="space-y-3">
+                    <MetricInput
+                      label="CAC"
+                      value={metrics.cac}
+                      onChange={(val) => updateMetricsField("cac", val)}
+                      unit="$"
+                      placeholder="e.g. 150"
+                      tooltip="Customer Acquisition Cost"
+                    />
+                    <MetricInput
+                      label="LTV"
+                      value={metrics.ltv}
+                      onChange={(val) => updateMetricsField("ltv", val)}
+                      unit="$"
+                      placeholder="e.g. 600"
+                      tooltip="Lifetime Value"
+                    />
+                    <MetricDisplay
+                      label="LTV / CAC (auto)"
+                      value={derivedMetrics.ltvCac}
+                      suffix="x"
+                      tooltip="Lifetime Value divided by CAC; target &gt; 3x"
+                    />
+                    <MetricInput
+                      label="Payback period (months)"
+                      value={metrics.paybackPeriodMonths}
+                      onChange={(val) => updateMetricsField("paybackPeriodMonths", val)}
+                      placeholder="e.g. 12"
+                      tooltip="Months to recover CAC from revenue"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--brand-ink)] mb-1">
+                    Marketing & Sales
+                  </h3>
+                  <p className="text-xs text-[var(--brand-muted)] mb-3">
+                    Conversion and win rate help VCs assess go-to-market efficiency.
+                  </p>
+                  <div className="space-y-3">
+                    <MetricInput
+                      label="Conversion rate (%)"
+                      value={metrics.conversionRate}
+                      onChange={(val) => updateMetricsField("conversionRate", val)}
+                      unit="%"
+                      placeholder="0.03 = 3%"
+                    />
+                    <MetricInput
+                      label="Cost per lead (CPL)"
+                      value={metrics.cpl}
+                      onChange={(val) => updateMetricsField("cpl", val)}
+                      unit="$"
+                    />
+                    <MetricInput
+                      label="Sales cycle length (days)"
+                      value={metrics.salesCycleLengthDays}
+                      onChange={(val) => updateMetricsField("salesCycleLengthDays", val)}
+                      placeholder="e.g. 45"
+                    />
+                    <MetricInput
+                      label="Win rate (%)"
+                      value={metrics.winRate}
+                      onChange={(val) => updateMetricsField("winRate", val)}
+                      unit="%"
+                      placeholder="0.25 = 25%"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--brand-ink)] mb-1">
+                    Product Metrics
+                  </h3>
+                  <p className="text-xs text-[var(--brand-muted)] mb-3">
+                    Engagement and NPS signal product-market fit.
+                  </p>
+                  <div className="space-y-3">
+                    <MetricInput
+                      label="Feature adoption rate (%)"
+                      value={metrics.featureAdoptionRate}
+                      onChange={(val) => updateMetricsField("featureAdoptionRate", val)}
+                      unit="%"
+                      placeholder="0.40 = 40%"
+                    />
+                    <MetricInput
+                      label="Time to value (days)"
+                      value={metrics.timeToValueDays}
+                      onChange={(val) => updateMetricsField("timeToValueDays", val)}
+                      placeholder="e.g. 7"
+                    />
+                    <MetricInput
+                      label="NPS"
+                      value={metrics.nps}
+                      onChange={(val) => updateMetricsField("nps", val)}
+                      placeholder="e.g. 50"
+                      tooltip="Net Promoter Score (-100 to 100)"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--brand-ink)] mb-1">
+                    Financial Health
+                  </h3>
+                  <p className="text-xs text-[var(--brand-muted)] mb-3">
+                    Burn and runway are critical for fundraising timing.
+                  </p>
+                  <div className="space-y-3">
+                    <MetricInput
+                      label="Burn rate"
+                      value={metrics.burnRate}
+                      onChange={(val) => updateMetricsField("burnRate", val)}
+                      unit="$"
+                      placeholder="e.g. 50000"
+                    />
+                    <MetricInput
+                      label="Runway (months)"
+                      value={metrics.runwayMonths}
+                      onChange={(val) => updateMetricsField("runwayMonths", val)}
+                      placeholder="e.g. 18"
+                    />
+                    <MetricInput
+                      label="Gross margin (%)"
+                      value={metrics.grossMargin}
+                      onChange={(val) => updateMetricsField("grossMargin", val)}
+                      unit="%"
+                      placeholder="0.70 = 70%"
+                    />
+                    <MetricInput
+                      label="Operating margin (%)"
+                      value={metrics.operatingMargin}
+                      onChange={(val) => updateMetricsField("operatingMargin", val)}
+                      unit="%"
+                      placeholder="0.10 = 10%"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={handleSaveMetrics}
+                  disabled={savingMetrics}
+                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingMetrics ? "Saving..." : "Save metrics"}
                 </button>
               </div>
             </div>
@@ -726,9 +1134,9 @@ export default function FinancialModelEditor({
             <div className="bg-white rounded-xl border border-[var(--border-soft)] p-4 mb-6">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-[var(--brand-muted)]">
-                  Сценарий:
+                  Scenario:
                 </span>
-                <div className="flex gap-1 bg-[#F6F6FC] p-1 rounded-lg">
+                <div className="flex gap-1 bg-[var(--surface-muted)] p-1 rounded-lg">
                   {(["conservative", "base", "optimistic"] as ScenarioType[]).map(
                     (sc) => (
                       <button
@@ -737,14 +1145,14 @@ export default function FinancialModelEditor({
                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                           scenario === sc
                             ? "bg-[var(--brand-primary)] text-white shadow-sm"
-                            : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[#EDEDF7]"
+                            : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[var(--surface-muted-border)]"
                         }`}
                       >
                         {sc === "conservative"
-                          ? "Консервативный"
+                          ? "Conservative"
                           : sc === "base"
-                            ? "Базовый"
-                            : "Оптимистичный"}
+                            ? "Base"
+                            : "Optimistic"}
                       </button>
                     )
                   )}
@@ -765,6 +1173,89 @@ export default function FinancialModelEditor({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function MetricInput({
+  label,
+  value,
+  onChange,
+  unit,
+  placeholder,
+  tooltip,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (value: number | null) => void;
+  unit?: string;
+  placeholder?: string;
+  tooltip?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border-soft)] px-4 py-2">
+      <div className="flex items-center gap-1.5">
+        <p className="text-sm text-[var(--brand-muted)]">{label}</p>
+        {tooltip && (
+          <span className="inline-flex text-[var(--brand-muted)] cursor-help" title={tooltip}>
+            <Info size={14} />
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {unit && (
+          <span className="text-xs text-[var(--brand-muted)]">{unit}</span>
+        )}
+        <input
+          type="number"
+          step="0.01"
+          value={value ?? ""}
+          onChange={(e) => {
+            const next = e.target.value === "" ? null : parseFloat(e.target.value);
+            onChange(Number.isNaN(next as number) ? null : next);
+          }}
+          placeholder={placeholder}
+          className="w-28 text-right px-3 py-1.5 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
+        />
+      </div>
+    </div>
+  );
+}
+
+function MetricDisplay({
+  label,
+  value,
+  unit,
+  suffix,
+  tooltip,
+}: {
+  label: string;
+  value: number | null | undefined;
+  unit?: string;
+  suffix?: string;
+  tooltip?: string;
+}) {
+  const display =
+    value == null || Number.isNaN(value)
+      ? "—"
+      : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(
+          value
+        );
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-xl bg-[var(--surface-muted)] px-4 py-2">
+      <span className="flex items-center gap-1.5 text-sm text-[var(--brand-muted)]">
+        {label}
+        {tooltip && (
+          <span className="inline-flex cursor-help" title={tooltip}>
+            <Info size={14} />
+          </span>
+        )}
+      </span>
+      <span className="text-sm font-semibold text-[var(--brand-ink)]">
+        {unit && <span className="text-xs text-[var(--brand-muted)]">{unit} </span>}
+        {display}
+        {suffix && <span className="text-xs text-[var(--brand-muted)]"> {suffix}</span>}
+      </span>
     </div>
   );
 }

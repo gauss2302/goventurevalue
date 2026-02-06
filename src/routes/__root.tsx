@@ -79,6 +79,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     (pathname === "/" && !isAuthenticated) ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/models") ||
+    pathname.startsWith("/pitch-decks") ||
     pathname.startsWith("/academy") ||
     pathname.startsWith("/assumptions");
 

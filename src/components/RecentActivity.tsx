@@ -23,7 +23,7 @@ const formatRelativeTime = (date: Date) => {
 export function RecentActivity({ activities }: { activities: ActivityItem[] }) {
   if (activities.length === 0) {
     return (
-      <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+      <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
         <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
           Recent Activity
         </h3>
@@ -35,7 +35,7 @@ export function RecentActivity({ activities }: { activities: ActivityItem[] }) {
   }
 
   return (
-    <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+    <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
           Recent Activity
@@ -51,7 +51,7 @@ export function RecentActivity({ activities }: { activities: ActivityItem[] }) {
         {activities.map((activity) => (
           <div
             key={activity.id}
-            className="relative pl-6 pb-6 last:pb-0 border-l border-[#EDEDF7] last:border-0"
+            className="relative pl-6 pb-6 last:pb-0 border-l-2 border-[var(--surface-muted-border)] last:border-0 border-solid"
           >
             <div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-[var(--brand-primary)] ring-4 ring-white" />
             <div className="flex flex-col gap-1">

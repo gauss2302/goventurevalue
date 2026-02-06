@@ -87,7 +87,7 @@ function AcademyPage() {
                   <span className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
                     {item.level}
                   </span>
-                  <span className="text-xs text-[var(--brand-muted)] bg-[#F6F6FC] px-2 py-1 rounded-full">
+                  <span className="text-xs text-[var(--brand-muted)] bg-[var(--surface-muted)] px-2 py-1 rounded-full">
                     {item.duration}
                   </span>
                 </div>

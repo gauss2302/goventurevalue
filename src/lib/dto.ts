@@ -42,6 +42,93 @@ export type UpdateSettingsDto = {
   projectionYears?: number[]
 }
 
+export type UpdateMetricsDto = {
+  usersTotal?: number
+  dau?: number
+  mau?: number
+  growthRate?: number
+  activationRate?: number
+  retentionRate?: number
+  churnRate?: number
+  mrr?: number
+  arr?: number
+  arpu?: number
+  revenueGrowthRate?: number
+  expansionRevenue?: number
+  contractionRevenue?: number
+  cac?: number
+  ltv?: number
+  ltvCac?: number
+  paybackPeriodMonths?: number
+  conversionRate?: number
+  cpl?: number
+  salesCycleLengthDays?: number
+  winRate?: number
+  dauMauRatio?: number
+  featureAdoptionRate?: number
+  timeToValueDays?: number
+  nps?: number
+  burnRate?: number
+  runwayMonths?: number
+  grossMargin?: number
+  operatingMargin?: number
+}
+
+export type AIProvider = 'openai' | 'gemini'
+
+export type PitchDeckStatus = 'draft' | 'generating' | 'ready' | 'failed'
+
+export type PitchDeckBriefDto = {
+  problem: string
+  solution: string
+  product: string
+  market: string
+  businessModel: string
+  traction: string
+  goToMarket: string
+  competition: string
+  financialHighlights: string
+  fundingAsk: string
+}
+
+export type PitchDeckSlideTypeDto =
+  | 'cover'
+  | 'problem'
+  | 'solution'
+  | 'market'
+  | 'product'
+  | 'traction'
+  | 'business-model'
+  | 'go-to-market'
+  | 'financials'
+  | 'ask'
+
+export type PitchDeckSlideDto = {
+  id: string
+  type: PitchDeckSlideTypeDto
+  heading: string
+  subheading: string
+  bullets: string[]
+  speakerNotes: string
+}
+
+export type CreatePitchDeckDto = {
+  title: string
+  startupName: string
+  oneLiner?: string
+  audience?: string
+  language?: string
+  currency?: string
+  provider: AIProvider
+  providerModel?: string
+  modelId?: number
+  brief: PitchDeckBriefDto
+}
+
+export type UpdatePitchDeckSlidesDto = {
+  slides: PitchDeckSlideDto[]
+}
+
 export type ModelResponseDto = {
   id: number
   userId: string

@@ -273,7 +273,7 @@ function NewModel() {
                   <button
                     type="button"
                     onClick={() => router.navigate({ to: "/models" })}
-                    className="px-6 py-3 bg-[#F6F6FC] hover:bg-[#EDEDF7] text-[var(--brand-ink)] font-semibold rounded-xl transition-colors"
+                    className="px-6 py-3 bg-[var(--surface-muted)] hover:bg-[var(--surface-muted-border)] text-[var(--brand-ink)] font-semibold rounded-xl transition-colors"
                   >
                     Cancel
                   </button>

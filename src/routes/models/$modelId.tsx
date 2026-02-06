@@ -9,6 +9,7 @@ import type {
   UpdateScenarioDto,
   UpdateSettingsDto,
   MarketSizingDto,
+  UpdateMetricsDto,
 } from "@/lib/dto";
 import type { ModelSettings, MarketSizing } from "@/lib/calculations";
 
@@ -30,6 +31,39 @@ type LoaderData = {
   }>;
   market: MarketSizing | null;
   settings: ModelSettings | null;
+  metrics: ModelMetrics | null;
+};
+
+type ModelMetrics = {
+  usersTotal: number | null;
+  dau: number | null;
+  mau: number | null;
+  growthRate: number | null;
+  activationRate: number | null;
+  retentionRate: number | null;
+  churnRate: number | null;
+  mrr: number | null;
+  arr: number | null;
+  arpu: number | null;
+  revenueGrowthRate: number | null;
+  expansionRevenue: number | null;
+  contractionRevenue: number | null;
+  cac: number | null;
+  ltv: number | null;
+  ltvCac: number | null;
+  paybackPeriodMonths: number | null;
+  conversionRate: number | null;
+  cpl: number | null;
+  salesCycleLengthDays: number | null;
+  winRate: number | null;
+  dauMauRatio: number | null;
+  featureAdoptionRate: number | null;
+  timeToValueDays: number | null;
+  nps: number | null;
+  burnRate: number | null;
+  runwayMonths: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
 };
 
 const loadModelDetail = createServerFn({ method: "GET" })
@@ -51,6 +85,7 @@ const loadModelDetail = createServerFn({ method: "GET" })
 
     const { financialModels, modelScenarios, marketSizing, modelSettings } =
       schema;
+    const { modelMetrics } = schema;
 
     const headers = getRequestHeaders();
     const session = await requireAuthFromHeaders(headers);
@@ -76,6 +111,10 @@ const loadModelDetail = createServerFn({ method: "GET" })
 
     const settingsData = await db.query.modelSettings.findFirst({
       where: eq(modelSettings.modelId, data.modelId),
+    });
+
+    const metricsData = await db.query.modelMetrics.findFirst({
+      where: eq(modelMetrics.modelId, data.modelId),
     });
 
     return {
@@ -114,6 +153,39 @@ const loadModelDetail = createServerFn({ method: "GET" })
             capexByYear: settingsData.capexByYear,
             depreciationByYear: settingsData.depreciationByYear,
             projectionYears: settingsData.projectionYears,
+          }
+        : null,
+      metrics: metricsData
+        ? {
+            usersTotal: metricsData.usersTotal ? Number(metricsData.usersTotal) : null,
+            dau: metricsData.dau ? Number(metricsData.dau) : null,
+            mau: metricsData.mau ? Number(metricsData.mau) : null,
+            growthRate: metricsData.growthRate ? Number(metricsData.growthRate) : null,
+            activationRate: metricsData.activationRate ? Number(metricsData.activationRate) : null,
+            retentionRate: metricsData.retentionRate ? Number(metricsData.retentionRate) : null,
+            churnRate: metricsData.churnRate ? Number(metricsData.churnRate) : null,
+            mrr: metricsData.mrr ? Number(metricsData.mrr) : null,
+            arr: metricsData.arr ? Number(metricsData.arr) : null,
+            arpu: metricsData.arpu ? Number(metricsData.arpu) : null,
+            revenueGrowthRate: metricsData.revenueGrowthRate ? Number(metricsData.revenueGrowthRate) : null,
+            expansionRevenue: metricsData.expansionRevenue ? Number(metricsData.expansionRevenue) : null,
+            contractionRevenue: metricsData.contractionRevenue ? Number(metricsData.contractionRevenue) : null,
+            cac: metricsData.cac ? Number(metricsData.cac) : null,
+            ltv: metricsData.ltv ? Number(metricsData.ltv) : null,
+            ltvCac: metricsData.ltvCac ? Number(metricsData.ltvCac) : null,
+            paybackPeriodMonths: metricsData.paybackPeriodMonths ? Number(metricsData.paybackPeriodMonths) : null,
+            conversionRate: metricsData.conversionRate ? Number(metricsData.conversionRate) : null,
+            cpl: metricsData.cpl ? Number(metricsData.cpl) : null,
+            salesCycleLengthDays: metricsData.salesCycleLengthDays ? Number(metricsData.salesCycleLengthDays) : null,
+            winRate: metricsData.winRate ? Number(metricsData.winRate) : null,
+            dauMauRatio: metricsData.dauMauRatio ? Number(metricsData.dauMauRatio) : null,
+            featureAdoptionRate: metricsData.featureAdoptionRate ? Number(metricsData.featureAdoptionRate) : null,
+            timeToValueDays: metricsData.timeToValueDays ? Number(metricsData.timeToValueDays) : null,
+            nps: metricsData.nps ? Number(metricsData.nps) : null,
+            burnRate: metricsData.burnRate ? Number(metricsData.burnRate) : null,
+            runwayMonths: metricsData.runwayMonths ? Number(metricsData.runwayMonths) : null,
+            grossMargin: metricsData.grossMargin ? Number(metricsData.grossMargin) : null,
+            operatingMargin: metricsData.operatingMargin ? Number(metricsData.operatingMargin) : null,
           }
         : null,
     } satisfies LoaderData;
@@ -337,9 +409,138 @@ const updateMarketSizing = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const updateMetrics = createServerFn({ method: "POST" })
+  .inputValidator((data: { modelId: number; data: UpdateMetricsDto }) => data)
+  .handler(async ({ data }) => {
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/requireAuth"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
+
+    const { toSnapshotKey } = await import("@/lib/metrics");
+
+    const { financialModels, modelMetrics, metricSnapshot } = schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
+
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    const arr = data.data.mrr != null ? data.data.mrr * 12 : data.data.arr;
+    const ltvCac =
+      data.data.ltv != null && data.data.cac
+        ? data.data.ltv / data.data.cac
+        : data.data.ltvCac;
+    const dauMauRatio =
+      data.data.dau != null && data.data.mau
+        ? data.data.dau / data.data.mau
+        : data.data.dauMauRatio;
+
+    const payload = {
+      ...data.data,
+      arr,
+      ltvCac,
+      dauMauRatio,
+      updatedAt: new Date(),
+    };
+
+    const existing = await db.query.modelMetrics.findFirst({
+      where: eq(modelMetrics.modelId, data.modelId),
+    });
+
+    if (existing) {
+      await db.update(modelMetrics).set(payload).where(eq(modelMetrics.id, existing.id));
+    } else {
+      await db.insert(modelMetrics).values({
+        modelId: data.modelId,
+        ...payload,
+      });
+    }
+
+    // Sync to metric_snapshots for dashboard "Stage-based focus" (default stage: early_growth)
+    const now = new Date();
+    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const stage = "early_growth" as const;
+
+    const saved = await db.query.modelMetrics.findFirst({
+      where: eq(modelMetrics.modelId, data.modelId),
+    });
+
+    if (saved) {
+      await db.delete(metricSnapshot).where(
+        and(
+          eq(metricSnapshot.userId, session.user.id),
+          eq(metricSnapshot.periodEnd, periodEnd),
+          eq(metricSnapshot.stage, stage)
+        )
+      );
+
+      const snapshotRows: Array<{
+        userId: string;
+        stage: typeof stage;
+        metricKey: string;
+        value: string;
+        periodStart: Date;
+        periodEnd: Date;
+      }> = [];
+
+      const camelKeys = [
+        "usersTotal", "dau", "mau", "growthRate", "activationRate", "retentionRate", "churnRate", "dauMauRatio",
+        "mrr", "arr", "arpu", "revenueGrowthRate", "expansionRevenue", "contractionRevenue",
+        "cac", "ltv", "ltvCac", "paybackPeriodMonths", "conversionRate", "cpl", "salesCycleLengthDays", "winRate",
+        "featureAdoptionRate", "timeToValueDays", "nps", "burnRate", "runwayMonths", "grossMargin", "operatingMargin",
+      ] as const;
+
+      for (const camelKey of camelKeys) {
+        const raw = saved[camelKey];
+        if (raw == null) continue;
+        const num = Number(raw);
+        if (Number.isNaN(num)) continue;
+        snapshotRows.push({
+          userId: session.user.id,
+          stage,
+          metricKey: toSnapshotKey(camelKey),
+          value: String(num),
+          periodStart,
+          periodEnd,
+        });
+      }
+
+      if (snapshotRows.length > 0) {
+        await db.insert(metricSnapshot).values(
+          snapshotRows.map((row) => ({
+            ...row,
+            createdAt: now,
+            updatedAt: now,
+          }))
+        );
+      }
+    }
+
+    return { success: true };
+  });
+
 export const Route = createFileRoute("/models/$modelId")({
   component: ModelDetail,
-  // @ts-expect-error - Types will be correct after router regeneration
   loader: async ({ params, location }) => {
     const { requireAuthForLoader } = await import("@/lib/auth/requireAuth");
     await requireAuthForLoader(location);
@@ -351,7 +552,7 @@ export const Route = createFileRoute("/models/$modelId")({
 
 function ModelDetail() {
   const data = Route.useLoaderData();
-  const { model, scenarios, market, settings: loadedSettings } = data;
+  const { model, scenarios, market, settings: loadedSettings, metrics } = data;
   const router = useRouter();
 
   const settings = useMemo(
@@ -367,6 +568,24 @@ function ModelDetail() {
   const updateScenarioFn = useServerFn(updateScenario);
   const updateSettingsFn = useServerFn(updateSettings);
   const updateMarketSizingFn = useServerFn(updateMarketSizing);
+  const updateMetricsFn = useServerFn(updateMetrics);
+  const handleExport = async () => {
+    try {
+      const { exportModelToExcel } = await import("@/lib/excel");
+      await exportModelToExcel({
+        model: {
+          name: model.name,
+          currency: model.currency,
+        },
+        scenarios,
+        settings,
+        market: marketSizingData,
+      });
+    } catch (error) {
+      console.error("Failed to export Excel:", error);
+      alert("Failed to export Excel. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
@@ -402,25 +621,32 @@ function ModelDetail() {
               </p>
             )}
           </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-[var(--brand-muted)]">
-            Currency: {model.currency}
-          </span>
-          <Link
-            to="/models/$modelId/compare"
-            params={{ modelId: model.id.toString() }}
-            className="px-4 py-2 rounded-full border border-[var(--border-soft)] text-xs text-[var(--brand-muted)] hover:text-[var(--brand-primary)]"
-          >
-            Compare scenarios
-          </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-[var(--brand-muted)]">
+              Currency: {model.currency}
+            </span>
+            <Link
+              to="/models/$modelId/compare"
+              params={{ modelId: model.id.toString() }}
+              className="px-4 py-2 rounded-full border border-[var(--border-soft)] text-xs text-[var(--brand-muted)] hover:text-[var(--brand-primary)]"
+            >
+              Compare scenarios
+            </Link>
+            <button
+              onClick={handleExport}
+              className="px-4 py-2 rounded-full bg-[var(--brand-primary)] text-white text-xs font-semibold shadow-[0_10px_20px_rgba(79,70,186,0.2)]"
+            >
+              Download Excel
+            </button>
+          </div>
         </div>
-      </div>
         <div className="px-4 py-6">
           <FinancialModelEditor
             modelId={model.id}
             initialScenarios={scenarios}
             initialSettings={settings}
             initialMarket={marketSizingData}
+            initialMetrics={metrics}
             updateScenarioFn={async (data) => {
               const result = await updateScenarioFn({ data });
               return result;
@@ -433,6 +659,10 @@ function ModelDetail() {
               const result = await updateMarketSizingFn({ data });
               return result;
             }}
+            updateMetricsFn={async (data) => {
+              const result = await updateMetricsFn({ data });
+              return result;
+            }}
           />
         </div>
       </main>
@@ -441,4 +671,4 @@ function ModelDetail() {
 }
 
 // Export server functions for use in editor component
-export { updateScenario, updateSettings, updateMarketSizing };
+export { updateScenario, updateSettings, updateMarketSizing, updateMetrics };

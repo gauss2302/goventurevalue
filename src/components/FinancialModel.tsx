@@ -72,10 +72,10 @@ export default function FinancialModel({
       <div className="bg-white border-b border-[var(--border-soft)] sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Scenario Selector */}
-          <div className="py-3 flex items-center justify-between border-b border-[#EDEDF7]">
+          <div className="py-3 flex items-center justify-between border-b border-[var(--surface-muted-border)]">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-[var(--brand-muted)]">Scenario:</span>
-              <div className="flex gap-1 bg-[#F6F6FC] p-1 rounded-lg">
+              <div className="flex gap-1 bg-[var(--surface-muted)] p-1 rounded-lg">
                 {(["conservative", "base", "optimistic"] as ScenarioType[]).map(
                   (sc) => (
                     <button
@@ -84,7 +84,7 @@ export default function FinancialModel({
                       className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                         scenario === sc
                           ? "bg-[var(--brand-primary)] text-white shadow-sm"
-                          : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[#EDEDF7]"
+                          : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[var(--surface-muted-border)]"
                       }`}
                     >
                       {sc.charAt(0).toUpperCase() + sc.slice(1)}
@@ -107,7 +107,7 @@ export default function FinancialModel({
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)] border border-[rgba(79,70,186,0.2)]"
-                    : "text-[var(--brand-muted)] hover:bg-[#F6F6FC]"
+                    : "text-[var(--brand-muted)] hover:bg-[var(--surface-muted)]"
                 }`}
               >
                 <span>{tab.icon}</span>
@@ -212,7 +212,7 @@ export default function FinancialModel({
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EDEDF7]">
+                  <tbody className="divide-y divide-[var(--surface-muted-border)]">
                     <tr className="bg-[rgba(79,70,186,0.12)]">
                       <td className="px-5 py-3 font-medium text-[var(--brand-primary)]">
                         Total Revenue
@@ -334,7 +334,7 @@ export default function FinancialModel({
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EDEDF7]">
+                  <tbody className="divide-y divide-[var(--surface-muted-border)]">
                     <tr>
                       <td className="px-5 py-3 text-[var(--brand-muted)]">SOM Target</td>
                       {marketSizing.som.map((s, i) => (
@@ -706,7 +706,7 @@ export default function FinancialModel({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EDEDF7]">
+                  <tbody className="divide-y divide-[var(--surface-muted-border)]">
                     <tr>
                       <td className="px-5 py-3 text-[var(--brand-muted)]">Free Cash Flow</td>
                       {projections.map((p, i) => (
@@ -978,7 +978,7 @@ function KPICard({
         {items.map((item, i) => (
           <div
             key={i}
-            className="flex justify-between items-center pb-3 border-b border-[#EDEDF7] last:border-0"
+            className="flex justify-between items-center pb-3 border-b border-[var(--surface-muted-border)] last:border-0"
           >
             <span className="text-[var(--brand-muted)]">{item.label}</span>
             <span
@@ -1028,7 +1028,7 @@ function DataRow({
   negative?: boolean;
 }) {
   return (
-    <tr className="border-b border-[#EDEDF7] hover:bg-[var(--page)]">
+    <tr className="border-b border-[var(--surface-muted-border)] hover:bg-[var(--page)]">
       <td className={`px-5 py-2.5 text-[var(--brand-muted)] ${indent ? "pl-8" : ""}`}>
         {label}
       </td>

@@ -13,7 +13,10 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AssumptionsRouteImport } from './routes/assumptions'
 import { Route as AcademyRouteImport } from './routes/academy'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PitchDecksIndexRouteImport } from './routes/pitch-decks/index'
 import { Route as ModelsIndexRouteImport } from './routes/models/index'
+import { Route as PitchDecksNewRouteImport } from './routes/pitch-decks/new'
+import { Route as PitchDecksDeckIdRouteImport } from './routes/pitch-decks/$deckId'
 import { Route as ModelsNewRouteImport } from './routes/models/new'
 import { Route as ModelsModelIdRouteImport } from './routes/models/$modelId'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
@@ -42,9 +45,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PitchDecksIndexRoute = PitchDecksIndexRouteImport.update({
+  id: '/pitch-decks/',
+  path: '/pitch-decks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ModelsIndexRoute = ModelsIndexRouteImport.update({
   id: '/models/',
   path: '/models/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PitchDecksNewRoute = PitchDecksNewRouteImport.update({
+  id: '/pitch-decks/new',
+  path: '/pitch-decks/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PitchDecksDeckIdRoute = PitchDecksDeckIdRouteImport.update({
+  id: '/pitch-decks/$deckId',
+  path: '/pitch-decks/$deckId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ModelsNewRoute = ModelsNewRouteImport.update({
@@ -93,7 +111,10 @@ export interface FileRoutesByFullPath {
   '/auth/signup': typeof AuthSignupRoute
   '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
+  '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
+  '/pitch-decks/new': typeof PitchDecksNewRoute
   '/models': typeof ModelsIndexRoute
+  '/pitch-decks': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
@@ -107,7 +128,10 @@ export interface FileRoutesByTo {
   '/auth/signup': typeof AuthSignupRoute
   '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
+  '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
+  '/pitch-decks/new': typeof PitchDecksNewRoute
   '/models': typeof ModelsIndexRoute
+  '/pitch-decks': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
@@ -122,7 +146,10 @@ export interface FileRoutesById {
   '/auth/signup': typeof AuthSignupRoute
   '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
+  '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
+  '/pitch-decks/new': typeof PitchDecksNewRoute
   '/models/': typeof ModelsIndexRoute
+  '/pitch-decks/': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
@@ -138,7 +165,10 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/models/$modelId'
     | '/models/new'
+    | '/pitch-decks/$deckId'
+    | '/pitch-decks/new'
     | '/models'
+    | '/pitch-decks'
     | '/api/auth/$'
     | '/models/$modelId/compare'
   fileRoutesByTo: FileRoutesByTo
@@ -152,7 +182,10 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/models/$modelId'
     | '/models/new'
+    | '/pitch-decks/$deckId'
+    | '/pitch-decks/new'
     | '/models'
+    | '/pitch-decks'
     | '/api/auth/$'
     | '/models/$modelId/compare'
   id:
@@ -166,7 +199,10 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/models/$modelId'
     | '/models/new'
+    | '/pitch-decks/$deckId'
+    | '/pitch-decks/new'
     | '/models/'
+    | '/pitch-decks/'
     | '/api/auth/$'
     | '/models/$modelId/compare'
   fileRoutesById: FileRoutesById
@@ -181,7 +217,10 @@ export interface RootRouteChildren {
   AuthSignupRoute: typeof AuthSignupRoute
   ModelsModelIdRoute: typeof ModelsModelIdRouteWithChildren
   ModelsNewRoute: typeof ModelsNewRoute
+  PitchDecksDeckIdRoute: typeof PitchDecksDeckIdRoute
+  PitchDecksNewRoute: typeof PitchDecksNewRoute
   ModelsIndexRoute: typeof ModelsIndexRoute
+  PitchDecksIndexRoute: typeof PitchDecksIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -215,11 +254,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pitch-decks/': {
+      id: '/pitch-decks/'
+      path: '/pitch-decks'
+      fullPath: '/pitch-decks'
+      preLoaderRoute: typeof PitchDecksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/models/': {
       id: '/models/'
       path: '/models'
       fullPath: '/models'
       preLoaderRoute: typeof ModelsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pitch-decks/new': {
+      id: '/pitch-decks/new'
+      path: '/pitch-decks/new'
+      fullPath: '/pitch-decks/new'
+      preLoaderRoute: typeof PitchDecksNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pitch-decks/$deckId': {
+      id: '/pitch-decks/$deckId'
+      path: '/pitch-decks/$deckId'
+      fullPath: '/pitch-decks/$deckId'
+      preLoaderRoute: typeof PitchDecksDeckIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/models/new': {
@@ -296,7 +356,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignupRoute: AuthSignupRoute,
   ModelsModelIdRoute: ModelsModelIdRouteWithChildren,
   ModelsNewRoute: ModelsNewRoute,
+  PitchDecksDeckIdRoute: PitchDecksDeckIdRoute,
+  PitchDecksNewRoute: PitchDecksNewRoute,
   ModelsIndexRoute: ModelsIndexRoute,
+  PitchDecksIndexRoute: PitchDecksIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

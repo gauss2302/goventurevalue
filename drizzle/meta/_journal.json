@@ -15,6 +15,34 @@
       "when": 1768284741869,
       "tag": "0001_stiff_captain_universe",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769692800000,
+      "tag": "0002_expand_rate_precision",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769696400000,
+      "tag": "0003_add_metric_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769700000000,
+      "tag": "0004_add_model_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1769703600000,
+      "tag": "0005_add_pitch_decks",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,4 @@
+import React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
@@ -34,6 +35,8 @@ type LoaderData = {
     target: string;
     at: string;
   }>;
+  metricsByStage: Record<string, Record<string, number>>;
+  metricsPeriodEnd: string | null;
 };
 
 const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => {
@@ -42,7 +45,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     { requireAuthFromHeaders },
     { db },
     schema,
-    { eq, desc, sql },
+    { eq, desc, sql, and },
   ] = await Promise.all([
     import("@tanstack/react-start/server"),
     import("@/lib/auth/requireAuth"),
@@ -56,6 +59,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     modelScenarios,
     modelSettings,
     session: sessionTable,
+    metricSnapshot,
   } = schema;
 
   const headers = getRequestHeaders();
@@ -66,7 +70,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     orderBy: [desc(financialModels.updatedAt)],
   });
 
-  const [scenariosCountRow, totalStartingUsersRow, lastLoginRow] =
+  const [scenariosCountRow, totalStartingUsersRow, lastLoginRow, latestPeriod] =
     await Promise.all([
       db
         .select({
@@ -96,6 +100,12 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
         .where(eq(sessionTable.userId, session.user.id))
         .orderBy(desc(sessionTable.createdAt))
         .limit(1),
+      db
+        .select({ periodEnd: metricSnapshot.periodEnd })
+        .from(metricSnapshot)
+        .where(eq(metricSnapshot.userId, session.user.id))
+        .orderBy(desc(metricSnapshot.periodEnd))
+        .limit(1),
     ]);
 
   const scenarioCounts = scenariosCountRow.reduce(
@@ -120,6 +130,37 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
   const lastLoginAt = lastLoginRow[0]?.createdAt
     ? lastLoginRow[0].createdAt.toISOString()
     : null;
+
+  const metricsPeriodEnd = latestPeriod[0]?.periodEnd
+    ? latestPeriod[0].periodEnd.toISOString()
+    : null;
+
+  const metricsByStage: Record<string, Record<string, number>> = {};
+  if (latestPeriod[0]?.periodEnd) {
+    const metricRows = await db
+      .select({
+        stage: metricSnapshot.stage,
+        metricKey: metricSnapshot.metricKey,
+        value: metricSnapshot.value,
+      })
+      .from(metricSnapshot)
+      .where(
+        and(
+          eq(metricSnapshot.userId, session.user.id),
+          eq(metricSnapshot.periodEnd, latestPeriod[0].periodEnd)
+        )
+      )
+      .orderBy(desc(metricSnapshot.periodEnd))
+      .limit(500);
+
+    metricRows.forEach((row) => {
+      const stageKey = row.stage as string;
+      if (!metricsByStage[stageKey]) {
+        metricsByStage[stageKey] = {};
+      }
+      metricsByStage[stageKey][row.metricKey] = Number(row.value);
+    });
+  }
 
   const activities = models.slice(0, 4).map((model) => ({
     id: model.id,
@@ -158,6 +199,8 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     },
     lastLoginAt,
     activities,
+    metricsByStage,
+    metricsPeriodEnd,
   };
 });
 
@@ -173,14 +216,27 @@ export const Route = createFileRoute("/dashboard")({
       scenarioBreakdown: data.scenarioBreakdown,
       lastLoginAt: data.lastLoginAt,
       activities: data.activities,
+      metricsByStage: data.metricsByStage,
+      metricsPeriodEnd: data.metricsPeriodEnd,
     };
   },
   component: Dashboard,
 });
 
 function Dashboard() {
-  const { models, user, stats, scenarioBreakdown, lastLoginAt, activities } =
-    Route.useLoaderData();
+  const {
+    models,
+    user,
+    stats,
+    scenarioBreakdown,
+    lastLoginAt,
+    activities,
+    metricsByStage,
+    metricsPeriodEnd,
+  } = Route.useLoaderData();
+  const [stage, setStage] = React.useState<"idea" | "early_growth" | "scale">(
+    "idea"
+  );
   const initials =
     user.name
       ?.split(" ")
@@ -245,6 +301,116 @@ function Dashboard() {
     },
   ];
 
+  const metricGroups = {
+    growth: {
+      title: "Growth & Traction",
+      metrics: [
+        { key: "users_total", label: "Users / Customers" },
+        { key: "dau_mau", label: "DAU / MAU ratio" },
+        { key: "growth_rate", label: "Growth rate" },
+        { key: "activation_rate", label: "Activation rate" },
+        { key: "retention_rate", label: "Retention rate" },
+        { key: "churn_rate", label: "Churn rate" },
+      ],
+    },
+    revenue: {
+      title: "Revenue Metrics",
+      metrics: [
+        { key: "mrr", label: "MRR" },
+        { key: "arr", label: "ARR" },
+        { key: "arpu", label: "ARPU / ARPA" },
+        { key: "revenue_growth", label: "Revenue growth rate" },
+        { key: "expansion_revenue", label: "Expansion revenue" },
+        { key: "contraction_revenue", label: "Contraction revenue" },
+      ],
+    },
+    economics: {
+      title: "Customer Economics",
+      metrics: [
+        { key: "cac", label: "CAC" },
+        { key: "ltv", label: "LTV" },
+        { key: "ltv_cac", label: "LTV / CAC" },
+        { key: "payback_period", label: "Payback period (months)" },
+      ],
+    },
+    marketing: {
+      title: "Marketing & Sales",
+      metrics: [
+        { key: "conversion_rate", label: "Conversion rate" },
+        { key: "cpl", label: "Cost per lead (CPL)" },
+        { key: "sales_cycle", label: "Sales cycle length" },
+        { key: "win_rate", label: "Win rate" },
+      ],
+    },
+    product: {
+      title: "Product Metrics",
+      metrics: [
+        { key: "dau", label: "DAU" },
+        { key: "mau", label: "MAU" },
+        { key: "feature_adoption", label: "Feature adoption rate" },
+        { key: "time_to_value", label: "Time to value (days)" },
+        { key: "nps", label: "NPS" },
+      ],
+    },
+    health: {
+      title: "Financial Health",
+      metrics: [
+        { key: "burn_rate", label: "Burn rate" },
+        { key: "runway", label: "Runway (months)" },
+        { key: "gross_margin", label: "Gross margin" },
+        { key: "operating_margin", label: "Operating margin" },
+      ],
+    },
+  } as const;
+
+  const stageConfig: Record<
+    "idea" | "early_growth" | "scale",
+    { label: string; focus: string[] }
+  > = {
+    idea: {
+      label: "Idea / MVP",
+      focus: ["growth", "product"],
+    },
+    early_growth: {
+      label: "Early Growth",
+      focus: ["growth", "economics", "revenue"],
+    },
+    scale: {
+      label: "Scale",
+      focus: ["economics", "revenue", "health", "marketing"],
+    },
+  };
+
+  const activeMetrics = metricsByStage[stage] || {};
+  const formatMetricValue = (key: string, value?: number) => {
+    if (value == null || Number.isNaN(value)) return "—";
+    if (
+      [
+        "activation_rate",
+        "retention_rate",
+        "churn_rate",
+        "growth_rate",
+        "revenue_growth",
+        "conversion_rate",
+        "win_rate",
+        "dau_mau",
+        "gross_margin",
+        "operating_margin",
+        "feature_adoption",
+      ].includes(key)
+    ) {
+      return `${(value * 100).toFixed(1)}%`;
+    }
+    if (["mrr", "arr", "arpu", "cac", "ltv", "burn_rate", "expansion_revenue", "contraction_revenue"].includes(key)) {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      }).format(value);
+    }
+    return numberFormat.format(value);
+  };
+
   const formatCompact = (value: number) =>
     new Intl.NumberFormat(undefined, { notation: "compact" }).format(value);
 
@@ -259,18 +425,18 @@ function Dashboard() {
 
       <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
         <div className="relative px-6 py-8 lg:px-10 max-w-[1200px] mx-auto">
-          <div className="pointer-events-none absolute -top-24 right-0 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.18),transparent_70%)]" />
-          <div className="pointer-events-none absolute top-40 -left-16 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(249,137,107,0.18),transparent_70%)]" />
+          <div className="pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.12),transparent_70%)] blur-3xl" />
+          <div className="pointer-events-none absolute top-40 -left-16 h-60 w-60 rounded-full bg-[radial-gradient(circle,rgba(249,137,107,0.12),transparent_70%)] blur-3xl" />
 
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]"
+            className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]"
           >
             <div className="space-y-8">
               {/* Header */}
-              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
                     Dashboard
@@ -283,12 +449,12 @@ function Dashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="px-4 py-2 bg-white rounded-full text-xs text-[var(--brand-muted)] border border-[var(--border-soft)]">
+                  <div className="px-4 py-2.5 bg-white rounded-full text-sm text-[var(--brand-muted)] border border-[var(--border-soft)] shadow-[var(--card-shadow)]">
                     {formatLastLogin(lastLoginAt)}
                   </div>
                   <Link
                     to="/models/new"
-                    className="px-4 py-2 rounded-full bg-[var(--brand-primary)] text-white text-xs font-semibold shadow-[0_10px_20px_rgba(79,70,186,0.2)]"
+                    className="px-5 py-2.5 rounded-full bg-[var(--brand-primary)] text-white text-sm font-semibold shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)] transition-shadow"
                   >
                     New model
                   </Link>
@@ -298,9 +464,77 @@ function Dashboard() {
               {/* Stats Overview */}
               <DashboardStats stats={statsData} />
 
+              {/* Stage Focus */}
+              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
+                      Stage-based focus
+                    </p>
+                    <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
+                      Metrics that matter right now
+                    </h3>
+                    <p className="text-sm text-[var(--brand-muted)]">
+                      {metricsPeriodEnd
+                        ? `Latest snapshot: ${new Date(metricsPeriodEnd).toLocaleDateString()}`
+                        : "No metrics snapshot yet"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {(["idea", "early_growth", "scale"] as const).map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => setStage(key)}
+                        className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                          stage === key
+                            ? "bg-[var(--brand-primary)] text-white shadow-sm"
+                            : "border border-[var(--border-soft)] text-[var(--brand-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
+                        }`}
+                      >
+                        {stageConfig[key].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {stageConfig[stage].focus.map((groupKey) => {
+                    const group = metricGroups[groupKey as keyof typeof metricGroups];
+                    return (
+                      <div
+                        key={group.title}
+                        className="border border-[var(--border-soft)] rounded-2xl p-5"
+                      >
+                        <h4 className="text-sm font-semibold text-[var(--brand-ink)] mb-3">
+                          {group.title}
+                        </h4>
+                        <div className="grid gap-3">
+                          {group.metrics.map((metric) => (
+                            <div
+                              key={metric.key}
+                              className="flex items-center justify-between rounded-2xl bg-[var(--surface-muted)] px-4 py-3"
+                            >
+                              <span className="text-sm text-[var(--brand-muted)]">
+                                {metric.label}
+                              </span>
+                              <span className="text-sm font-semibold text-[var(--brand-ink)]">
+                                {formatMetricValue(
+                                  metric.key,
+                                  activeMetrics[metric.key]
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Analytics + Performance */}
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
@@ -310,11 +544,11 @@ function Dashboard() {
                         Monthly runway projection
                       </h3>
                     </div>
-                    <span className="text-xs text-[var(--brand-muted)] bg-[#F6F6FC] px-2 py-1 rounded-full">
+                    <span className="text-xs text-[var(--brand-muted)] bg-[var(--surface-muted)] px-3 py-1.5 rounded-full">
                       2026
                     </span>
                   </div>
-                  <div className="relative mt-6 h-40 rounded-2xl bg-[linear-gradient(120deg,rgba(79,70,186,0.08),rgba(132,232,244,0.12))] overflow-hidden">
+                  <div className="relative mt-6 h-40 rounded-3xl bg-[linear-gradient(120deg,rgba(79,70,186,0.08),rgba(132,232,244,0.12))] overflow-hidden">
                     <div className="absolute inset-0 grid grid-rows-4 border-t border-white/60">
                       <div className="border-b border-white/60" />
                       <div className="border-b border-white/60" />
@@ -342,7 +576,7 @@ function Dashboard() {
                   </div>
                 </div>
 
-                <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
+                <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
@@ -353,30 +587,30 @@ function Dashboard() {
                       </h3>
                     </div>
                   </div>
-                <div className="flex items-center gap-4">
-                  <div className="relative h-28 w-28">
-                    <div className="absolute inset-0 rounded-full bg-[conic-gradient(#4F46BA_0deg_160deg,#F9896B_160deg_260deg,#84E8F4_260deg_360deg)]" />
-                    <div className="absolute inset-4 rounded-full bg-white" />
-                    <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-[var(--brand-ink)]">
+                  <div className="flex items-center gap-6">
+                    <div className="relative min-w-[7rem] min-h-[7rem] w-28 h-28 flex-shrink-0">
+                      <div className="absolute inset-0 rounded-full bg-[conic-gradient(#4F46BA_0deg_160deg,#F9896B_160deg_260deg,#84E8F4_260deg_360deg)] ring-4 ring-white/80" />
+                      <div className="absolute inset-4 rounded-full bg-white" />
+                      <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-[var(--brand-ink)]">
                         {scenarioBreakdown.total}
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2 text-sm text-[var(--brand-muted)]">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[var(--brand-primary)]" />
+                    <div className="space-y-2 text-sm text-[var(--brand-muted)]">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[var(--brand-primary)]" />
                         Base case {scenarioPercent(scenarioBreakdown.base)}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[var(--brand-secondary)]" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[var(--brand-secondary)]" />
                         Optimistic {scenarioPercent(scenarioBreakdown.optimistic)}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[var(--brand-ice)]" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[var(--brand-ice)]" />
                         Conservative {scenarioPercent(scenarioBreakdown.conservative)}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
               </div>
 
               {/* Quick Actions */}
@@ -388,9 +622,9 @@ function Dashboard() {
 
             {/* Right Sidebar */}
             <aside className="space-y-6">
-              <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-2xl bg-[linear-gradient(135deg,rgba(79,70,186,0.2),rgba(249,137,107,0.2))] flex items-center justify-center text-[var(--brand-primary)] font-[var(--font-display)] text-lg mb-3">
+              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
+                <div className="flex flex-col items-center text-center gap-4">
+                  <div className="w-20 h-20 rounded-3xl bg-[linear-gradient(135deg,rgba(79,70,186,0.2),rgba(249,137,107,0.2))] flex items-center justify-center text-[var(--brand-primary)] font-[var(--font-display)] text-lg">
                     {initials}
                   </div>
                   <h4 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
@@ -400,7 +634,7 @@ function Dashboard() {
                     {user.email || "Starter plan"}
                   </p>
                 </div>
-                <div className="grid grid-cols-3 gap-4 mt-6 text-center">
+                <div className="grid grid-cols-3 gap-4 mt-5 text-center">
                   <div>
                     <p className="text-base font-semibold text-[var(--brand-ink)]">
                       {numberFormat.format(stats.modelsCount)}
@@ -422,11 +656,11 @@ function Dashboard() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-6 flex gap-3">
-                  <button className="flex-1 rounded-xl bg-[var(--brand-primary)] text-white py-2 text-xs font-semibold shadow-[0_10px_20px_rgba(79,70,186,0.2)]">
+                <div className="mt-5 flex gap-3">
+                  <button className="flex-1 rounded-2xl bg-[var(--brand-primary)] text-white py-2.5 text-xs font-semibold shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)] transition-shadow">
                     Upgrade
                   </button>
-                  <button className="flex-1 rounded-xl border border-[var(--border-soft)] text-[var(--brand-ink)] py-2 text-xs font-semibold">
+                  <button className="flex-1 rounded-2xl border border-[var(--border-soft)] text-[var(--brand-ink)] py-2.5 text-xs font-semibold hover:bg-[var(--surface-muted)] transition-colors">
                     Share
                   </button>
                 </div>
@@ -434,7 +668,7 @@ function Dashboard() {
 
               <RecentActivity activities={activities} />
 
-              <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)] space-y-4">
+              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)] space-y-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
                     Next steps
@@ -444,11 +678,11 @@ function Dashboard() {
                   </h3>
                 </div>
                 <div className="space-y-3 text-sm text-[var(--brand-muted)]">
-                  <div className="flex items-center justify-between rounded-xl border border-[var(--border-soft)] px-3 py-2">
+                  <div className="flex items-center justify-between rounded-2xl border border-[var(--border-soft)] px-4 py-2.5 hover:bg-[var(--surface-muted)] transition-colors">
                     <span>Upload your logo</span>
                     <span className="text-[var(--brand-primary)] font-semibold">Add</span>
                   </div>
-                  <div className="flex items-center justify-between rounded-xl border border-[var(--border-soft)] px-3 py-2">
+                  <div className="flex items-center justify-between rounded-2xl border border-[var(--border-soft)] px-4 py-2.5 hover:bg-[var(--surface-muted)] transition-colors">
                     <span>Set default currency</span>
                     <span className="text-[var(--brand-primary)] font-semibold">Update</span>
                   </div>

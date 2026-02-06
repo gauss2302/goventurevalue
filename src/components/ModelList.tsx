@@ -17,8 +17,8 @@ type ModelListProps = {
 export default function ModelList({ models }: ModelListProps) {
   if (models.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgba(79,70,186,0.12)]">
+      <div className="text-center py-12 bg-white rounded-[var(--card-radius)] border border-[var(--border-soft)] shadow-[var(--card-shadow)]">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-[rgba(79,70,186,0.12)]">
           <FileText className="w-8 h-8 text-[var(--brand-primary)]" />
         </div>
         <h3 className="text-xl font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
@@ -29,7 +29,7 @@ export default function ModelList({ models }: ModelListProps) {
         </p>
         <Link
           to="/models/new"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-xl transition-colors shadow-[0_12px_24px_rgba(79,70,186,0.25)]"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-2xl transition-all shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)]"
         >
           <Plus size={20} />
           Create New Model
@@ -51,7 +51,7 @@ export default function ModelList({ models }: ModelListProps) {
         </div>
         <Link
           to="/models/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-lg transition-colors shadow-[0_10px_20px_rgba(79,70,186,0.2)]"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-2xl transition-all shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)]"
         >
           <Plus size={18} />
           New Model
@@ -64,7 +64,7 @@ export default function ModelList({ models }: ModelListProps) {
             key={model.id}
             to="/models/$modelId"
             params={{ modelId: model.id.toString() }}
-            className="group block p-6 bg-white border border-[var(--border-soft)] rounded-2xl hover:border-[rgba(79,70,186,0.35)] hover:shadow-[0_10px_24px_rgba(79,70,186,0.12)] transition-all"
+            className="group block p-6 bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] shadow-[var(--card-shadow)] hover:border-[rgba(79,70,186,0.35)] hover:shadow-[var(--card-shadow-hover)] transition-all duration-200"
           >
             <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-2 group-hover:text-[var(--brand-primary)] transition-colors">
               {model.name}

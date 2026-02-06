@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   FileSpreadsheet,
+  Presentation,
   BookOpen,
   Library,
   Menu,
@@ -40,6 +41,12 @@ export function Sidebar() {
       label: "My Models",
       href: "/models",
       isActive: pathname.startsWith("/models"),
+    },
+    {
+      icon: Presentation,
+      label: "Pitch Decks",
+      href: "/pitch-decks",
+      isActive: pathname.startsWith("/pitch-decks"),
     },
     {
       icon: BookOpen,
@@ -131,7 +138,7 @@ export function Sidebar() {
           {menuItems.map((item) => (
             <Link
               key={item.href}
-              to={item.href}
+              to={item.href as any}
               title={isCollapsed ? item.label : undefined}
               className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
                 item.isActive
@@ -201,7 +208,7 @@ export function Sidebar() {
               {menuItems.map((item) => (
                 <Link
                   key={item.href}
-                  to={item.href}
+                  to={item.href as any}
                   onClick={() => setIsMobileOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
                     item.isActive

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, decimal, boolean, pgEnum, index } from 'drizzle-orm/pg-core'
+import { pgTable, serial, text, timestamp, integer, decimal, boolean, pgEnum, index, jsonb } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // Better Auth Schema - Required for authentication
@@ -117,6 +117,9 @@ export const financialModels = pgTable('financial_models', {
 })
 
 export const scenarioTypeEnum = pgEnum('scenario_type', ['conservative', 'base', 'optimistic'])
+export const stageEnum = pgEnum('startup_stage', ['idea', 'early_growth', 'scale'])
+export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'gemini'])
+export const pitchDeckStatusEnum = pgEnum('pitch_deck_status', ['draft', 'generating', 'ready', 'failed'])
 
 export const modelScenarios = pgTable('model_scenarios', {
   id: serial().primaryKey(),
@@ -221,12 +224,107 @@ export const modelSettings = pgTable('model_settings', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const modelMetrics = pgTable('model_metrics', {
+  id: serial().primaryKey(),
+  modelId: integer('model_id')
+    .references(() => financialModels.id, { onDelete: 'cascade' })
+    .notNull(),
+  usersTotal: decimal('users_total', { precision: 18, scale: 4 }),
+  dau: decimal('dau', { precision: 18, scale: 4 }),
+  mau: decimal('mau', { precision: 18, scale: 4 }),
+  growthRate: decimal('growth_rate', { precision: 10, scale: 4 }),
+  activationRate: decimal('activation_rate', { precision: 10, scale: 4 }),
+  retentionRate: decimal('retention_rate', { precision: 10, scale: 4 }),
+  churnRate: decimal('churn_rate', { precision: 10, scale: 4 }),
+  mrr: decimal('mrr', { precision: 18, scale: 4 }),
+  arr: decimal('arr', { precision: 18, scale: 4 }),
+  arpu: decimal('arpu', { precision: 18, scale: 4 }),
+  revenueGrowthRate: decimal('revenue_growth_rate', { precision: 10, scale: 4 }),
+  expansionRevenue: decimal('expansion_revenue', { precision: 18, scale: 4 }),
+  contractionRevenue: decimal('contraction_revenue', { precision: 18, scale: 4 }),
+  cac: decimal('cac', { precision: 18, scale: 4 }),
+  ltv: decimal('ltv', { precision: 18, scale: 4 }),
+  ltvCac: decimal('ltv_cac', { precision: 10, scale: 4 }),
+  paybackPeriodMonths: decimal('payback_period_months', { precision: 10, scale: 2 }),
+  conversionRate: decimal('conversion_rate', { precision: 10, scale: 4 }),
+  cpl: decimal('cpl', { precision: 18, scale: 4 }),
+  salesCycleLengthDays: decimal('sales_cycle_length_days', { precision: 10, scale: 2 }),
+  winRate: decimal('win_rate', { precision: 10, scale: 4 }),
+  dauMauRatio: decimal('dau_mau_ratio', { precision: 10, scale: 4 }),
+  featureAdoptionRate: decimal('feature_adoption_rate', { precision: 10, scale: 4 }),
+  timeToValueDays: decimal('time_to_value_days', { precision: 10, scale: 2 }),
+  nps: decimal('nps', { precision: 10, scale: 2 }),
+  burnRate: decimal('burn_rate', { precision: 18, scale: 4 }),
+  runwayMonths: decimal('runway_months', { precision: 10, scale: 2 }),
+  grossMargin: decimal('gross_margin', { precision: 10, scale: 4 }),
+  operatingMargin: decimal('operating_margin', { precision: 10, scale: 4 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const pitchDecks = pgTable(
+  'pitch_decks',
+  {
+    id: serial().primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    startupName: text('startup_name').notNull(),
+    oneLiner: text('one_liner'),
+    audience: text('audience').default('investors').notNull(),
+    language: text('language').default('en').notNull(),
+    currency: text('currency').default('USD').notNull(),
+    provider: aiProviderEnum('provider').notNull(),
+    providerModel: text('provider_model').notNull(),
+    status: pitchDeckStatusEnum('status').default('draft').notNull(),
+    brief: jsonb('brief').notNull(),
+    slides: jsonb('slides').default([]).notNull(),
+    generationMeta: jsonb('generation_meta'),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('pitch_decks_user_idx').on(table.userId),
+    index('pitch_decks_model_idx').on(table.modelId),
+    index('pitch_decks_updated_idx').on(table.updatedAt),
+  ],
+)
+
+// Metrics snapshots for dashboard analytics (manual input or imports)
+export const metricSnapshot = pgTable(
+  'metric_snapshots',
+  {
+    id: serial().primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    stage: stageEnum('stage').notNull(),
+    metricKey: text('metric_key').notNull(),
+    value: decimal('value', { precision: 18, scale: 4 }).notNull(),
+    periodStart: timestamp('period_start').notNull(),
+    periodEnd: timestamp('period_end').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('metric_snapshots_user_period_idx').on(table.userId, table.periodEnd),
+    index('metric_snapshots_stage_idx').on(table.stage),
+  ],
+)
+
 // Relations
 export const financialModelsRelations = relations(financialModels, ({ many, one }) => ({
   scenarios: many(modelScenarios),
   projections: many(modelProjections),
   marketSizing: many(marketSizing),
   settings: one(modelSettings),
+  pitchDecks: many(pitchDecks),
 }))
 
 export const modelScenariosRelations = relations(modelScenarios, ({ one }) => ({
@@ -253,6 +351,24 @@ export const marketSizingRelations = relations(marketSizing, ({ one }) => ({
 export const modelSettingsRelations = relations(modelSettings, ({ one }) => ({
   model: one(financialModels, {
     fields: [modelSettings.modelId],
+    references: [financialModels.id],
+  }),
+}))
+
+export const modelMetricsRelations = relations(modelMetrics, ({ one }) => ({
+  model: one(financialModels, {
+    fields: [modelMetrics.modelId],
+    references: [financialModels.id],
+  }),
+}))
+
+export const pitchDecksRelations = relations(pitchDecks, ({ one }) => ({
+  user: one(user, {
+    fields: [pitchDecks.userId],
+    references: [user.id],
+  }),
+  model: one(financialModels, {
+    fields: [pitchDecks.modelId],
     references: [financialModels.id],
   }),
 }))

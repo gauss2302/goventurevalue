@@ -45,14 +45,14 @@ export function DashboardStats({ stats }: { stats: DashboardStat[] }) {
         return (
           <div
             key={index}
-            className="relative overflow-hidden bg-white border border-[var(--border-soft)] rounded-2xl p-5 shadow-[0_4px_16px_rgba(17,24,39,0.06)]"
+            className="relative overflow-hidden bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]"
           >
             <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-[rgba(79,70,186,0.06)] blur-2xl" />
             <div className="flex items-start justify-between gap-4 mb-4 relative">
               <div className={`p-3 rounded-2xl ${tone.bg} ${tone.color}`}>
                 <Icon size={20} />
               </div>
-              <span className="text-[11px] font-semibold text-[var(--brand-muted)] bg-[#F6F6FC] px-2 py-1 rounded-full">
+              <span className="text-[11px] font-semibold text-[var(--brand-muted)] bg-[var(--surface-muted)] px-2 py-1 rounded-full">
                 {stat.helper}
               </span>
             </div>

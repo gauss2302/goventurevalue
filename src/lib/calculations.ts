@@ -88,31 +88,127 @@ export const DEFAULT_MARKET_SIZING: MarketSizing = {
   som: [210000, 840000, 2520000, 6300000, 12600000],
 };
 
+const toFiniteNumber = (value: number, fallback = 0): number =>
+  Number.isFinite(value) ? value : fallback;
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
+const normalizeRate = (
+  value: number,
+  options: { min: number; max: number }
+): number => {
+  const raw = toFiniteNumber(value, 0);
+  const asFraction = Math.abs(raw) > 1 ? raw / 100 : raw;
+  return clamp(asFraction, options.min, options.max);
+};
+
+const toPercent = (numerator: number, denominator: number): number => {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return 0;
+  }
+  return (numerator / denominator) * 100;
+};
+
+const toRatio = (numerator: number, denominator: number): number => {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return 0;
+  }
+  return numerator / denominator;
+};
+
+const normalizeScenario = (scenario: ScenarioParams): ScenarioParams => ({
+  userGrowth: normalizeRate(scenario.userGrowth, { min: -0.95, max: 3 }),
+  arpu: Math.max(0, toFiniteNumber(scenario.arpu, 0)),
+  churnRate: normalizeRate(scenario.churnRate, { min: 0.001, max: 0.95 }),
+  farmerGrowth: normalizeRate(scenario.farmerGrowth, { min: -0.95, max: 3 }),
+  cac: Math.max(0, toFiniteNumber(scenario.cac, 0)),
+});
+
+const normalizeSettings = (settings: ModelSettings): ModelSettings => {
+  const discountRate = normalizeRate(settings.discountRate, {
+    min: 0.01,
+    max: 0.95,
+  });
+  const terminalGrowthRaw = normalizeRate(settings.terminalGrowth, {
+    min: -0.2,
+    max: 0.2,
+  });
+  const terminalGrowth =
+    terminalGrowthRaw >= discountRate
+      ? Math.max(-0.2, Number((discountRate - 0.01).toFixed(4)))
+      : terminalGrowthRaw;
+
+  return {
+    ...settings,
+    startUsers: Math.max(0, Math.round(toFiniteNumber(settings.startUsers, 0))),
+    startFarmers: Math.max(0, Math.round(toFiniteNumber(settings.startFarmers, 0))),
+    taxRate: normalizeRate(settings.taxRate, { min: 0, max: 0.9 }),
+    discountRate,
+    terminalGrowth,
+    safetyBuffer: Math.max(0, Math.round(toFiniteNumber(settings.safetyBuffer, 0))),
+    personnelByYear: settings.personnelByYear.map((v) =>
+      Math.max(0, Math.round(toFiniteNumber(v, 0)))
+    ),
+    employeesByYear: settings.employeesByYear.map((v) =>
+      Math.max(0, Math.round(toFiniteNumber(v, 0)))
+    ),
+    capexByYear: settings.capexByYear.map((v) =>
+      Math.max(0, Math.round(toFiniteNumber(v, 0)))
+    ),
+    depreciationByYear: settings.depreciationByYear.map((v) =>
+      Math.max(0, Math.round(toFiniteNumber(v, 0)))
+    ),
+  };
+};
+
+const normalizeMarketSizing = (marketSizing: MarketSizing): MarketSizing => ({
+  tam: Math.max(0, Math.round(toFiniteNumber(marketSizing.tam, 0))),
+  sam: Math.max(1, Math.round(toFiniteNumber(marketSizing.sam, 1))),
+  som: marketSizing.som.map((v) => Math.max(0, Math.round(toFiniteNumber(v, 0)))),
+});
+
 export function calculateProjections(
   scenario: ScenarioParams,
   settings: ModelSettings = DEFAULT_SETTINGS,
   marketSizing: MarketSizing = DEFAULT_MARKET_SIZING
 ): ProjectionData[] {
+  const normalizedScenario = normalizeScenario(scenario);
+  const normalizedSettings = normalizeSettings(settings);
+  const normalizedMarketSizing = normalizeMarketSizing(marketSizing);
   const projections: ProjectionData[] = [];
-  const years = settings.projectionYears;
+  const years = normalizedSettings.projectionYears;
 
   years.forEach((year, i) => {
     const users = Math.round(
-      settings.startUsers * Math.pow(1 + scenario.userGrowth, i + 1)
+      Math.max(
+        0,
+        normalizedSettings.startUsers *
+          Math.pow(1 + normalizedScenario.userGrowth, i + 1)
+      )
     );
     const farmers = Math.round(
-      settings.startFarmers * Math.pow(1 + scenario.farmerGrowth, i + 1)
+      Math.max(
+        0,
+        normalizedSettings.startFarmers *
+          Math.pow(1 + normalizedScenario.farmerGrowth, i + 1)
+      )
     );
-    const mau = Math.round(users * (1 - scenario.churnRate));
+    const mau = Math.round(Math.max(0, users * (1 - normalizedScenario.churnRate)));
     const newUsers =
       i === 0
         ? users
-        : Math.round(
-            users - settings.startUsers * Math.pow(1 + scenario.userGrowth, i)
+        : Math.max(
+            0,
+            Math.round(
+              users -
+                normalizedSettings.startUsers *
+                  Math.pow(1 + normalizedScenario.userGrowth, i)
+            )
           );
 
     // Revenue streams
-    const platformRevenue = Math.round(mau * scenario.arpu * 12);
+    const platformRevenue = Math.round(mau * normalizedScenario.arpu * 12);
     const farmerRevShare = Math.round(farmers * 500 * 12 * 0.15);
     const b2bRevenue = Math.round((platformRevenue + farmerRevShare) * 0.1);
     const totalRevenue = platformRevenue + farmerRevShare + b2bRevenue;
@@ -123,28 +219,28 @@ export function calculateProjections(
     const customerSupport = Math.round(users * 0.2 * 12);
     const cogs = hostingCosts + paymentProcessing + customerSupport;
     const grossProfit = totalRevenue - cogs;
-    const grossMargin = Number(((grossProfit / totalRevenue) * 100).toFixed(1));
+    const grossMargin = Number(toPercent(grossProfit, totalRevenue).toFixed(1));
 
     // Operating Expenses
-    const personnel = settings.personnelByYear[i] || 0;
-    const employees = settings.employeesByYear[i] || 0;
-    const marketing = Math.round(newUsers * scenario.cac);
+    const personnel = normalizedSettings.personnelByYear[i] || 0;
+    const employees = normalizedSettings.employeesByYear[i] || 0;
+    const marketing = Math.round(newUsers * normalizedScenario.cac);
     const rd = Math.round(25000 + i * 15000);
     const gna = Math.round(12000 + i * 6000);
     const opex = personnel + marketing + rd + gna;
 
     // EBITDA
     const ebitda = grossProfit - opex;
-    const ebitdaMargin = Number(((ebitda / totalRevenue) * 100).toFixed(1));
+    const ebitdaMargin = Number(toPercent(ebitda, totalRevenue).toFixed(1));
 
     // Depreciation
-    const capex = settings.capexByYear[i] || 0;
-    const depreciation = settings.depreciationByYear[i] || 0;
+    const capex = normalizedSettings.capexByYear[i] || 0;
+    const depreciation = normalizedSettings.depreciationByYear[i] || 0;
 
     // EBIT & Taxes
     const ebit = ebitda - depreciation;
     const taxableIncome = Math.max(0, ebit);
-    const taxes = Math.round(taxableIncome * settings.taxRate);
+    const taxes = Math.round(taxableIncome * normalizedSettings.taxRate);
     const netIncome = ebit - taxes;
 
     // Working Capital
@@ -161,12 +257,18 @@ export function calculateProjections(
     const freeCashFlow = operatingCF + investingCF;
 
     // KPIs
-    const ltv = Math.round(scenario.arpu * 12 * (1 / scenario.churnRate));
-    const ltvCac = Number((ltv / scenario.cac).toFixed(1));
-    const paybackMonths = Math.round(scenario.cac / scenario.arpu);
-    const revenuePerEmployee = Math.round(totalRevenue / employees);
+    const ltv = Math.round(
+      normalizedScenario.arpu * 12 * (1 / normalizedScenario.churnRate)
+    );
+    const ltvCac = Number(toRatio(ltv, normalizedScenario.cac).toFixed(1));
+    const paybackMonths =
+      normalizedScenario.arpu > 0
+        ? Math.round(normalizedScenario.cac / normalizedScenario.arpu)
+        : 0;
+    const revenuePerEmployee =
+      employees > 0 ? Math.round(totalRevenue / employees) : 0;
     const marketShare = Number(
-      ((totalRevenue / marketSizing.sam) * 100).toFixed(2)
+      toPercent(Math.max(totalRevenue, 0), normalizedMarketSizing.sam).toFixed(2)
     );
 
     projections.push({
@@ -220,21 +322,34 @@ export function calculateDCF(
   discountRate: number,
   terminalGrowth: number
 ) {
+  const normalizedDiscountRate = normalizeRate(discountRate, {
+    min: 0.01,
+    max: 0.95,
+  });
+  const normalizedTerminalGrowthRaw = normalizeRate(terminalGrowth, {
+    min: -0.2,
+    max: 0.2,
+  });
+  const normalizedTerminalGrowth =
+    normalizedTerminalGrowthRaw >= normalizedDiscountRate
+      ? Math.max(-0.2, Number((normalizedDiscountRate - 0.01).toFixed(4)))
+      : normalizedTerminalGrowthRaw;
+
   const terminalYear = projections[projections.length - 1];
   const terminalValue =
-    (terminalYear.freeCashFlow * (1 + terminalGrowth)) /
-    (discountRate - terminalGrowth);
+    (terminalYear.freeCashFlow * (1 + normalizedTerminalGrowth)) /
+    (normalizedDiscountRate - normalizedTerminalGrowth);
 
   const pvCashFlows = projections.map(
-    (p, i) => p.freeCashFlow / Math.pow(1 + discountRate, i + 1)
+    (p, i) => p.freeCashFlow / Math.pow(1 + normalizedDiscountRate, i + 1)
   );
   const pvTerminal =
-    terminalValue / Math.pow(1 + discountRate, projections.length);
+    terminalValue / Math.pow(1 + normalizedDiscountRate, projections.length);
   const enterpriseValue = pvCashFlows.reduce((a, b) => a + b, 0) + pvTerminal;
 
   return {
-    discountRate,
-    terminalGrowth,
+    discountRate: normalizedDiscountRate,
+    terminalGrowth: normalizedTerminalGrowth,
     terminalValue,
     pvCashFlows,
     pvTerminal,

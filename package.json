@@ -39,6 +39,7 @@
     "jspdf": "^2.5.2",
     "lucide-react": "^0.561.0",
     "mathjs": "^12.4.3",
+    "motion": "^12.26.1",
     "nitro": "npm:nitro-nightly@latest",
     "pg": "^8.16.3",
     "react": "^19.2.0",

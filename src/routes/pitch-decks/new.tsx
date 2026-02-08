@@ -382,7 +382,7 @@ function NewPitchDeckPage() {
                       value={providerModel}
                       onChange={(event) => setProviderModel(event.target.value)}
                       className="mt-1 w-full px-3 py-2 rounded-xl border border-[var(--border-soft)]"
-                      placeholder={provider === "openai" ? "gpt-4.1-mini" : "gemini-1.5-flash"}
+                      placeholder={provider === "openai" ? "gpt-4.1-mini" : "gemini-2.0-flash"}
                     />
                   </label>
 

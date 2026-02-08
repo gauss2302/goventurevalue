@@ -31,12 +31,86 @@ type ExportModelData = {
   market: MarketSizing;
 };
 
+type CellAlign = "left" | "center" | "right";
+
+type CellStyleOptions = {
+  bold?: boolean;
+  color?: string;
+  fill?: string;
+  horizontal?: CellAlign;
+  numFmt?: string;
+  border?: Partial<ExcelJS.Borders>;
+  size?: number;
+};
+
+type PnLBlockResult = {
+  headerRow: number;
+};
+
+type KeyValueItem = {
+  key?: string;
+  label: string;
+  value: ExcelJS.CellValue;
+  valueFormat?: string;
+  isTotal?: boolean;
+  labelBold?: boolean;
+  formula?: (row: number, colByKey: Record<string, number>) => string;
+};
+
+type HorizontalTableColumn = {
+  key: string;
+  label: string;
+  values: number[];
+  format: string;
+  isEmphasis?: boolean;
+  formula?: (row: number, colByKey: Record<string, number>) => string;
+};
+
 const scenarioOrder: ScenarioType[] = ["conservative", "base", "optimistic"];
 const currencySymbols: Record<string, string> = {
   USD: "$",
   EUR: "€",
   CNY: "¥",
 };
+
+const colors = {
+  text: "FF1C1E2F",
+  muted: "FF5B6575",
+  sectionText: "FF344A70",
+  sectionFill: "FFEFF3FA",
+  headerFill: "FFF3F4F6",
+  subSectionFill: "FFF7F8FB",
+  totalFill: "FFF9FAFC",
+  rule: "FFD5DAE3",
+  ruleStrong: "FF9DA9BC",
+};
+
+const thinRule = { style: "thin" as const, color: { argb: colors.rule } };
+const mediumRule = {
+  style: "medium" as const,
+  color: { argb: colors.ruleStrong },
+};
+
+const borderRow: Partial<ExcelJS.Borders> = {
+  bottom: thinRule,
+};
+const borderSection: Partial<ExcelJS.Borders> = {
+  top: thinRule,
+  bottom: thinRule,
+};
+const borderHeader: Partial<ExcelJS.Borders> = {
+  top: thinRule,
+  bottom: thinRule,
+};
+const borderTotal: Partial<ExcelJS.Borders> = {
+  top: mediumRule,
+  bottom: thinRule,
+};
+
+const percentValueFormat = '0.0"%"';
+const percentFractionFormat = "0.0%";
+const ratioFormat = "0.0";
+const integerFormat = "#,##0";
 
 const toNumber = (value: string | number | null | undefined) => {
   if (typeof value === "number") return value;
@@ -54,48 +128,325 @@ const formatScenarioLabel = (scenario: ScenarioType) =>
 
 const currencyFormat = (currency: string) => {
   const symbol = currencySymbols[currency] ?? "$";
-  return `${symbol}#,##0;[Red]-${symbol}#,##0`;
+  return `${symbol}#,##0;[Red](${symbol}#,##0)`;
 };
 
-const percentValueFormat = '0.0"%"';
-const percentFractionFormat = "0.0%";
-const ratioFormat = "0.0";
-const integerFormat = "#,##0";
-
-const applyHeaderStyle = (cell: ExcelJS.Cell) => {
-  cell.font = { bold: true, color: { argb: "FF1C1E2F" } };
-  cell.alignment = { vertical: "middle", horizontal: "center" };
-  cell.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FFF6F6FC" },
-  };
-  cell.border = {
-    bottom: { style: "thin", color: { argb: "FFE2E2E2" } },
-  };
+const columnLetter = (index: number) => {
+  let col = index;
+  let letter = "";
+  while (col > 0) {
+    const mod = (col - 1) % 26;
+    letter = String.fromCharCode(65 + mod) + letter;
+    col = Math.floor((col - 1) / 26);
+  }
+  return letter;
 };
 
-const applySectionStyle = (row: ExcelJS.Row) => {
-  row.font = { bold: true, color: { argb: "FF4F46BA" } };
-  row.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FFF0F1FD" },
+const applyCellStyle = (cell: ExcelJS.Cell, options: CellStyleOptions = {}) => {
+  cell.font = {
+    name: "Calibri",
+    size: options.size ?? 10,
+    bold: options.bold ?? false,
+    color: { argb: options.color ?? colors.text },
   };
+  cell.alignment = {
+    vertical: "middle",
+    horizontal: options.horizontal ?? "left",
+  };
+  if (options.fill) {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: options.fill },
+    };
+  }
+  if (options.numFmt) {
+    cell.numFmt = options.numFmt;
+  }
+  if (options.border) {
+    cell.border = options.border;
+  }
 };
 
-const applyTotalStyle = (row: ExcelJS.Row) => {
-  row.font = { bold: true, color: { argb: "FF1C1E2F" } };
-  row.fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FFF8F8FF" },
-  };
+const paintRowRange = (
+  row: ExcelJS.Row,
+  lastCol: number,
+  paint: (cell: ExcelJS.Cell, col: number) => void
+) => {
+  for (let col = 1; col <= lastCol; col += 1) {
+    paint(row.getCell(col), col);
+  }
 };
 
-const addEmptyRow = (sheet: ExcelJS.Worksheet) => {
+const addSpacerRow = (sheet: ExcelJS.Worksheet) => {
   const row = sheet.addRow([]);
-  row.height = 6;
+  row.height = 4;
+  return sheet.rowCount + 1;
+};
+
+const ensureColumnWidth = (
+  sheet: ExcelJS.Worksheet,
+  columnIndex: number,
+  width: number
+) => {
+  const column = sheet.getColumn(columnIndex);
+  const currentWidth = column.width ?? 8.43;
+  if (currentWidth < width) {
+    column.width = width;
+  }
+};
+
+const addSectionTitleRow = (
+  sheet: ExcelJS.Worksheet,
+  lastCol: number,
+  title: string
+) => {
+  const row = sheet.addRow([title]);
+  row.height = 20;
+
+  paintRowRange(row, lastCol, (cell, col) => {
+    if (col > 1) {
+      cell.value = "";
+    }
+    applyCellStyle(cell, {
+      bold: true,
+      color: colors.sectionText,
+      fill: colors.sectionFill,
+      horizontal: col === 1 ? "left" : "center",
+      border: borderSection,
+    });
+  });
+
+  return row.number;
+};
+
+const addKeyValueRow = (
+  sheet: ExcelJS.Worksheet,
+  label: string,
+  value: ExcelJS.CellValue,
+  options: { valueFormat?: string; isTotal?: boolean; labelBold?: boolean } = {}
+) => {
+  const row = sheet.addRow([label, value]);
+  row.height = 18;
+
+  const border = options.isTotal ? borderTotal : borderRow;
+  const fill = options.isTotal ? colors.totalFill : undefined;
+
+  applyCellStyle(row.getCell(1), {
+    bold: options.isTotal || options.labelBold,
+    color: options.isTotal ? colors.text : colors.muted,
+    fill,
+    horizontal: "left",
+    border,
+  });
+  applyCellStyle(row.getCell(2), {
+    bold: options.isTotal,
+    fill,
+    horizontal: "right",
+    numFmt: options.valueFormat,
+    border,
+  });
+
+  return row.number;
+};
+
+const addKeyValueRowsCompact = (
+  sheet: ExcelJS.Worksheet,
+  lastCol: number,
+  items: KeyValueItem[]
+) => {
+  if (lastCol < 4) {
+    items.forEach((item) => {
+      addKeyValueRow(sheet, item.label, item.value, {
+        valueFormat: item.valueFormat,
+        isTotal: item.isTotal,
+        labelBold: item.labelBold,
+      });
+    });
+    return;
+  }
+
+  let i = 0;
+  while (i < items.length) {
+    const left = items[i];
+    const right = items[i + 1];
+
+    if (left.isTotal || right?.isTotal) {
+      addKeyValueRow(sheet, left.label, left.value, {
+        valueFormat: left.valueFormat,
+        isTotal: left.isTotal,
+        labelBold: left.labelBold,
+      });
+      i += 1;
+      continue;
+    }
+
+    const row = sheet.addRow([
+      left.label,
+      left.value,
+      right?.label ?? "",
+      right?.value ?? "",
+    ]);
+    row.height = 18;
+
+    applyCellStyle(row.getCell(1), {
+      bold: left.labelBold,
+      color: left.labelBold ? colors.text : colors.muted,
+      horizontal: "left",
+      border: borderRow,
+    });
+    applyCellStyle(row.getCell(2), {
+      horizontal: "right",
+      numFmt: left.valueFormat,
+      border: borderRow,
+    });
+    applyCellStyle(row.getCell(3), {
+      bold: right?.labelBold,
+      color: right?.labelBold ? colors.text : colors.muted,
+      horizontal: "left",
+      border: borderRow,
+    });
+    applyCellStyle(row.getCell(4), {
+      horizontal: "right",
+      numFmt: right?.valueFormat,
+      border: borderRow,
+    });
+
+    for (let col = 5; col <= lastCol; col += 1) {
+      const filler = row.getCell(col);
+      filler.value = "";
+      applyCellStyle(filler, {
+        horizontal: "left",
+        border: borderRow,
+      });
+    }
+
+    i += 2;
+  }
+};
+
+const appendSingleRowBlock = (
+  sheet: ExcelJS.Worksheet,
+  title: string,
+  items: KeyValueItem[]
+) => {
+  const lastCol = Math.max(2, items.length);
+  addSectionTitleRow(sheet, lastCol, title);
+
+  const headerRow = sheet.addRow(items.map((item) => item.label));
+  headerRow.height = 18;
+  for (let col = 1; col <= lastCol; col += 1) {
+    const cell = headerRow.getCell(col);
+    if (col > items.length) {
+      cell.value = "";
+    }
+    ensureColumnWidth(sheet, col, col === 1 ? 16 : 14);
+    applyCellStyle(cell, {
+      bold: true,
+      fill: colors.headerFill,
+      horizontal: "center",
+      border: borderHeader,
+    });
+  }
+
+  const valuesRow = sheet.addRow(items.map((item) => item.value));
+  valuesRow.height = 18;
+  const colByKey: Record<string, number> = {};
+
+  items.forEach((item, idx) => {
+    const col = idx + 1;
+    if (item.key) {
+      colByKey[item.key] = col;
+    }
+    const cell = valuesRow.getCell(col);
+    if (item.formula) {
+      cell.value = {
+        formula: item.formula(valuesRow.number, colByKey),
+        result: item.value as number,
+      };
+    }
+    applyCellStyle(cell, {
+      bold: item.isTotal,
+      fill: item.isTotal ? colors.totalFill : undefined,
+      horizontal: "right",
+      numFmt: item.valueFormat,
+      border: item.isTotal ? borderTotal : borderRow,
+    });
+  });
+
+  for (let col = items.length + 1; col <= lastCol; col += 1) {
+    const filler = valuesRow.getCell(col);
+    filler.value = "";
+    applyCellStyle(filler, {
+      horizontal: "left",
+      border: borderRow,
+    });
+  }
+
+  addSpacerRow(sheet);
+  return sheet.rowCount + 1;
+};
+
+const appendHorizontalYearTable = (
+  sheet: ExcelJS.Worksheet,
+  title: string,
+  years: number[],
+  columns: HorizontalTableColumn[]
+): PnLBlockResult => {
+  const lastCol = columns.length + 1;
+  addSectionTitleRow(sheet, lastCol, title);
+
+  const headerRow = sheet.addRow(["Year", ...columns.map((column) => column.label)]);
+  headerRow.height = 19;
+  for (let col = 1; col <= lastCol; col += 1) {
+    const cell = headerRow.getCell(col);
+    ensureColumnWidth(sheet, col, col === 1 ? 10 : 13);
+    applyCellStyle(cell, {
+      bold: true,
+      fill: colors.headerFill,
+      horizontal: "center",
+      border: borderHeader,
+    });
+  }
+
+  const colByKey: Record<string, number> = {};
+  columns.forEach((column, index) => {
+    colByKey[column.key] = index + 2;
+  });
+
+  years.forEach((year, yearIndex) => {
+    const row = sheet.addRow([year, ...columns.map((column) => column.values[yearIndex] ?? 0)]);
+    row.height = 18;
+
+    applyCellStyle(row.getCell(1), {
+      bold: true,
+      horizontal: "center",
+      numFmt: integerFormat,
+      border: borderRow,
+    });
+
+    columns.forEach((column, columnIndex) => {
+      const col = columnIndex + 2;
+      const cell = row.getCell(col);
+      const result = column.values[yearIndex] ?? 0;
+      if (column.formula) {
+        cell.value = {
+          formula: column.formula(row.number, colByKey),
+          result,
+        };
+      }
+      applyCellStyle(cell, {
+        bold: column.isEmphasis,
+        fill: column.isEmphasis ? colors.totalFill : undefined,
+        horizontal: "right",
+        numFmt: column.format,
+        border: borderRow,
+      });
+    });
+  });
+
+  addSpacerRow(sheet);
+  return { headerRow: headerRow.number };
 };
 
 const downloadBuffer = async (buffer: ArrayBuffer, filename: string) => {
@@ -120,670 +471,582 @@ const getScenarioParams = (scenario?: ExportScenario): ScenarioParams => ({
   cac: toNumber(scenario?.cac),
 });
 
-const buildSummarySheet = (
-  workbook: ExcelJS.Workbook,
-  data: ExportModelData,
-  projections: ProjectionData[]
+const resolveScenarioParams = (
+  scenarios: ExportScenario[],
+  scenarioType: ScenarioType
 ) => {
-  const sheet = workbook.addWorksheet("Summary");
-  sheet.columns = [
-    { key: "label", width: 28 },
-    { key: "value", width: 22 },
-    { key: "note", width: 32 },
+  const match = scenarios.find((s) => s.scenarioType === scenarioType);
+  const base = scenarios.find((s) => s.scenarioType === "base");
+  return getScenarioParams(match ?? base);
+};
+
+const appendReportHeaderBlock = (
+  sheet: ExcelJS.Worksheet,
+  data: ExportModelData,
+  scenarioLabel: string,
+  lastCol: number,
+  exportedAt: string
+) => {
+  const titleRow = sheet.addRow([
+    `${data.model.name} — ${scenarioLabel} Scenario Report`,
+  ]);
+  titleRow.height = 24;
+  sheet.mergeCells(titleRow.number, 1, titleRow.number, lastCol);
+  applyCellStyle(titleRow.getCell(1), {
+    bold: true,
+    size: 13,
+    horizontal: "left",
+    color: colors.text,
+  });
+
+  addSectionTitleRow(sheet, lastCol, "Report Metadata");
+  addKeyValueRowsCompact(sheet, lastCol, [
+    { label: "Model", value: data.model.name, labelBold: true },
+    { label: "Scenario", value: scenarioLabel, labelBold: true },
+    { label: "Currency", value: data.model.currency, labelBold: true },
+    { label: "Exported", value: exportedAt, labelBold: true },
+  ]);
+  addSpacerRow(sheet);
+
+  return sheet.rowCount + 1;
+};
+
+const appendAssumptionsBlock = (
+  sheet: ExcelJS.Worksheet,
+  scenarioParams: ScenarioParams,
+  currencyFmt: string,
+  _lastCol: number
+) => {
+  return appendSingleRowBlock(sheet, "Scenario Assumptions", [
+    {
+      key: "userGrowth",
+      label: "User growth",
+      value: scenarioParams.userGrowth,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "arpu",
+      label: "ARPU",
+      value: scenarioParams.arpu,
+      valueFormat: currencyFmt,
+    },
+    {
+      key: "churnRate",
+      label: "Churn rate",
+      value: scenarioParams.churnRate,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "farmerGrowth",
+      label: "Farmer growth",
+      value: scenarioParams.farmerGrowth,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "cac",
+      label: "CAC",
+      value: scenarioParams.cac,
+      valueFormat: currencyFmt,
+    },
+  ]);
+};
+
+const appendSettingsBlock = (
+  sheet: ExcelJS.Worksheet,
+  settings: ModelSettings,
+  currencyFmt: string,
+  _lastCol: number
+) => {
+  return appendSingleRowBlock(sheet, "Model Settings", [
+    {
+      key: "startUsers",
+      label: "Start users",
+      value: settings.startUsers,
+      valueFormat: integerFormat,
+    },
+    {
+      key: "startFarmers",
+      label: "Start farmers",
+      value: settings.startFarmers,
+      valueFormat: integerFormat,
+    },
+    {
+      key: "taxRate",
+      label: "Tax rate",
+      value: settings.taxRate,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "discountRate",
+      label: "Discount rate",
+      value: settings.discountRate,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "terminalGrowth",
+      label: "Terminal growth",
+      value: settings.terminalGrowth,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "safetyBuffer",
+      label: "Safety buffer",
+      value: settings.safetyBuffer,
+      valueFormat: currencyFmt,
+    },
+    {
+      key: "projectionYears",
+      label: "Projection years",
+      value: settings.projectionYears.join(", "),
+    },
+  ]);
+};
+
+const appendMarketBlock = (
+  sheet: ExcelJS.Worksheet,
+  market: MarketSizing,
+  currencyFmt: string,
+  _lastCol: number
+) => {
+  const items: KeyValueItem[] = [
+    { key: "tam", label: "TAM", value: market.tam, valueFormat: currencyFmt },
+    { key: "sam", label: "SAM", value: market.sam, valueFormat: currencyFmt },
   ];
+  market.som.forEach((value, index) => {
+    items.push({
+      key: `som_${index + 1}`,
+      label: `SOM Year ${index + 1}`,
+      value,
+      valueFormat: currencyFmt,
+    });
+  });
+  return appendSingleRowBlock(sheet, "Market Sizing", items);
+};
 
-  sheet.mergeCells("A1:C1");
-  sheet.getCell("A1").value = `${data.model.name} — Summary`;
-  sheet.getCell("A1").font = { size: 16, bold: true, color: { argb: "FF1C1E2F" } };
-  sheet.getCell("A1").alignment = { vertical: "middle" };
+const appendPnLBlock = (
+  sheet: ExcelJS.Worksheet,
+  years: number[],
+  projections: ProjectionData[],
+  taxRate: number,
+  currencyFmt: string,
+  _lastCol: number
+): PnLBlockResult => {
+  const taxRateLiteral = Number(taxRate.toFixed(6));
+  return appendHorizontalYearTable(sheet, "P&L Statement", years, [
+    {
+      key: "platformRevenue",
+      label: "Platform revenue",
+      values: projections.map((p) => p.platformRevenue),
+      format: currencyFmt,
+    },
+    {
+      key: "farmerRevShare",
+      label: "Farmer rev share",
+      values: projections.map((p) => p.farmerRevShare),
+      format: currencyFmt,
+    },
+    {
+      key: "b2bRevenue",
+      label: "B2B revenue",
+      values: projections.map((p) => p.b2bRevenue),
+      format: currencyFmt,
+    },
+    {
+      key: "totalRevenue",
+      label: "Total revenue",
+      values: projections.map((p) => p.totalRevenue),
+      format: currencyFmt,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `${columnLetter(c.platformRevenue)}${row}+${columnLetter(c.farmerRevShare)}${row}+${columnLetter(c.b2bRevenue)}${row}`,
+    },
+    {
+      key: "hostingCosts",
+      label: "Hosting costs",
+      values: projections.map((p) => p.hostingCosts),
+      format: currencyFmt,
+    },
+    {
+      key: "paymentProcessing",
+      label: "Payment processing",
+      values: projections.map((p) => p.paymentProcessing),
+      format: currencyFmt,
+    },
+    {
+      key: "customerSupport",
+      label: "Customer support",
+      values: projections.map((p) => p.customerSupport),
+      format: currencyFmt,
+    },
+    {
+      key: "cogs",
+      label: "COGS",
+      values: projections.map((p) => p.cogs),
+      format: currencyFmt,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `${columnLetter(c.hostingCosts)}${row}+${columnLetter(c.paymentProcessing)}${row}+${columnLetter(c.customerSupport)}${row}`,
+    },
+    {
+      key: "grossProfit",
+      label: "Gross profit",
+      values: projections.map((p) => p.grossProfit),
+      format: currencyFmt,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `${columnLetter(c.totalRevenue)}${row}-${columnLetter(c.cogs)}${row}`,
+    },
+    {
+      key: "grossMargin",
+      label: "Gross margin",
+      values: projections.map((p) => p.grossMargin),
+      format: percentValueFormat,
+      formula: (row, c) =>
+        `${columnLetter(c.grossProfit)}${row}/${columnLetter(c.totalRevenue)}${row}*100`,
+    },
+    {
+      key: "personnel",
+      label: "Personnel",
+      values: projections.map((p) => p.personnel),
+      format: currencyFmt,
+    },
+    {
+      key: "marketing",
+      label: "Marketing",
+      values: projections.map((p) => p.marketing),
+      format: currencyFmt,
+    },
+    {
+      key: "rd",
+      label: "R&D",
+      values: projections.map((p) => p.rd),
+      format: currencyFmt,
+    },
+    {
+      key: "gna",
+      label: "G&A",
+      values: projections.map((p) => p.gna),
+      format: currencyFmt,
+    },
+    {
+      key: "opex",
+      label: "OPEX",
+      values: projections.map((p) => p.opex),
+      format: currencyFmt,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `${columnLetter(c.personnel)}${row}+${columnLetter(c.marketing)}${row}+${columnLetter(c.rd)}${row}+${columnLetter(c.gna)}${row}`,
+    },
+    {
+      key: "ebitda",
+      label: "EBITDA",
+      values: projections.map((p) => p.ebitda),
+      format: currencyFmt,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `${columnLetter(c.grossProfit)}${row}-${columnLetter(c.opex)}${row}`,
+    },
+    {
+      key: "ebitdaMargin",
+      label: "EBITDA margin",
+      values: projections.map((p) => p.ebitdaMargin),
+      format: percentValueFormat,
+      formula: (row, c) =>
+        `${columnLetter(c.ebitda)}${row}/${columnLetter(c.totalRevenue)}${row}*100`,
+    },
+    {
+      key: "depreciation",
+      label: "Depreciation",
+      values: projections.map((p) => p.depreciation),
+      format: currencyFmt,
+    },
+    {
+      key: "ebit",
+      label: "EBIT",
+      values: projections.map((p) => p.ebit),
+      format: currencyFmt,
+      formula: (row, c) =>
+        `${columnLetter(c.ebitda)}${row}-${columnLetter(c.depreciation)}${row}`,
+    },
+    {
+      key: "taxes",
+      label: "Taxes",
+      values: projections.map((p) => p.taxes),
+      format: currencyFmt,
+      formula: (row, c) =>
+        `MAX(0,${columnLetter(c.ebit)}${row}*${taxRateLiteral})`,
+    },
+    {
+      key: "netIncome",
+      label: "Net income",
+      values: projections.map((p) => p.netIncome),
+      format: currencyFmt,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `${columnLetter(c.ebit)}${row}-${columnLetter(c.taxes)}${row}`,
+    },
+  ]);
+};
 
-  addEmptyRow(sheet);
+const appendCashFlowBlock = (
+  sheet: ExcelJS.Worksheet,
+  years: number[],
+  projections: ProjectionData[],
+  currencyFmt: string,
+  _lastCol: number
+) => {
+  appendHorizontalYearTable(sheet, "Cash Flow Statement", years, [
+    {
+      key: "operatingCF",
+      label: "Operating CF",
+      values: projections.map((p) => p.operatingCF),
+      format: currencyFmt,
+    },
+    {
+      key: "investingCF",
+      label: "Investing CF",
+      values: projections.map((p) => p.investingCF),
+      format: currencyFmt,
+    },
+    {
+      key: "freeCashFlow",
+      label: "Free cash flow",
+      values: projections.map((p) => p.freeCashFlow),
+      format: currencyFmt,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `${columnLetter(c.operatingCF)}${row}+${columnLetter(c.investingCF)}${row}`,
+    },
+  ]);
 
-  sheet.addRow(["Model", data.model.name, ""]);
-  sheet.addRow(["Currency", data.model.currency, ""]);
-  sheet.addRow(["Exported", new Date().toLocaleString(), ""]);
-  addEmptyRow(sheet);
+  return sheet.rowCount + 1;
+};
 
-  const lastYear = projections[projections.length - 1];
+const appendKpiBlock = (
+  sheet: ExcelJS.Worksheet,
+  years: number[],
+  projections: ProjectionData[],
+  scenarioParams: ScenarioParams,
+  currencyFmt: string,
+  _lastCol: number
+) => {
+  appendHorizontalYearTable(sheet, "KPI Block", years, [
+    {
+      key: "cacInput",
+      label: "CAC input",
+      values: years.map(() => scenarioParams.cac),
+      format: currencyFmt,
+    },
+    {
+      key: "arpuInput",
+      label: "ARPU input",
+      values: years.map(() => scenarioParams.arpu),
+      format: currencyFmt,
+    },
+    {
+      key: "churnInput",
+      label: "Churn input",
+      values: years.map(() => scenarioParams.churnRate * 100),
+      format: percentValueFormat,
+    },
+    {
+      key: "users",
+      label: "Users",
+      values: projections.map((p) => p.users),
+      format: integerFormat,
+    },
+    {
+      key: "mau",
+      label: "MAU",
+      values: projections.map((p) => p.mau),
+      format: integerFormat,
+    },
+    {
+      key: "ltv",
+      label: "LTV",
+      values: projections.map((p) => p.ltv),
+      format: currencyFmt,
+    },
+    {
+      key: "ltvCac",
+      label: "LTV / CAC",
+      values: projections.map((p) => p.ltvCac),
+      format: ratioFormat,
+      isEmphasis: true,
+      formula: (row, c) =>
+        `IF(${columnLetter(c.cacInput)}${row}=0,0,${columnLetter(c.ltv)}${row}/${columnLetter(c.cacInput)}${row})`,
+    },
+    {
+      key: "paybackMonths",
+      label: "Payback (m)",
+      values: projections.map((p) => p.paybackMonths),
+      format: integerFormat,
+    },
+    {
+      key: "revenuePerEmployee",
+      label: "Revenue/employee",
+      values: projections.map((p) => p.revenuePerEmployee),
+      format: currencyFmt,
+    },
+    {
+      key: "marketShare",
+      label: "Market share",
+      values: projections.map((p) => p.marketShare),
+      format: percentValueFormat,
+    },
+  ]);
+
+  return sheet.rowCount + 1;
+};
+
+const appendValuationBlock = (
+  sheet: ExcelJS.Worksheet,
+  lastProjection: ProjectionData,
+  dcf: ReturnType<typeof calculateDCF>,
+  fundingNeed: number,
+  currencyFmt: string,
+  _lastCol: number
+) => {
+  const pvCashFlows = dcf.pvCashFlows.reduce((sum, value) => sum + value, 0);
+  return appendSingleRowBlock(sheet, "Valuation Summary", [
+    {
+      key: "discountRate",
+      label: "Discount rate",
+      value: dcf.discountRate,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "terminalGrowth",
+      label: "Terminal growth",
+      value: dcf.terminalGrowth,
+      valueFormat: percentFractionFormat,
+    },
+    {
+      key: "pvCashFlows",
+      label: "PV yearly FCF",
+      value: pvCashFlows,
+      valueFormat: currencyFmt,
+    },
+    {
+      key: "pvTerminal",
+      label: "PV terminal",
+      value: dcf.pvTerminal,
+      valueFormat: currencyFmt,
+    },
+    {
+      key: "enterpriseValue",
+      label: "Enterprise value",
+      value: dcf.enterpriseValue,
+      valueFormat: currencyFmt,
+      isTotal: true,
+      formula: (row, c) =>
+        `${columnLetter(c.pvCashFlows)}${row}+${columnLetter(c.pvTerminal)}${row}`,
+    },
+    {
+      key: "fundingNeed",
+      label: "Funding need",
+      value: fundingNeed,
+      valueFormat: currencyFmt,
+    },
+    {
+      key: "finalNetIncome",
+      label: "Final year NI",
+      value: lastProjection.netIncome,
+      valueFormat: currencyFmt,
+    },
+    {
+      key: "finalFCF",
+      label: "Final year FCF",
+      value: lastProjection.freeCashFlow,
+      valueFormat: currencyFmt,
+    },
+  ]);
+};
+
+const buildScenarioReportSheet = (
+  workbook: ExcelJS.Workbook,
+  scenarioType: ScenarioType,
+  data: ExportModelData,
+  exportedAt: string
+) => {
+  const scenarioLabel = formatScenarioLabel(scenarioType);
+  const scenarioParams = resolveScenarioParams(data.scenarios, scenarioType);
+  const projections = calculateProjections(scenarioParams, data.settings, data.market);
   const dcf = calculateDCF(
     projections,
     data.settings.discountRate,
     data.settings.terminalGrowth
   );
   const fundingNeed = calculateFundingNeed(projections, data.settings.safetyBuffer);
-
-  const kpiRows = [
-    ["Last year revenue", lastYear.totalRevenue, "Total revenue in final year"],
-    ["Last year EBITDA", lastYear.ebitda, "EBITDA in final year"],
-    ["Gross margin", lastYear.grossMargin, "Final year gross margin"],
-    ["Free cash flow", lastYear.freeCashFlow, "Final year FCF"],
-    ["Enterprise value", dcf.enterpriseValue, "DCF value"],
-    ["Funding need", fundingNeed, "Estimated runway gap"],
-  ];
-
-  sheet.addRow(["Key Metrics", "", ""]).font = { bold: true };
-  const startRow = sheet.rowCount + 1;
-  kpiRows.forEach((row) => sheet.addRow(row));
-
+  const years = projections.map((p) => p.year);
+  const lastCol = years.length + 1;
   const currencyFmt = currencyFormat(data.model.currency);
-  sheet.getRow(startRow).getCell(2).numFmt = currencyFmt;
-  sheet.getRow(startRow + 1).getCell(2).numFmt = currencyFmt;
-  sheet.getRow(startRow + 2).getCell(2).numFmt = percentValueFormat;
-  sheet.getRow(startRow + 3).getCell(2).numFmt = currencyFmt;
-  sheet.getRow(startRow + 4).getCell(2).numFmt = currencyFmt;
-  sheet.getRow(startRow + 5).getCell(2).numFmt = currencyFmt;
 
-  return sheet;
-};
-
-const buildAssumptionsSheet = (workbook: ExcelJS.Workbook, data: ExportModelData) => {
-  const sheet = workbook.addWorksheet("Assumptions");
+  const sheet = workbook.addWorksheet(scenarioLabel);
   sheet.columns = [
-    { key: "label", width: 26 },
-    { key: "value", width: 18 },
-    { key: "value2", width: 18 },
-    { key: "value3", width: 18 },
+    { key: "metric", width: 30 },
+    ...years.map((year) => ({ key: `y_${year}`, width: 12 })),
   ];
+  sheet.properties.defaultRowHeight = 16;
 
-  sheet.addRow(["Scenario assumptions"]);
-  applySectionStyle(sheet.getRow(sheet.rowCount));
+  const firstContentRow = appendReportHeaderBlock(
+    sheet,
+    data,
+    scenarioLabel,
+    lastCol,
+    exportedAt
+  );
+  appendAssumptionsBlock(sheet, scenarioParams, currencyFmt, lastCol);
+  appendSettingsBlock(sheet, data.settings, currencyFmt, lastCol);
+  appendMarketBlock(sheet, data.market, currencyFmt, lastCol);
+  appendPnLBlock(
+    sheet,
+    years,
+    projections,
+    data.settings.taxRate,
+    currencyFmt,
+    lastCol
+  );
+  appendCashFlowBlock(sheet, years, projections, currencyFmt, lastCol);
+  appendKpiBlock(sheet, years, projections, scenarioParams, currencyFmt, lastCol);
+  appendValuationBlock(
+    sheet,
+    projections[projections.length - 1],
+    dcf,
+    fundingNeed,
+    currencyFmt,
+    lastCol
+  );
 
-  sheet.addRow([
-    "Metric",
-    "Conservative",
-    "Base",
-    "Optimistic",
-  ]).eachCell(applyHeaderStyle);
-
-  const rows = [
-    { label: "User growth", key: "userGrowth", format: percentFractionFormat },
-    { label: "ARPU", key: "arpu", format: currencyFormat(data.model.currency) },
-    { label: "Churn rate", key: "churnRate", format: percentFractionFormat },
+  sheet.views = [
     {
-      label: "Farmer growth",
-      key: "farmerGrowth",
-      format: percentFractionFormat,
+      state: "frozen",
+      xSplit: 1,
+      // Keep only compact report header frozen; large ySplit can block vertical scroll.
+      ySplit: Math.max(1, firstContentRow - 1),
+      topLeftCell: `B${Math.max(2, firstContentRow)}`,
+      showGridLines: false,
     },
-    { label: "CAC", key: "cac", format: currencyFormat(data.model.currency) },
   ];
-
-  rows.forEach((row) => {
-    const values = scenarioOrder.map((scenario) => {
-      const match = data.scenarios.find((s) => s.scenarioType === scenario);
-      return toNumber((match as any)?.[row.key]);
-    });
-    const record = sheet.addRow([row.label, ...values]);
-    record.getCell(2).numFmt = row.format;
-    record.getCell(3).numFmt = row.format;
-    record.getCell(4).numFmt = row.format;
-  });
-
-  addEmptyRow(sheet);
-
-  sheet.addRow(["Model settings"]);
-  applySectionStyle(sheet.getRow(sheet.rowCount));
-
-  const settingsRows: Array<{ label: string; value: number; format: string }> = [
-    { label: "Start users", value: data.settings.startUsers, format: integerFormat },
-    { label: "Start farmers", value: data.settings.startFarmers, format: integerFormat },
-    { label: "Tax rate", value: data.settings.taxRate, format: percentFractionFormat },
-    { label: "Discount rate", value: data.settings.discountRate, format: percentFractionFormat },
-    { label: "Terminal growth", value: data.settings.terminalGrowth, format: percentFractionFormat },
-    { label: "Safety buffer", value: data.settings.safetyBuffer, format: currencyFormat(data.model.currency) },
-  ];
-
-  settingsRows.forEach((row) => {
-    const record = sheet.addRow([row.label, row.value]);
-    record.getCell(2).numFmt = row.format;
-  });
-
-  addEmptyRow(sheet);
-
-  sheet.addRow(["Market sizing"]);
-  applySectionStyle(sheet.getRow(sheet.rowCount));
-  const marketRows: Array<[string, number]> = [
-    ["TAM", data.market.tam],
-    ["SAM", data.market.sam],
-    ...data.market.som.map((value, index) => [`SOM Year ${index + 1}`, value]),
-  ];
-  marketRows.forEach((row) => {
-    const record = sheet.addRow(row);
-    record.getCell(2).numFmt = currencyFormat(data.model.currency);
-  });
-
-  return sheet;
-};
-
-const buildScenarioCompareSheet = (
-  workbook: ExcelJS.Workbook,
-  data: ExportModelData
-) => {
-  const sheet = workbook.addWorksheet("Scenario Compare");
-  sheet.columns = [
-    { key: "metric", width: 26 },
-    { key: "cons", width: 18 },
-    { key: "base", width: 18 },
-    { key: "opt", width: 18 },
-  ];
-
-  sheet.addRow(["Metric", "Conservative", "Base", "Optimistic"]).eachCell(
-    applyHeaderStyle
-  );
-
-  const rows = [
-    { label: "User growth", key: "userGrowth", format: percentFractionFormat },
-    { label: "ARPU", key: "arpu", format: currencyFormat(data.model.currency) },
-    { label: "Churn rate", key: "churnRate", format: percentFractionFormat },
-    { label: "Farmer growth", key: "farmerGrowth", format: percentFractionFormat },
-    { label: "CAC", key: "cac", format: currencyFormat(data.model.currency) },
-  ];
-
-  rows.forEach((row) => {
-    const values = scenarioOrder.map((scenario) => {
-      const match = data.scenarios.find((s) => s.scenarioType === scenario);
-      return toNumber((match as any)?.[row.key]);
-    });
-    const r = sheet.addRow([row.label, ...values]);
-    r.getCell(2).numFmt = row.format;
-    r.getCell(3).numFmt = row.format;
-    r.getCell(4).numFmt = row.format;
-  });
-
-  return sheet;
-};
-
-const columnLetter = (index: number) => {
-  let col = index;
-  let letter = "";
-  while (col > 0) {
-    const mod = (col - 1) % 26;
-    letter = String.fromCharCode(65 + mod) + letter;
-    col = Math.floor((col - 1) / 26);
-  }
-  return letter;
-};
-
-const setRowFormulas = (
-  sheet: ExcelJS.Worksheet,
-  rowIndex: number,
-  colStart: number,
-  colEnd: number,
-  buildFormula: (col: number) => string,
-  values: number[],
-  format: string
-) => {
-  for (let col = colStart; col <= colEnd; col += 1) {
-    const cell = sheet.getCell(rowIndex, col);
-    cell.value = {
-      formula: buildFormula(col),
-      result: values[col - colStart],
-    };
-    cell.numFmt = format;
-  }
-};
-
-const buildPnLSheet = (
-  workbook: ExcelJS.Workbook,
-  label: string,
-  projections: ProjectionData[],
-  currency: string,
-  taxRate: number
-) => {
-  const sheet = workbook.addWorksheet(`P&L - ${label}`);
-  const years = projections.map((p) => p.year);
-  sheet.columns = [
-    { key: "metric", width: 30 },
-    ...years.map(() => ({ key: "year", width: 14 })),
-  ];
-  sheet.views = [{ state: "frozen", xSplit: 1, ySplit: 4 }];
-
-  sheet.mergeCells(1, 1, 1, years.length + 1);
-  sheet.getCell(1, 1).value = `P&L — ${label}`;
-  sheet.getCell(1, 1).font = { size: 14, bold: true };
-
-  sheet.addRow(["Tax rate", ...years.map(() => taxRate)]).eachCell((cell, col) => {
-    if (col > 1) cell.numFmt = percentFractionFormat;
-  });
-  addEmptyRow(sheet);
-
-  const headerRow = sheet.addRow(["Metric", ...years]);
-  headerRow.eachCell(applyHeaderStyle);
-
-  const rowIndex: Record<string, number> = {};
-  const addRow = (
-    key: string,
-    label: string,
-    values: number[],
-    format: string,
-    isTotal = false
-  ) => {
-    const row = sheet.addRow([label, ...values]);
-    rowIndex[key] = row.number;
-    row.eachCell((cell, col) => {
-      if (col > 1) cell.numFmt = format;
-    });
-    if (isTotal) applyTotalStyle(row);
+  sheet.pageSetup = {
+    ...sheet.pageSetup,
+    paperSize: 9,
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    horizontalCentered: true,
+    margins: {
+      left: 0.35,
+      right: 0.35,
+      top: 0.5,
+      bottom: 0.5,
+      header: 0.2,
+      footer: 0.2,
+    },
+    printArea: `$A$1:$${columnLetter(sheet.columnCount)}$${sheet.rowCount}`,
+    showGridLines: false,
   };
-  const addSection = (title: string) => {
-    const row = sheet.addRow([title]);
-    applySectionStyle(row);
-  };
-
-  const currencyFmt = currencyFormat(currency);
-  const colStart = 2;
-  const colEnd = years.length + 1;
-
-  addSection("Revenue");
-  addRow(
-    "platformRevenue",
-    "Platform revenue",
-    projections.map((p) => p.platformRevenue),
-    currencyFmt
-  );
-  addRow(
-    "farmerRevShare",
-    "Farmer revenue share",
-    projections.map((p) => p.farmerRevShare),
-    currencyFmt
-  );
-  addRow(
-    "b2bRevenue",
-    "B2B revenue",
-    projections.map((p) => p.b2bRevenue),
-    currencyFmt
-  );
-  addRow(
-    "totalRevenue",
-    "Total revenue",
-    projections.map((p) => p.totalRevenue),
-    currencyFmt,
-    true
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.totalRevenue,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.platformRevenue}+${columnLetter(col)}${rowIndex.farmerRevShare}+${columnLetter(col)}${rowIndex.b2bRevenue}`,
-    projections.map((p) => p.totalRevenue),
-    currencyFmt
-  );
-
-  addSection("COGS");
-  addRow(
-    "hostingCosts",
-    "Hosting costs",
-    projections.map((p) => p.hostingCosts),
-    currencyFmt
-  );
-  addRow(
-    "paymentProcessing",
-    "Payment processing",
-    projections.map((p) => p.paymentProcessing),
-    currencyFmt
-  );
-  addRow(
-    "customerSupport",
-    "Customer support",
-    projections.map((p) => p.customerSupport),
-    currencyFmt
-  );
-  addRow(
-    "cogs",
-    "COGS",
-    projections.map((p) => p.cogs),
-    currencyFmt,
-    true
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.cogs,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.hostingCosts}+${columnLetter(col)}${rowIndex.paymentProcessing}+${columnLetter(col)}${rowIndex.customerSupport}`,
-    projections.map((p) => p.cogs),
-    currencyFmt
-  );
-  addRow(
-    "grossProfit",
-    "Gross profit",
-    projections.map((p) => p.grossProfit),
-    currencyFmt,
-    true
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.grossProfit,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.totalRevenue}-${columnLetter(col)}${rowIndex.cogs}`,
-    projections.map((p) => p.grossProfit),
-    currencyFmt
-  );
-  addRow(
-    "grossMargin",
-    "Gross margin",
-    projections.map((p) => p.grossMargin),
-    percentValueFormat
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.grossMargin,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.grossProfit}/${columnLetter(col)}${rowIndex.totalRevenue}*100`,
-    projections.map((p) => p.grossMargin),
-    percentValueFormat
-  );
-
-  addSection("Operating Expenses");
-  addRow(
-    "personnel",
-    "Personnel",
-    projections.map((p) => p.personnel),
-    currencyFmt
-  );
-  addRow(
-    "marketing",
-    "Marketing",
-    projections.map((p) => p.marketing),
-    currencyFmt
-  );
-  addRow("rd", "R&D", projections.map((p) => p.rd), currencyFmt);
-  addRow("gna", "G&A", projections.map((p) => p.gna), currencyFmt);
-  addRow(
-    "opex",
-    "OPEX",
-    projections.map((p) => p.opex),
-    currencyFmt,
-    true
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.opex,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.personnel}+${columnLetter(col)}${rowIndex.marketing}+${columnLetter(col)}${rowIndex.rd}+${columnLetter(col)}${rowIndex.gna}`,
-    projections.map((p) => p.opex),
-    currencyFmt
-  );
-
-  addSection("EBITDA");
-  addRow(
-    "ebitda",
-    "EBITDA",
-    projections.map((p) => p.ebitda),
-    currencyFmt,
-    true
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.ebitda,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.grossProfit}-${columnLetter(col)}${rowIndex.opex}`,
-    projections.map((p) => p.ebitda),
-    currencyFmt
-  );
-  addRow(
-    "ebitdaMargin",
-    "EBITDA margin",
-    projections.map((p) => p.ebitdaMargin),
-    percentValueFormat
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.ebitdaMargin,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.ebitda}/${columnLetter(col)}${rowIndex.totalRevenue}*100`,
-    projections.map((p) => p.ebitdaMargin),
-    percentValueFormat
-  );
-
-  addSection("Depreciation & Taxes");
-  addRow(
-    "depreciation",
-    "Depreciation",
-    projections.map((p) => p.depreciation),
-    currencyFmt
-  );
-  addRow(
-    "ebit",
-    "EBIT",
-    projections.map((p) => p.ebit),
-    currencyFmt
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.ebit,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.ebitda}-${columnLetter(col)}${rowIndex.depreciation}`,
-    projections.map((p) => p.ebit),
-    currencyFmt
-  );
-  addRow(
-    "taxes",
-    "Taxes",
-    projections.map((p) => p.taxes),
-    currencyFmt
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.taxes,
-    colStart,
-    colEnd,
-    (col) =>
-      `MAX(0,${columnLetter(col)}${rowIndex.ebit}*${columnLetter(col)}2)`,
-    projections.map((p) => p.taxes),
-    currencyFmt
-  );
-  addRow(
-    "netIncome",
-    "Net income",
-    projections.map((p) => p.netIncome),
-    currencyFmt,
-    true
-  );
-  setRowFormulas(
-    sheet,
-    rowIndex.netIncome,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.ebit}-${columnLetter(col)}${rowIndex.taxes}`,
-    projections.map((p) => p.netIncome),
-    currencyFmt
-  );
-
-  return sheet;
-};
-
-const buildCashFlowSheet = (
-  workbook: ExcelJS.Workbook,
-  label: string,
-  projections: ProjectionData[],
-  currency: string
-) => {
-  const sheet = workbook.addWorksheet(`Cash Flow - ${label}`);
-  const years = projections.map((p) => p.year);
-  sheet.columns = [
-    { key: "metric", width: 30 },
-    ...years.map(() => ({ key: "year", width: 14 })),
-  ];
-  sheet.views = [{ state: "frozen", xSplit: 1, ySplit: 3 }];
-
-  sheet.mergeCells(1, 1, 1, years.length + 1);
-  sheet.getCell(1, 1).value = `Cash Flow — ${label}`;
-  sheet.getCell(1, 1).font = { size: 14, bold: true };
-
-  addEmptyRow(sheet);
-  const headerRow = sheet.addRow(["Metric", ...years]);
-  headerRow.eachCell(applyHeaderStyle);
-
-  const rowIndex: Record<string, number> = {};
-  const addRow = (
-    key: string,
-    labelText: string,
-    values: number[],
-    format: string,
-    isTotal = false
-  ) => {
-    const row = sheet.addRow([labelText, ...values]);
-    rowIndex[key] = row.number;
-    row.eachCell((cell, col) => {
-      if (col > 1) cell.numFmt = format;
-    });
-    if (isTotal) applyTotalStyle(row);
-  };
-
-  const currencyFmt = currencyFormat(currency);
-  const colStart = 2;
-  const colEnd = years.length + 1;
-
-  addRow(
-    "operatingCF",
-    "Operating cash flow",
-    projections.map((p) => p.operatingCF),
-    currencyFmt
-  );
-  addRow(
-    "investingCF",
-    "Investing cash flow",
-    projections.map((p) => p.investingCF),
-    currencyFmt
-  );
-  addRow(
-    "freeCashFlow",
-    "Free cash flow",
-    projections.map((p) => p.freeCashFlow),
-    currencyFmt,
-    true
-  );
-
-  setRowFormulas(
-    sheet,
-    rowIndex.freeCashFlow,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.operatingCF}+${columnLetter(col)}${rowIndex.investingCF}`,
-    projections.map((p) => p.freeCashFlow),
-    currencyFmt
-  );
-
-  return sheet;
-};
-
-const buildKpiSheet = (
-  workbook: ExcelJS.Workbook,
-  label: string,
-  projections: ProjectionData[],
-  currency: string,
-  scenarioParams: ScenarioParams
-) => {
-  const sheet = workbook.addWorksheet(`KPIs - ${label}`);
-  const years = projections.map((p) => p.year);
-  sheet.columns = [
-    { key: "metric", width: 30 },
-    ...years.map(() => ({ key: "year", width: 14 })),
-  ];
-  sheet.views = [{ state: "frozen", xSplit: 1, ySplit: 3 }];
-
-  sheet.mergeCells(1, 1, 1, years.length + 1);
-  sheet.getCell(1, 1).value = `KPIs — ${label}`;
-  sheet.getCell(1, 1).font = { size: 14, bold: true };
-
-  sheet.addRow([
-    "Scenario assumptions",
-    ...years.map(() => ""),
-  ]);
-  applySectionStyle(sheet.getRow(sheet.rowCount));
-
-  const assumptionsRow = sheet.addRow([
-    "CAC",
-    ...years.map(() => scenarioParams.cac),
-  ]);
-  assumptionsRow.eachCell((cell, col) => {
-    if (col > 1) cell.numFmt = currencyFormat(currency);
-  });
-  const cacRowIndex = assumptionsRow.number;
-  const churnRow = sheet.addRow([
-    "Churn rate",
-    ...years.map(() => scenarioParams.churnRate),
-  ]);
-  churnRow.eachCell((cell, col) => {
-    if (col > 1) cell.numFmt = percentFractionFormat;
-  });
-  const arpuRow = sheet.addRow([
-    "ARPU",
-    ...years.map(() => scenarioParams.arpu),
-  ]);
-  arpuRow.eachCell((cell, col) => {
-    if (col > 1) cell.numFmt = currencyFormat(currency);
-  });
-
-  addEmptyRow(sheet);
-  const headerRow = sheet.addRow(["Metric", ...years]);
-  headerRow.eachCell(applyHeaderStyle);
-
-  const rowIndex: Record<string, number> = {};
-  const addRow = (
-    key: string,
-    labelText: string,
-    values: number[],
-    format: string
-  ) => {
-    const row = sheet.addRow([labelText, ...values]);
-    rowIndex[key] = row.number;
-    row.eachCell((cell, col) => {
-      if (col > 1) cell.numFmt = format;
-    });
-  };
-
-  const currencyFmt = currencyFormat(currency);
-  const colStart = 2;
-  const colEnd = years.length + 1;
-
-  addRow("ltv", "LTV", projections.map((p) => p.ltv), currencyFmt);
-  addRow("ltvCac", "LTV / CAC", projections.map((p) => p.ltvCac), ratioFormat);
-  setRowFormulas(
-    sheet,
-    rowIndex.ltvCac,
-    colStart,
-    colEnd,
-    (col) =>
-      `${columnLetter(col)}${rowIndex.ltv}/${columnLetter(col)}${cacRowIndex}`,
-    projections.map((p) => p.ltvCac),
-    ratioFormat
-  );
-  addRow(
-    "paybackMonths",
-    "Payback (months)",
-    projections.map((p) => p.paybackMonths),
-    integerFormat
-  );
-  addRow(
-    "revenuePerEmployee",
-    "Revenue per employee",
-    projections.map((p) => p.revenuePerEmployee),
-    currencyFmt
-  );
-  addRow(
-    "marketShare",
-    "Market share",
-    projections.map((p) => p.marketShare),
-    percentValueFormat
-  );
 
   return sheet;
 };
@@ -793,43 +1056,9 @@ export async function exportModelToExcel(data: ExportModelData) {
   workbook.creator = "GoVentureValue";
   workbook.created = new Date();
 
-  const baseScenario =
-    data.scenarios.find((s) => s.scenarioType === "base") ?? data.scenarios[0];
-  const baseProjections = calculateProjections(
-    getScenarioParams(baseScenario),
-    data.settings,
-    data.market
-  );
-
-  buildSummarySheet(workbook, data, baseProjections);
-  buildAssumptionsSheet(workbook, data);
-  buildScenarioCompareSheet(workbook, data);
-
-  scenarioOrder.forEach((scenario) => {
-    const match = data.scenarios.find((s) => s.scenarioType === scenario);
-    if (!match) return;
-    const scenarioParams = getScenarioParams(match);
-    const projections = calculateProjections(
-      scenarioParams,
-      data.settings,
-      data.market
-    );
-    const label = formatScenarioLabel(scenario);
-    buildPnLSheet(
-      workbook,
-      label,
-      projections,
-      data.model.currency,
-      data.settings.taxRate
-    );
-    buildCashFlowSheet(workbook, label, projections, data.model.currency);
-    buildKpiSheet(
-      workbook,
-      label,
-      projections,
-      data.model.currency,
-      scenarioParams
-    );
+  const exportedAt = new Date().toLocaleString();
+  scenarioOrder.forEach((scenarioType) => {
+    buildScenarioReportSheet(workbook, scenarioType, data, exportedAt);
   });
 
   const safeName = data.model.name
@@ -838,5 +1067,8 @@ export async function exportModelToExcel(data: ExportModelData) {
     .slice(0, 60);
 
   const buffer = await workbook.xlsx.writeBuffer();
-  await downloadBuffer(buffer as ArrayBuffer, `${safeName || "model"}_export.xlsx`);
+  await downloadBuffer(
+    buffer as ArrayBuffer,
+    `${safeName || "model"}_report_pack.xlsx`
+  );
 }

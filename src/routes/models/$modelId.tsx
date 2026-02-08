@@ -191,6 +191,20 @@ const loadModelDetail = createServerFn({ method: "GET" })
     } satisfies LoaderData;
   });
 
+const normalizeRateInput = (value: number, min: number, max: number) => {
+  const finite = Number.isFinite(value) ? value : 0;
+  const fraction = Math.abs(finite) > 1 ? finite / 100 : finite;
+  return Math.min(max, Math.max(min, fraction));
+};
+
+const normalizeScenarioInput = (input: UpdateScenarioDto) => ({
+  userGrowth: normalizeRateInput(input.userGrowth, -0.95, 3),
+  arpu: Math.max(0, Number.isFinite(input.arpu) ? input.arpu : 0),
+  churnRate: normalizeRateInput(input.churnRate, 0.001, 0.95),
+  farmerGrowth: normalizeRateInput(input.farmerGrowth, -0.95, 3),
+  cac: Math.max(0, Number.isFinite(input.cac) ? input.cac : 0),
+});
+
 // Server functions for updating model data
 const updateScenario = createServerFn({ method: "POST" })
   .inputValidator(
@@ -232,6 +246,8 @@ const updateScenario = createServerFn({ method: "POST" })
       throw new Error("Model not found");
     }
 
+    const normalizedScenario = normalizeScenarioInput(data.data);
+
     // Update or insert scenario
     const existing = await db.query.modelScenarios.findFirst({
       where: and(
@@ -244,11 +260,11 @@ const updateScenario = createServerFn({ method: "POST" })
       await db
         .update(modelScenarios)
         .set({
-          userGrowth: data.data.userGrowth.toString(),
-          arpu: data.data.arpu.toString(),
-          churnRate: data.data.churnRate.toString(),
-          farmerGrowth: data.data.farmerGrowth.toString(),
-          cac: data.data.cac.toString(),
+          userGrowth: normalizedScenario.userGrowth.toString(),
+          arpu: normalizedScenario.arpu.toString(),
+          churnRate: normalizedScenario.churnRate.toString(),
+          farmerGrowth: normalizedScenario.farmerGrowth.toString(),
+          cac: normalizedScenario.cac.toString(),
           updatedAt: new Date(),
         })
         .where(eq(modelScenarios.id, existing.id));
@@ -256,11 +272,11 @@ const updateScenario = createServerFn({ method: "POST" })
       await db.insert(modelScenarios).values({
         modelId: data.modelId,
         scenarioType: data.scenarioType,
-        userGrowth: data.data.userGrowth.toString(),
-        arpu: data.data.arpu.toString(),
-        churnRate: data.data.churnRate.toString(),
-        farmerGrowth: data.data.farmerGrowth.toString(),
-        cac: data.data.cac.toString(),
+        userGrowth: normalizedScenario.userGrowth.toString(),
+        arpu: normalizedScenario.arpu.toString(),
+        churnRate: normalizedScenario.churnRate.toString(),
+        farmerGrowth: normalizedScenario.farmerGrowth.toString(),
+        cac: normalizedScenario.cac.toString(),
       });
     }
 
@@ -315,11 +331,19 @@ const updateSettings = createServerFn({ method: "POST" })
     if (data.data.startFarmers !== undefined)
       updateData.startFarmers = data.data.startFarmers;
     if (data.data.taxRate !== undefined)
-      updateData.taxRate = data.data.taxRate.toString();
+      updateData.taxRate = normalizeRateInput(data.data.taxRate, 0, 0.9).toString();
     if (data.data.discountRate !== undefined)
-      updateData.discountRate = data.data.discountRate.toString();
+      updateData.discountRate = normalizeRateInput(
+        data.data.discountRate,
+        0.01,
+        0.95
+      ).toString();
     if (data.data.terminalGrowth !== undefined)
-      updateData.terminalGrowth = data.data.terminalGrowth.toString();
+      updateData.terminalGrowth = normalizeRateInput(
+        data.data.terminalGrowth,
+        -0.2,
+        0.2
+      ).toString();
     if (data.data.safetyBuffer !== undefined)
       updateData.safetyBuffer = data.data.safetyBuffer;
     if (data.data.personnelByYear !== undefined)

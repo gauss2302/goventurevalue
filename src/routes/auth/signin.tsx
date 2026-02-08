@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { ChevronLeft } from "lucide-react";
 import { authClient, useSessionWithMock } from "@/lib/auth/client";
 
 export const Route = createFileRoute("/auth/signin")({
@@ -29,7 +30,6 @@ function SignIn() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Redirect if already signed in
   useEffect(() => {
     if (session) {
       const next = getNextFromLocation();
@@ -37,13 +37,11 @@ function SignIn() {
     }
   }, [session, router]);
 
-  // Check for error in URL params (from OAuth error callback)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const errorParam = urlParams.get("error");
     if (errorParam === "google_auth_failed") {
       setError("Google authentication failed. Please try again.");
-      // Clean up URL
       window.history.replaceState({}, "", "/auth/signin");
     }
   }, []);
@@ -84,14 +82,12 @@ function SignIn() {
         errorCallbackURL: "/auth/signin?error=google_auth_failed",
       });
 
-      // Better Auth may return a redirect URL that we need to navigate to
       if (result?.data?.url) {
         window.location.href = result.data.url;
       } else if (result?.error) {
         setIsGoogleLoading(false);
         setError(result.error.message || "Failed to sign in with Google");
       }
-      // If no URL is returned, Better Auth should have redirected automatically
     } catch (err) {
       setIsGoogleLoading(false);
       setError("An error occurred with Google sign-in. Please try again.");
@@ -100,57 +96,59 @@ function SignIn() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full">
-        {/* Glass Card */}
-        <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl p-8 border border-white/20">
-          {/* Logo and Title */}
+    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      <div className="pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.12),transparent_70%)] blur-3xl" />
+      <div className="pointer-events-none absolute top-40 -left-16 h-60 w-60 rounded-full bg-[radial-gradient(circle,rgba(249,137,107,0.12),transparent_70%)] blur-3xl" />
+
+      <div className="w-full max-w-md relative">
+        <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-8 shadow-[var(--card-shadow)]">
           <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-linear-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <svg
-                  className="w-9 h-9 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
+            <div className="inline-flex w-16 h-16 rounded-3xl bg-[linear-gradient(135deg,rgba(79,70,186,0.2),rgba(249,137,107,0.2))] items-center justify-center text-[var(--brand-primary)] mb-4">
+              <svg
+                className="w-9 h-9"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-            <p className="text-slate-300">
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)] mb-1">
+              Sign in
+            </p>
+            <h1 className="text-2xl font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
+              Welcome back
+            </h1>
+            <p className="text-sm text-[var(--brand-muted)]">
               Sign in to your GoVentureValue account
             </p>
           </div>
 
-          {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm">
               {error}
             </div>
           )}
 
-          {/* Email/Password Form */}
           <form onSubmit={handleEmailSignIn} className="space-y-5">
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-slate-300 mb-2"
+                className="block text-sm font-medium text-[var(--brand-ink)] mb-2"
               >
-                Email Address
+                Email address
               </label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-white border border-[var(--border-soft)] rounded-2xl text-[var(--brand-ink)] placeholder-[var(--brand-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent transition-all"
                 placeholder="you@company.com"
                 required
               />
@@ -158,7 +156,7 @@ function SignIn() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-slate-300 mb-2"
+                className="block text-sm font-medium text-[var(--brand-ink)] mb-2"
               >
                 Password
               </label>
@@ -167,7 +165,7 @@ function SignIn() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-white border border-[var(--border-soft)] rounded-2xl text-[var(--brand-ink)] placeholder-[var(--brand-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent transition-all"
                 placeholder="••••••••"
                 required
               />
@@ -176,7 +174,7 @@ function SignIn() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 bg-linear-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3.5 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-2xl shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -199,29 +197,27 @@ function SignIn() {
                   Signing in...
                 </span>
               ) : (
-                "Sign In"
+                "Sign in"
               )}
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/20"></div>
+              <div className="w-full border-t border-[var(--border-soft)]" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-transparent text-slate-400">
+              <span className="px-4 bg-white text-[var(--brand-muted)]">
                 or continue with
               </span>
             </div>
           </div>
 
-          {/* Google Sign In */}
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isGoogleLoading}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white/10 border border-white/20 rounded-xl hover:bg-white/20 transition-all font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border border-[var(--border-soft)] rounded-2xl hover:bg-[var(--surface-muted)] transition-all font-medium text-[var(--brand-ink)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -241,46 +237,31 @@ function SignIn() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span>Google</span>
+            Google
           </button>
 
-          {/* Sign Up Link */}
-          <p className="mt-8 text-center text-slate-400">
-            Don't have an account?{" "}
+          <p className="mt-8 text-center text-sm text-[var(--brand-muted)]">
+            Don&apos;t have an account?{" "}
             <Link
               to="/auth/signup"
-              className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+              className="text-[var(--brand-primary)] hover:text-[var(--brand-secondary)] font-semibold transition-colors"
             >
               Create one
             </Link>
           </p>
         </div>
 
-        {/* Back to Home */}
         <div className="mt-6 text-center">
           <Link
             to="/"
-            className="text-slate-400 hover:text-white text-sm font-medium transition-colors inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 text-sm font-medium text-[var(--brand-muted)] hover:text-[var(--brand-ink)] transition-colors"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
+            <ChevronLeft size={18} />
             Back to home
           </Link>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-xs text-[var(--brand-muted)] mt-6">
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>

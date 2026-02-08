@@ -72,6 +72,12 @@ type ModelMetrics = {
   operatingMargin: number | null;
 };
 
+const normalizeRateInput = (value: number, min: number, max: number) => {
+  const finite = Number.isFinite(value) ? value : 0;
+  const fraction = Math.abs(finite) > 1 ? finite / 100 : finite;
+  return Math.min(max, Math.max(min, fraction));
+};
+
 export default function FinancialModelEditor({
   modelId,
   initialScenarios,
@@ -92,18 +98,25 @@ export default function FinancialModelEditor({
   const [scenarios, setScenarios] = useState(() => {
     const map = new Map<ScenarioType, ScenarioParams>();
     initialScenarios.forEach((s) => {
+      const arpu = parseFloat(s.arpu);
+      const cac = parseFloat(s.cac);
       map.set(s.scenarioType, {
-        userGrowth: parseFloat(s.userGrowth),
-        arpu: parseFloat(s.arpu),
-        churnRate: parseFloat(s.churnRate),
-        farmerGrowth: parseFloat(s.farmerGrowth),
-        cac: parseFloat(s.cac),
+        userGrowth: normalizeRateInput(parseFloat(s.userGrowth), -0.95, 3),
+        arpu: Number.isFinite(arpu) ? arpu : 0,
+        churnRate: normalizeRateInput(parseFloat(s.churnRate), 0.001, 0.95),
+        farmerGrowth: normalizeRateInput(parseFloat(s.farmerGrowth), -0.95, 3),
+        cac: Number.isFinite(cac) ? cac : 0,
       });
     });
     return map;
   });
 
-  const [settings, setSettings] = useState<ModelSettings>(initialSettings);
+  const [settings, setSettings] = useState<ModelSettings>({
+    ...initialSettings,
+    taxRate: normalizeRateInput(initialSettings.taxRate, 0, 0.9),
+    discountRate: normalizeRateInput(initialSettings.discountRate, 0.01, 0.95),
+    terminalGrowth: normalizeRateInput(initialSettings.terminalGrowth, -0.2, 0.2),
+  });
   const [market, setMarket] = useState<MarketSizing>(initialMarket);
   const [metrics, setMetrics] = useState<ModelMetrics>(
     initialMetrics || {

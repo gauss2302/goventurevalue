@@ -10,6 +10,14 @@ import ModelList from "../components/ModelList";
 import type { Model } from "../components/ModelList";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 
+type PitchDeckSummary = {
+  id: number;
+  title: string;
+  startupName: string;
+  status: string;
+  updatedAt: string;
+};
+
 type LoaderData = {
   models: Model[];
   user: {
@@ -22,12 +30,6 @@ type LoaderData = {
     totalStartingUsers: number;
     lastModelUpdatedAt: string | null;
   };
-  scenarioBreakdown: {
-    conservative: number;
-    base: number;
-    optimistic: number;
-    total: number;
-  };
   lastLoginAt: string | null;
   activities: Array<{
     id: number;
@@ -35,8 +37,7 @@ type LoaderData = {
     target: string;
     at: string;
   }>;
-  metricsByStage: Record<string, Record<string, number>>;
-  metricsPeriodEnd: string | null;
+  pitchDecks: PitchDeckSummary[];
 };
 
 const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => {
@@ -45,7 +46,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     { requireAuthFromHeaders },
     { db },
     schema,
-    { eq, desc, sql, and },
+    { eq, desc, sql },
   ] = await Promise.all([
     import("@tanstack/react-start/server"),
     import("@/lib/auth/requireAuth"),
@@ -59,19 +60,18 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     modelScenarios,
     modelSettings,
     session: sessionTable,
-    metricSnapshot,
+    pitchDecks: pitchDecksTable,
   } = schema;
 
   const headers = getRequestHeaders();
   const session = await requireAuthFromHeaders(headers);
 
-  const models = await db.query.financialModels.findMany({
-    where: eq(financialModels.userId, session.user.id),
-    orderBy: [desc(financialModels.updatedAt)],
-  });
-
-  const [scenariosCountRow, totalStartingUsersRow, lastLoginRow, latestPeriod] =
+  const [models, scenariosCountRow, totalStartingUsersRow, lastLoginRow, decks] =
     await Promise.all([
+      db.query.financialModels.findMany({
+        where: eq(financialModels.userId, session.user.id),
+        orderBy: [desc(financialModels.updatedAt)],
+      }),
       db
         .select({
           scenarioType: modelScenarios.scenarioType,
@@ -100,12 +100,10 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
         .where(eq(sessionTable.userId, session.user.id))
         .orderBy(desc(sessionTable.createdAt))
         .limit(1),
-      db
-        .select({ periodEnd: metricSnapshot.periodEnd })
-        .from(metricSnapshot)
-        .where(eq(metricSnapshot.userId, session.user.id))
-        .orderBy(desc(metricSnapshot.periodEnd))
-        .limit(1),
+      db.query.pitchDecks.findMany({
+        where: eq(pitchDecksTable.userId, session.user.id),
+        orderBy: [desc(pitchDecksTable.updatedAt)],
+      }),
     ]);
 
   const scenarioCounts = scenariosCountRow.reduce(
@@ -130,37 +128,6 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
   const lastLoginAt = lastLoginRow[0]?.createdAt
     ? lastLoginRow[0].createdAt.toISOString()
     : null;
-
-  const metricsPeriodEnd = latestPeriod[0]?.periodEnd
-    ? latestPeriod[0].periodEnd.toISOString()
-    : null;
-
-  const metricsByStage: Record<string, Record<string, number>> = {};
-  if (latestPeriod[0]?.periodEnd) {
-    const metricRows = await db
-      .select({
-        stage: metricSnapshot.stage,
-        metricKey: metricSnapshot.metricKey,
-        value: metricSnapshot.value,
-      })
-      .from(metricSnapshot)
-      .where(
-        and(
-          eq(metricSnapshot.userId, session.user.id),
-          eq(metricSnapshot.periodEnd, latestPeriod[0].periodEnd)
-        )
-      )
-      .orderBy(desc(metricSnapshot.periodEnd))
-      .limit(500);
-
-    metricRows.forEach((row) => {
-      const stageKey = row.stage as string;
-      if (!metricsByStage[stageKey]) {
-        metricsByStage[stageKey] = {};
-      }
-      metricsByStage[stageKey][row.metricKey] = Number(row.value);
-    });
-  }
 
   const activities = models.slice(0, 4).map((model) => ({
     id: model.id,
@@ -191,16 +158,15 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
       totalStartingUsers,
       lastModelUpdatedAt,
     },
-    scenarioBreakdown: {
-      conservative: scenarioCounts.conservative,
-      base: scenarioCounts.base,
-      optimistic: scenarioCounts.optimistic,
-      total: scenariosCount,
-    },
     lastLoginAt,
     activities,
-    metricsByStage,
-    metricsPeriodEnd,
+    pitchDecks: decks.slice(0, 5).map((d) => ({
+      id: d.id,
+      title: d.title,
+      startupName: d.startupName,
+      status: d.status,
+      updatedAt: d.updatedAt.toISOString(),
+    })),
   };
 });
 
@@ -213,30 +179,30 @@ export const Route = createFileRoute("/dashboard")({
       models: data.models,
       user: data.user,
       stats: data.stats,
-      scenarioBreakdown: data.scenarioBreakdown,
       lastLoginAt: data.lastLoginAt,
       activities: data.activities,
-      metricsByStage: data.metricsByStage,
-      metricsPeriodEnd: data.metricsPeriodEnd,
+      pitchDecks: data.pitchDecks,
     };
   },
   component: Dashboard,
 });
+
+const statusClassName: Record<string, string> = {
+  draft: "bg-gray-100 text-gray-700",
+  generating: "bg-blue-100 text-blue-700",
+  ready: "bg-green-100 text-green-700",
+  failed: "bg-red-100 text-red-700",
+};
 
 function Dashboard() {
   const {
     models,
     user,
     stats,
-    scenarioBreakdown,
     lastLoginAt,
     activities,
-    metricsByStage,
-    metricsPeriodEnd,
+    pitchDecks,
   } = Route.useLoaderData();
-  const [stage, setStage] = React.useState<"idea" | "early_growth" | "scale">(
-    "idea"
-  );
   const initials =
     user.name
       ?.split(" ")
@@ -301,123 +267,8 @@ function Dashboard() {
     },
   ];
 
-  const metricGroups = {
-    growth: {
-      title: "Growth & Traction",
-      metrics: [
-        { key: "users_total", label: "Users / Customers" },
-        { key: "dau_mau", label: "DAU / MAU ratio" },
-        { key: "growth_rate", label: "Growth rate" },
-        { key: "activation_rate", label: "Activation rate" },
-        { key: "retention_rate", label: "Retention rate" },
-        { key: "churn_rate", label: "Churn rate" },
-      ],
-    },
-    revenue: {
-      title: "Revenue Metrics",
-      metrics: [
-        { key: "mrr", label: "MRR" },
-        { key: "arr", label: "ARR" },
-        { key: "arpu", label: "ARPU / ARPA" },
-        { key: "revenue_growth", label: "Revenue growth rate" },
-        { key: "expansion_revenue", label: "Expansion revenue" },
-        { key: "contraction_revenue", label: "Contraction revenue" },
-      ],
-    },
-    economics: {
-      title: "Customer Economics",
-      metrics: [
-        { key: "cac", label: "CAC" },
-        { key: "ltv", label: "LTV" },
-        { key: "ltv_cac", label: "LTV / CAC" },
-        { key: "payback_period", label: "Payback period (months)" },
-      ],
-    },
-    marketing: {
-      title: "Marketing & Sales",
-      metrics: [
-        { key: "conversion_rate", label: "Conversion rate" },
-        { key: "cpl", label: "Cost per lead (CPL)" },
-        { key: "sales_cycle", label: "Sales cycle length" },
-        { key: "win_rate", label: "Win rate" },
-      ],
-    },
-    product: {
-      title: "Product Metrics",
-      metrics: [
-        { key: "dau", label: "DAU" },
-        { key: "mau", label: "MAU" },
-        { key: "feature_adoption", label: "Feature adoption rate" },
-        { key: "time_to_value", label: "Time to value (days)" },
-        { key: "nps", label: "NPS" },
-      ],
-    },
-    health: {
-      title: "Financial Health",
-      metrics: [
-        { key: "burn_rate", label: "Burn rate" },
-        { key: "runway", label: "Runway (months)" },
-        { key: "gross_margin", label: "Gross margin" },
-        { key: "operating_margin", label: "Operating margin" },
-      ],
-    },
-  } as const;
-
-  const stageConfig: Record<
-    "idea" | "early_growth" | "scale",
-    { label: string; focus: string[] }
-  > = {
-    idea: {
-      label: "Idea / MVP",
-      focus: ["growth", "product"],
-    },
-    early_growth: {
-      label: "Early Growth",
-      focus: ["growth", "economics", "revenue"],
-    },
-    scale: {
-      label: "Scale",
-      focus: ["economics", "revenue", "health", "marketing"],
-    },
-  };
-
-  const activeMetrics = metricsByStage[stage] || {};
-  const formatMetricValue = (key: string, value?: number) => {
-    if (value == null || Number.isNaN(value)) return "—";
-    if (
-      [
-        "activation_rate",
-        "retention_rate",
-        "churn_rate",
-        "growth_rate",
-        "revenue_growth",
-        "conversion_rate",
-        "win_rate",
-        "dau_mau",
-        "gross_margin",
-        "operating_margin",
-        "feature_adoption",
-      ].includes(key)
-    ) {
-      return `${(value * 100).toFixed(1)}%`;
-    }
-    if (["mrr", "arr", "arpu", "cac", "ltv", "burn_rate", "expansion_revenue", "contraction_revenue"].includes(key)) {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 0,
-      }).format(value);
-    }
-    return numberFormat.format(value);
-  };
-
   const formatCompact = (value: number) =>
     new Intl.NumberFormat(undefined, { notation: "compact" }).format(value);
-
-  const scenarioPercent = (count: number) => {
-    if (scenarioBreakdown.total === 0) return "0%";
-    return `${Math.round((count / scenarioBreakdown.total) * 100)}%`;
-  };
 
   return (
     <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
@@ -464,157 +315,80 @@ function Dashboard() {
               {/* Stats Overview */}
               <DashboardStats stats={statsData} />
 
-              {/* Stage Focus */}
-              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                      Stage-based focus
-                    </p>
-                    <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
-                      Metrics that matter right now
-                    </h3>
-                    <p className="text-sm text-[var(--brand-muted)]">
-                      {metricsPeriodEnd
-                        ? `Latest snapshot: ${new Date(metricsPeriodEnd).toLocaleDateString()}`
-                        : "No metrics snapshot yet"}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {(["idea", "early_growth", "scale"] as const).map((key) => (
-                      <button
-                        key={key}
-                        onClick={() => setStage(key)}
-                        className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                          stage === key
-                            ? "bg-[var(--brand-primary)] text-white shadow-sm"
-                            : "border border-[var(--border-soft)] text-[var(--brand-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
-                        }`}
-                      >
-                        {stageConfig[key].label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid gap-6 lg:grid-cols-2">
-                  {stageConfig[stage].focus.map((groupKey) => {
-                    const group = metricGroups[groupKey as keyof typeof metricGroups];
-                    return (
-                      <div
-                        key={group.title}
-                        className="border border-[var(--border-soft)] rounded-2xl p-5"
-                      >
-                        <h4 className="text-sm font-semibold text-[var(--brand-ink)] mb-3">
-                          {group.title}
-                        </h4>
-                        <div className="grid gap-3">
-                          {group.metrics.map((metric) => (
-                            <div
-                              key={metric.key}
-                              className="flex items-center justify-between rounded-2xl bg-[var(--surface-muted)] px-4 py-3"
-                            >
-                              <span className="text-sm text-[var(--brand-muted)]">
-                                {metric.label}
-                              </span>
-                              <span className="text-sm font-semibold text-[var(--brand-ink)]">
-                                {formatMetricValue(
-                                  metric.key,
-                                  activeMetrics[metric.key]
-                                )}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Analytics + Performance */}
-              <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                        Analytics
-                      </p>
-                      <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
-                        Monthly runway projection
-                      </h3>
-                    </div>
-                    <span className="text-xs text-[var(--brand-muted)] bg-[var(--surface-muted)] px-3 py-1.5 rounded-full">
-                      2026
-                    </span>
-                  </div>
-                  <div className="relative mt-6 h-40 rounded-3xl bg-[linear-gradient(120deg,rgba(79,70,186,0.08),rgba(132,232,244,0.12))] overflow-hidden">
-                    <div className="absolute inset-0 grid grid-rows-4 border-t border-white/60">
-                      <div className="border-b border-white/60" />
-                      <div className="border-b border-white/60" />
-                      <div className="border-b border-white/60" />
-                    </div>
-                    <svg
-                      viewBox="0 0 400 160"
-                      className="absolute inset-0 h-full w-full"
-                      preserveAspectRatio="none"
-                    >
-                      <path
-                        d="M0,120 C40,110 80,80 120,90 C160,100 200,60 240,70 C280,80 320,40 360,50 C380,55 390,70 400,80"
-                        fill="none"
-                        stroke="#4F46BA"
-                        strokeWidth="3"
-                      />
-                      <path
-                        d="M0,130 C40,120 80,100 120,110 C160,120 200,90 240,95 C280,100 320,70 360,75 C380,78 390,90 400,95"
-                        fill="none"
-                        stroke="#84E8F4"
-                        strokeWidth="2"
-                        opacity="0.8"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                        Scenarios
-                      </p>
-                      <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
-                        Mix of outcomes
-                      </h3>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="relative min-w-[7rem] min-h-[7rem] w-28 h-28 flex-shrink-0">
-                      <div className="absolute inset-0 rounded-full bg-[conic-gradient(#4F46BA_0deg_160deg,#F9896B_160deg_260deg,#84E8F4_260deg_360deg)] ring-4 ring-white/80" />
-                      <div className="absolute inset-4 rounded-full bg-white" />
-                      <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-[var(--brand-ink)]">
-                        {scenarioBreakdown.total}
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-sm text-[var(--brand-muted)]">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-[var(--brand-primary)]" />
-                        Base case {scenarioPercent(scenarioBreakdown.base)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-[var(--brand-secondary)]" />
-                        Optimistic {scenarioPercent(scenarioBreakdown.optimistic)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-[var(--brand-ice)]" />
-                        Conservative {scenarioPercent(scenarioBreakdown.conservative)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Quick Actions */}
               <QuickActions />
+
+              {/* My Pitch decks */}
+              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
+                      Studio
+                    </p>
+                    <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
+                      My Pitch decks
+                    </h3>
+                  </div>
+                  <Link
+                    to={"/pitch-decks/new" as any}
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    New deck
+                  </Link>
+                </div>
+                {pitchDecks.length === 0 ? (
+                  <>
+                    <p className="text-sm text-[var(--brand-muted)] mb-4">
+                      No pitch decks yet. Create your first AI-generated deck to share with investors.
+                    </p>
+                    <Link
+                      to={"/pitch-decks/new" as any}
+                      className="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-[var(--border-soft)] text-[var(--brand-ink)] text-sm font-semibold hover:bg-[var(--surface-muted)] transition-colors"
+                    >
+                      Create first deck
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <ul className="space-y-3">
+                      {pitchDecks.map((deck) => (
+                        <li key={deck.id}>
+                          <Link
+                            to={"/pitch-decks/$deckId" as any}
+                            params={{ deckId: String(deck.id) } as any}
+                            className="flex items-center justify-between rounded-2xl border border-[var(--border-soft)] px-4 py-3 hover:border-[var(--brand-primary)]/30 hover:bg-[var(--surface-muted)]/50 transition-colors"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-[var(--brand-ink)] truncate">
+                                {deck.title}
+                              </p>
+                              <p className="text-xs text-[var(--brand-muted)] truncate">
+                                {deck.startupName}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 ml-3 flex-shrink-0">
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${statusClassName[deck.status] ?? statusClassName.draft}`}
+                              >
+                                {deck.status}
+                              </span>
+                              <span className="text-xs text-[var(--brand-muted)]">
+                                {new Date(deck.updatedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to={"/pitch-decks" as any}
+                      className="mt-4 inline-block text-sm font-semibold text-[var(--brand-primary)] hover:underline"
+                    >
+                      View all
+                    </Link>
+                  </>
+                )}
+              </div>
 
               {/* Models */}
               <ModelList models={models} />

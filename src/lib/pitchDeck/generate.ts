@@ -6,7 +6,7 @@ import type { PitchDeckGenerationRequest, PitchDeckGenerationResult } from "@/li
 
 const providerDefaults = {
   openai: process.env.OPENAI_PITCH_MODEL || "gpt-4.1-mini",
-  gemini: process.env.GEMINI_PITCH_MODEL || "gemini-1.5-flash",
+  gemini: process.env.GEMINI_PITCH_MODEL || "gemini-2.0-flash",
 } as const;
 
 const providerMap = {

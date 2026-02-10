@@ -198,52 +198,54 @@ export default function LandingPage() {
 
   const heroTextY = useSpring(
     useTransform(heroProgress, [0, 1], [0, prefersReducedMotion ? 0 : 70]),
-    springConfig
+    springConfig,
   );
   const heroVisualY = useSpring(
     useTransform(heroProgress, [0, 1], [0, prefersReducedMotion ? 0 : 120]),
-    springConfig
+    springConfig,
   );
   const heroVisualScale = useSpring(
     useTransform(heroProgress, [0, 1], [1, prefersReducedMotion ? 1 : 1.08]),
-    springConfig
+    springConfig,
   );
   const heroOpacity = useSpring(
     useTransform(heroProgress, [0, 1], [1, prefersReducedMotion ? 1 : 0.5]),
-    springConfig
+    springConfig,
   );
 
   const stripRowOneX = useSpring(
     useTransform(
       stripProgress,
       [0, 1],
-      [prefersReducedMotion ? 0 : 100, prefersReducedMotion ? 0 : -120]
+      [prefersReducedMotion ? 0 : 100, prefersReducedMotion ? 0 : -120],
     ),
-    springConfig
+    springConfig,
   );
   const stripRowTwoX = useSpring(
     useTransform(
       stripProgress,
       [0, 1],
-      [prefersReducedMotion ? 0 : -80, prefersReducedMotion ? 0 : 140]
+      [prefersReducedMotion ? 0 : -80, prefersReducedMotion ? 0 : 140],
     ),
-    springConfig
+    springConfig,
   );
   const stripRowThreeX = useSpring(
     useTransform(
       stripProgress,
       [0, 1],
-      [prefersReducedMotion ? 0 : 120, prefersReducedMotion ? 0 : -100]
+      [prefersReducedMotion ? 0 : 120, prefersReducedMotion ? 0 : -100],
     ),
-    springConfig
+    springConfig,
   );
 
   useMotionValueEvent(storyProgress, "change", (latest) => {
     const nextIndex = Math.min(
       storyChapters.length - 1,
-      Math.max(0, Math.round(latest * (storyChapters.length - 1)))
+      Math.max(0, Math.round(latest * (storyChapters.length - 1))),
     );
-    setActiveChapter((current) => (current === nextIndex ? current : nextIndex));
+    setActiveChapter((current) =>
+      current === nextIndex ? current : nextIndex,
+    );
   });
 
   const activeStory = storyChapters[activeChapter] ?? storyChapters[0];
@@ -254,7 +256,10 @@ export default function LandingPage() {
       <div className="pointer-events-none absolute left-0 top-56 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle,rgba(249,137,107,0.16),transparent_72%)] blur-3xl" />
       <div className="pointer-events-none absolute -right-16 top-[52rem] h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(132,232,244,0.2),transparent_72%)] blur-3xl" />
 
-      <section ref={heroRef} className="relative px-6 pt-12 pb-24 lg:px-10 lg:pt-20">
+      <section
+        ref={heroRef}
+        className="relative px-6 pt-12 pb-24 lg:px-10 lg:pt-20"
+      >
         <div className="mx-auto max-w-[1200px]">
           <motion.div
             initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 22 }}
@@ -275,7 +280,8 @@ export default function LandingPage() {
                   Built for the teams that move fast
                 </p>
                 <h1 className="max-w-[14ch] text-4xl font-[var(--font-display)] leading-tight text-[var(--brand-ink)] md:text-6xl">
-                  Finance storytelling that sharpens every investor conversation.
+                  Finance storytelling that sharpens every investor
+                  conversation.
                 </h1>
                 <p className="max-w-xl text-base leading-relaxed text-[var(--brand-muted)] md:text-lg">
                   Build your model, test scenarios, and shape a clear valuation
@@ -307,13 +313,17 @@ export default function LandingPage() {
             </motion.div>
 
             <motion.div
-              style={{ y: heroVisualY, scale: heroVisualScale, opacity: heroOpacity }}
+              style={{
+                y: heroVisualY,
+                scale: heroVisualScale,
+                opacity: heroOpacity,
+              }}
               className="relative"
             >
               <div className="absolute -left-5 -top-6 h-40 w-40 rounded-full bg-[rgba(79,70,186,0.16)] blur-3xl" />
               <div className="absolute -right-8 bottom-0 h-44 w-44 rounded-full bg-[rgba(249,137,107,0.18)] blur-3xl" />
 
-              <div className="relative overflow-hidden rounded-[calc(var(--card-radius)+0.4rem)] border border-[var(--border-soft)] bg-white p-4 shadow-[var(--card-shadow-hover)]">
+              <div className="relative rounded-[calc(var(--card-radius)+0.4rem)] border border-[var(--border-soft)] bg-white p-4 shadow-[var(--card-shadow-hover)]">
                 <figure className="relative h-[27rem] overflow-hidden rounded-[calc(var(--card-radius)-0.25rem)]">
                   <img
                     src="https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1400&q=80"
@@ -332,7 +342,7 @@ export default function LandingPage() {
                   </div>
                 </figure>
 
-                <div className="pointer-events-none absolute -left-7 top-8 hidden w-56 -rotate-3 rounded-2xl border border-[var(--border-soft)] bg-white p-4 shadow-[var(--card-shadow)] md:block">
+                <div className="pointer-events-none absolute -left-7 top-8 hidden w-64 -rotate-3 rounded-2xl border border-[var(--border-soft)] bg-white p-4 shadow-[var(--card-shadow)] md:block">
                   <p className="text-xs uppercase tracking-[0.18em] text-[var(--brand-muted)]">
                     Scenario confidence
                   </p>
@@ -344,7 +354,7 @@ export default function LandingPage() {
                   </p>
                 </div>
 
-                <div className="pointer-events-none absolute -right-7 bottom-10 hidden w-56 rotate-2 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-4 shadow-[var(--card-shadow)] md:block">
+                <div className="pointer-events-none absolute -right-7 bottom-10 hidden w-64 rotate-2 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-4 shadow-[var(--card-shadow)] md:block">
                   <p className="text-xs uppercase tracking-[0.18em] text-[var(--brand-muted)]">
                     Runway outlook
                   </p>
@@ -477,7 +487,11 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.25 }}
-                transition={{ duration: 0.45, delay: index * 0.08, ease: "easeOut" }}
+                transition={{
+                  duration: 0.45,
+                  delay: index * 0.08,
+                  ease: "easeOut",
+                }}
                 className={`group relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-white shadow-[var(--card-shadow)] ${card.layout}`}
                 style={{ rotate: prefersReducedMotion ? 0 : card.rotate }}
               >
@@ -513,17 +527,26 @@ export default function LandingPage() {
           <p className="mb-5 text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
             Dynamic data strip
           </p>
-          <motion.div style={{ x: stripRowOneX }} className="mb-3 flex w-max gap-3">
+          <motion.div
+            style={{ x: stripRowOneX }}
+            className="mb-3 flex w-max gap-3"
+          >
             {[...stripRows[0], ...stripRows[0]].map((item, idx) => (
               <FormulaChip key={`row-1-${idx}`} value={item} />
             ))}
           </motion.div>
-          <motion.div style={{ x: stripRowTwoX }} className="mb-3 flex w-max gap-3">
+          <motion.div
+            style={{ x: stripRowTwoX }}
+            className="mb-3 flex w-max gap-3"
+          >
             {[...stripRows[1], ...stripRows[1]].map((item, idx) => (
               <FormulaChip key={`row-2-${idx}`} value={item} tone="secondary" />
             ))}
           </motion.div>
-          <motion.div style={{ x: stripRowThreeX }} className="flex w-max gap-3">
+          <motion.div
+            style={{ x: stripRowThreeX }}
+            className="flex w-max gap-3"
+          >
             {[...stripRows[2], ...stripRows[2]].map((item, idx) => (
               <FormulaChip key={`row-3-${idx}`} value={item} tone="ice" />
             ))}

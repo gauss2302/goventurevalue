@@ -1,4 +1,4 @@
-const isDev =
+const isDevelopment =
   (typeof import.meta !== "undefined" && import.meta.env?.DEV) ||
   (typeof process !== "undefined" && process.env?.NODE_ENV !== "production");
 
@@ -6,13 +6,34 @@ type LogMethod = (...args: unknown[]) => void;
 
 const noop: LogMethod = () => {};
 
-const devConsole = typeof console !== "undefined" ? console : ({} as Console);
+const bindConsole = (method: keyof Console): LogMethod => {
+  if (typeof console === "undefined") {
+    return noop;
+  }
 
-export const log: LogMethod = isDev ? devConsole.log.bind(console) : noop;
-export const debug: LogMethod = isDev ? devConsole.debug?.bind(console) || devConsole.log.bind(console) : noop;
-export const info: LogMethod = isDev ? devConsole.info?.bind(console) || devConsole.log.bind(console) : noop;
-export const warn: LogMethod = isDev ? devConsole.warn?.bind(console) || devConsole.log.bind(console) : noop;
-export const error: LogMethod = isDev ? devConsole.error?.bind(console) || devConsole.log.bind(console) : noop;
+  const target = console[method] as unknown;
+  if (typeof target === "function") {
+    return (...args) => {
+      (target as (...params: unknown[]) => unknown).apply(console, args);
+    };
+  }
+
+  if (typeof console.log === "function") {
+    return console.log.bind(console);
+  }
+
+  return noop;
+};
+
+const logFallback: LogMethod = bindConsole("log");
+
+export const log: LogMethod = isDevelopment ? logFallback : noop;
+export const debug: LogMethod = isDevelopment
+  ? bindConsole("debug")
+  : noop;
+export const info: LogMethod = bindConsole("info");
+export const warn: LogMethod = bindConsole("warn");
+export const error: LogMethod = bindConsole("error");
 
 export const logger = {
   log,
@@ -21,4 +42,3 @@ export const logger = {
   warn,
   error,
 };
-

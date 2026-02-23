@@ -44,10 +44,14 @@ The application uses PostgreSQL with Drizzle ORM. Make sure PostgreSQL is runnin
 # Create database (if needed)
 createdb goventurevalue
 
-# Run migrations
-pnpm db:push
-# or for production
+# Auto-generate migration SQL from schema and apply it
+pnpm db:auto
+
+# Or run individually
+pnpm db:generate
 pnpm db:migrate
+# For local prototyping only (no migration files)
+pnpm db:push
 ```
 
 # Building For Production

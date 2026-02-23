@@ -183,7 +183,6 @@ export async function exportPitchDeckToPdf({
     let contentLeft = 48;
     let contentWidth = width - 96;
     let contentTop = innerTop + 12;
-    let contentAreaHeight = innerH - 24;
 
     if (layoutWithImage && imageDataUrls[index]) {
       const dataUrl = imageDataUrls[index]!;
@@ -247,7 +246,6 @@ export async function exportPitchDeckToPdf({
         contentWidth = innerW * 0.6 - 24;
       } else {
         contentTop = innerTop + boxH + 8;
-        contentAreaHeight = innerH - boxH - 16;
       }
     }
 

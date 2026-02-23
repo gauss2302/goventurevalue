@@ -3,7 +3,6 @@
  * Returns plain text only (no JSON).
  */
 
-const GEMINI_API_HOST = "https://generativelanguage.googleapis.com";
 const DEFAULT_MODEL = "gemini-2.0-flash";
 
 export type ImproveTextFieldType = "heading" | "subheading" | "bullet" | "speakerNotes";

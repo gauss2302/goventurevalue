@@ -8,21 +8,25 @@ const connectionString =
   "postgresql://postgres:postgres@localhost:5432/goventurevalue";
 
 const migrationsFolder = path.resolve(process.cwd(), "drizzle");
+const writeStdout = (message: string) => process.stdout.write(`${message}\n`);
+const writeStderr = (message: string) => process.stderr.write(`${message}\n`);
 
 const run = async () => {
   const pool = new Pool({ connectionString });
   const db = drizzle(pool);
 
   try {
-    console.log("Running migrations from:", migrationsFolder);
+    writeStdout(`Running migrations from: ${migrationsFolder}`);
     await migrate(db, { migrationsFolder });
-    console.log("Migrations completed.");
+    writeStdout("Migrations completed.");
   } finally {
     await pool.end();
   }
 };
 
 run().catch((error) => {
-  console.error("Migration failed:", error);
+  writeStderr(
+    `Migration failed: ${error instanceof Error ? error.message : String(error)}`,
+  );
   process.exit(1);
 });

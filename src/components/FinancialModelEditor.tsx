@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Info } from "lucide-react";
+import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import type { ScenarioType, UpdateScenarioDto, UpdateSettingsDto, MarketSizingDto, UpdateMetricsDto } from "@/lib/dto";
 import type { ModelSettings, MarketSizing, ScenarioParams } from "@/lib/calculations";
@@ -210,7 +211,7 @@ export default function FinancialModelEditor({
           (error as any)?.message ||
           (error as any)?.data?.message ||
           "Failed to save scenario. Please try again.";
-        alert(message);
+        toast.error(message);
       } finally {
         setSavingScenario(false);
       }
@@ -239,7 +240,7 @@ export default function FinancialModelEditor({
         (error as any)?.message ||
         (error as any)?.data?.message ||
         "Failed to save settings. Please try again.";
-      alert(message);
+      toast.error(message);
     } finally {
       setSavingSettings(false);
     }
@@ -266,7 +267,7 @@ export default function FinancialModelEditor({
         (error as any)?.message ||
         (error as any)?.data?.message ||
         "Failed to save market sizing. Please try again.";
-      alert(message);
+      toast.error(message);
     } finally {
       setSavingMarket(false);
     }
@@ -297,7 +298,7 @@ export default function FinancialModelEditor({
         (error as any)?.message ||
         (error as any)?.data?.message ||
         "Failed to save metrics. Please try again.";
-      alert(message);
+      toast.error(message);
     } finally {
       setSavingMetrics(false);
     }

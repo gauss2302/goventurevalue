@@ -4,39 +4,32 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '@/db/index'
 import * as schema from '@/db/schema'
-import { logger } from '@/lib/logger'
+
+const getOptionalEnv = (key: string) => {
+  const value = process.env[key]
+  if (!value) return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+const requireEnv = (key: string) => {
+  const value = getOptionalEnv(key)
+  if (!value) {
+    throw new Error(`[Auth] Missing required environment variable: ${key}`)
+  }
+  return value
+}
 
 const baseURL =
-  process.env.BETTER_AUTH_URL ||
-  process.env.VITE_BETTER_AUTH_URL ||
-  'http://localhost:3000'
+  getOptionalEnv('BETTER_AUTH_URL') ?? getOptionalEnv('VITE_BETTER_AUTH_URL')
 
-const secret =
-  process.env.BETTER_AUTH_SECRET || 'change-me-in-production-secret-key'
-
-if (process.env.NODE_ENV !== 'production') {
-  logger.log('🔐 Better Auth Configuration:')
-  logger.log('  - Base URL:', baseURL)
-  logger.log('  - Secret:', secret ? '✅ Set' : '❌ Not set')
-  logger.log(
-    '  - Google Client ID:',
-    process.env.GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Not set',
-  )
-  logger.log(
-    '  - Google Client Secret:',
-    process.env.GOOGLE_CLIENT_SECRET ? '✅ Set' : '❌ Not set',
-  )
-  logger.log(
-    '  - Database URL:',
-    process.env.DATABASE_URL ? '✅ Set' : '❌ Not set',
+if (!baseURL) {
+  throw new Error(
+    '[Auth] Missing BETTER_AUTH_URL (or VITE_BETTER_AUTH_URL) environment variable.',
   )
 }
 
-if (!process.env.BETTER_AUTH_SECRET) {
-  logger.warn(
-    '⚠️  BETTER_AUTH_SECRET is not set. Authentication may not work properly.',
-  )
-}
+const secret = requireEnv('BETTER_AUTH_SECRET')
 
 export const auth = betterAuth({
   baseURL,
@@ -67,4 +60,3 @@ export const auth = betterAuth({
 export const getServerSession = async (headers?: Headers) => {
   return auth.api.getSession({ headers: headers || new Headers() })
 }
-

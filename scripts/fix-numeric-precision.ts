@@ -3,6 +3,8 @@ import { Pool } from "pg";
 const connectionString =
   process.env.DATABASE_URL ||
   "postgresql://postgres:postgres@localhost:5432/goventurevalue";
+const writeStdout = (message: string) => process.stdout.write(`${message}\n`);
+const writeStderr = (message: string) => process.stderr.write(`${message}\n`);
 
 const sql = `
 ALTER TABLE "model_scenarios"
@@ -20,13 +22,15 @@ const run = async () => {
   const pool = new Pool({ connectionString });
   try {
     await pool.query(sql);
-    console.log("Updated numeric precision for scenario/settings columns.");
+    writeStdout("Updated numeric precision for scenario/settings columns.");
   } finally {
     await pool.end();
   }
 };
 
 run().catch((error) => {
-  console.error("Failed to update numeric precision:", error);
+  writeStderr(
+    `Failed to update numeric precision: ${error instanceof Error ? error.message : String(error)}`,
+  );
   process.exit(1);
 });

@@ -42,9 +42,13 @@ const parseBoolean = (value?: string) => {
   return undefined;
 };
 
-const databaseUrl =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@localhost:5432/goventurevalue";
+const databaseUrl = process.env.DATABASE_URL?.trim();
+if (!databaseUrl && process.env.NODE_ENV === "production") {
+  throw new Error("[Drizzle] Missing required DATABASE_URL environment variable.");
+}
+
+const resolvedDatabaseUrl =
+  databaseUrl || "postgresql://postgres:postgres@localhost:5432/goventurevalue";
 
 const schema = parseList(process.env.DRIZZLE_SCHEMA) ?? ["./src/db/schema.ts"];
 const out = process.env.DRIZZLE_OUT ?? "./drizzle";
@@ -85,7 +89,7 @@ export default defineConfig({
   schema,
   dialect: "postgresql",
   dbCredentials: {
-    url: databaseUrl,
+    url: resolvedDatabaseUrl,
   },
   ...(tablesFilter ? { tablesFilter } : {}),
   ...(schemaFilter ? { schemaFilter } : {}),

@@ -36,10 +36,18 @@ export const getRequestOrigin = (headers: Headers): string => {
     return `${proto}://${host}`;
   }
 
-  return normalizeBaseUrl(
-    process.env.BETTER_AUTH_URL ||
-      process.env.VITE_BETTER_AUTH_URL ||
-      "http://localhost:3000",
+  const configuredOrigin =
+    process.env.BETTER_AUTH_URL || process.env.VITE_BETTER_AUTH_URL;
+  if (configuredOrigin) {
+    return normalizeBaseUrl(configuredOrigin);
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:3000";
+  }
+
+  throw new Error(
+    "Unable to determine request origin. Configure BETTER_AUTH_URL.",
   );
 };
 

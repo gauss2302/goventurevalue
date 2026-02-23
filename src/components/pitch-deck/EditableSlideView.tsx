@@ -44,7 +44,6 @@ function EditableSlideViewComponent({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const [resizing, setResizing] = useState(false);
   const [panning, setPanning] = useState(false);
   const resizeStartRef = useRef<{ scale: number; clientY: number } | null>(null);
   const panStartRef = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | null>(null);
@@ -76,7 +75,6 @@ function EditableSlideViewComponent({
     (e: React.PointerEvent) => {
       e.preventDefault();
       resizeStartRef.current = { scale: imageScale, clientY: e.clientY };
-      setResizing(true);
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     },
     [imageScale]
@@ -95,7 +93,6 @@ function EditableSlideViewComponent({
   const handleResizePointerUp = useCallback(
     (e: React.PointerEvent) => {
       resizeStartRef.current = null;
-      setResizing(false);
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     },
     []
@@ -205,8 +202,13 @@ function EditableSlideViewComponent({
   const handleImproveWithAi = useCallback(
     async (fieldType: ImproveTextFieldType, currentValue: string, bulletIndex?: number) => {
       if (!onImproveWithAi) return;
-      const field: EditableField =
-        fieldType === "bullet" && bulletIndex !== undefined ? `bullet-${bulletIndex}` : fieldType;
+      let field: EditableField;
+      if (fieldType === "bullet") {
+        if (bulletIndex === undefined) return;
+        field = `bullet-${bulletIndex}`;
+      } else {
+        field = fieldType;
+      }
       setImprovingField(field);
       try {
         const improved = await onImproveWithAi({ fieldType, currentValue, bulletIndex });
@@ -222,7 +224,7 @@ function EditableSlideViewComponent({
     [onImproveWithAi, onUpdate, onUpdateBullet],
   );
 
-  const improveButton = (field: EditableField, label: string) =>
+  const improveButton = (field: EditableField) =>
     onImproveWithAi ? (
       <button
         type="button"
@@ -360,7 +362,7 @@ function EditableSlideViewComponent({
                 {displayHeading}
               </ReactMarkdown>
             </h2>
-            {improveButton("heading", "Improve with AI")}
+            {improveButton("heading")}
           </div>
         )}
 
@@ -401,7 +403,7 @@ function EditableSlideViewComponent({
                 <span className="opacity-60">Click to add subheading</span>
               )}
             </p>
-            {improveButton("subheading", "Improve with AI")}
+            {improveButton("subheading")}
           </div>
         )}
 
@@ -501,7 +503,7 @@ function EditableSlideViewComponent({
                       {bullet || "Click to edit"}
                     </ReactMarkdown>
                   </span>
-                  {improveButton(`bullet-${i}` as EditableField, "Improve with AI")}
+                  {improveButton(`bullet-${i}` as EditableField)}
                 </div>
               )}
             </li>
@@ -532,7 +534,7 @@ function EditableSlideViewComponent({
             <p className="text-xs font-semibold" style={{ color: colors.accent }}>
               Speaker Notes
             </p>
-            {improveButton("speakerNotes", "Improve with AI")}
+            {improveButton("speakerNotes")}
           </div>
           {editingField === "speakerNotes" ? (
             <textarea

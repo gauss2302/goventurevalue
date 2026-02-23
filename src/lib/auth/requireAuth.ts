@@ -1,5 +1,5 @@
 import { redirect } from "@tanstack/react-router";
-import type { ParsedLocation } from "@tanstack/router-core";
+import type { ParsedLocation } from "@tanstack/react-router";
 
 const isSafeNextPath = (next: string | null | undefined) => {
   if (!next) return false;

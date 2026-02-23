@@ -5,7 +5,16 @@ const resolveBaseURL = () => {
     return window.location.origin
   }
 
-  return import.meta.env?.VITE_BETTER_AUTH_URL || 'http://localhost:3000'
+  const configuredUrl =
+    import.meta.env?.VITE_BETTER_AUTH_URL?.trim() ||
+    process.env.BETTER_AUTH_URL?.trim()
+  if (configuredUrl) {
+    return configuredUrl
+  }
+
+  throw new Error(
+    '[Auth] Missing VITE_BETTER_AUTH_URL while resolving auth client base URL.',
+  )
 }
 
 const baseURL = resolveBaseURL()
@@ -20,4 +29,3 @@ export const authClient = createAuthClient({
 export async function signOut() {
   await authClient.signOut()
 }
-

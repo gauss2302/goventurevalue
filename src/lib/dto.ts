@@ -43,35 +43,35 @@ export type UpdateSettingsDto = {
 }
 
 export type UpdateMetricsDto = {
-  usersTotal?: number
-  dau?: number
-  mau?: number
-  growthRate?: number
-  activationRate?: number
-  retentionRate?: number
-  churnRate?: number
-  mrr?: number
-  arr?: number
-  arpu?: number
-  revenueGrowthRate?: number
-  expansionRevenue?: number
-  contractionRevenue?: number
-  cac?: number
-  ltv?: number
-  ltvCac?: number
-  paybackPeriodMonths?: number
-  conversionRate?: number
-  cpl?: number
-  salesCycleLengthDays?: number
-  winRate?: number
-  dauMauRatio?: number
-  featureAdoptionRate?: number
-  timeToValueDays?: number
-  nps?: number
-  burnRate?: number
-  runwayMonths?: number
-  grossMargin?: number
-  operatingMargin?: number
+  usersTotal?: number | null
+  dau?: number | null
+  mau?: number | null
+  growthRate?: number | null
+  activationRate?: number | null
+  retentionRate?: number | null
+  churnRate?: number | null
+  mrr?: number | null
+  arr?: number | null
+  arpu?: number | null
+  revenueGrowthRate?: number | null
+  expansionRevenue?: number | null
+  contractionRevenue?: number | null
+  cac?: number | null
+  ltv?: number | null
+  ltvCac?: number | null
+  paybackPeriodMonths?: number | null
+  conversionRate?: number | null
+  cpl?: number | null
+  salesCycleLengthDays?: number | null
+  winRate?: number | null
+  dauMauRatio?: number | null
+  featureAdoptionRate?: number | null
+  timeToValueDays?: number | null
+  nps?: number | null
+  burnRate?: number | null
+  runwayMonths?: number | null
+  grossMargin?: number | null
+  operatingMargin?: number | null
 }
 
 export type AIProvider = 'openai' | 'gemini'

@@ -859,18 +859,6 @@ function PitchDeckDetailPage() {
     );
   };
 
-  const moveSlide = (slideIndex: number, direction: "up" | "down") => {
-    const toIndex = direction === "up" ? slideIndex - 1 : slideIndex + 1;
-    if (toIndex < 0 || toIndex >= slides.length) return;
-    setSlides((prev) => {
-      const next = [...prev];
-      const [current] = next.splice(slideIndex, 1);
-      next.splice(toIndex, 0, current);
-      return next;
-    });
-    setSelectedSlideIndex(toIndex);
-  };
-
   const handleRegenerate = () => {
     regenerateMutation.mutate(
       { deckId: data.id },

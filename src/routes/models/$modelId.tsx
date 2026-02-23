@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { DEFAULT_SETTINGS, DEFAULT_MARKET_SIZING } from "@/lib/calculations";
 import { ExportPaywallModal } from "@/components/billing/ExportPaywallModal";
 import FinancialModelEditor from "@/components/FinancialModelEditor";
@@ -161,35 +162,35 @@ const loadModelDetail = createServerFn({ method: "GET" })
         : null,
       metrics: metricsData
         ? {
-            usersTotal: metricsData.usersTotal ? Number(metricsData.usersTotal) : null,
-            dau: metricsData.dau ? Number(metricsData.dau) : null,
-            mau: metricsData.mau ? Number(metricsData.mau) : null,
-            growthRate: metricsData.growthRate ? Number(metricsData.growthRate) : null,
-            activationRate: metricsData.activationRate ? Number(metricsData.activationRate) : null,
-            retentionRate: metricsData.retentionRate ? Number(metricsData.retentionRate) : null,
-            churnRate: metricsData.churnRate ? Number(metricsData.churnRate) : null,
-            mrr: metricsData.mrr ? Number(metricsData.mrr) : null,
-            arr: metricsData.arr ? Number(metricsData.arr) : null,
-            arpu: metricsData.arpu ? Number(metricsData.arpu) : null,
-            revenueGrowthRate: metricsData.revenueGrowthRate ? Number(metricsData.revenueGrowthRate) : null,
-            expansionRevenue: metricsData.expansionRevenue ? Number(metricsData.expansionRevenue) : null,
-            contractionRevenue: metricsData.contractionRevenue ? Number(metricsData.contractionRevenue) : null,
-            cac: metricsData.cac ? Number(metricsData.cac) : null,
-            ltv: metricsData.ltv ? Number(metricsData.ltv) : null,
-            ltvCac: metricsData.ltvCac ? Number(metricsData.ltvCac) : null,
-            paybackPeriodMonths: metricsData.paybackPeriodMonths ? Number(metricsData.paybackPeriodMonths) : null,
-            conversionRate: metricsData.conversionRate ? Number(metricsData.conversionRate) : null,
-            cpl: metricsData.cpl ? Number(metricsData.cpl) : null,
-            salesCycleLengthDays: metricsData.salesCycleLengthDays ? Number(metricsData.salesCycleLengthDays) : null,
-            winRate: metricsData.winRate ? Number(metricsData.winRate) : null,
-            dauMauRatio: metricsData.dauMauRatio ? Number(metricsData.dauMauRatio) : null,
-            featureAdoptionRate: metricsData.featureAdoptionRate ? Number(metricsData.featureAdoptionRate) : null,
-            timeToValueDays: metricsData.timeToValueDays ? Number(metricsData.timeToValueDays) : null,
-            nps: metricsData.nps ? Number(metricsData.nps) : null,
-            burnRate: metricsData.burnRate ? Number(metricsData.burnRate) : null,
-            runwayMonths: metricsData.runwayMonths ? Number(metricsData.runwayMonths) : null,
-            grossMargin: metricsData.grossMargin ? Number(metricsData.grossMargin) : null,
-            operatingMargin: metricsData.operatingMargin ? Number(metricsData.operatingMargin) : null,
+            usersTotal: toNullableNumber(metricsData.usersTotal),
+            dau: toNullableNumber(metricsData.dau),
+            mau: toNullableNumber(metricsData.mau),
+            growthRate: toNullableNumber(metricsData.growthRate),
+            activationRate: toNullableNumber(metricsData.activationRate),
+            retentionRate: toNullableNumber(metricsData.retentionRate),
+            churnRate: toNullableNumber(metricsData.churnRate),
+            mrr: toNullableNumber(metricsData.mrr),
+            arr: toNullableNumber(metricsData.arr),
+            arpu: toNullableNumber(metricsData.arpu),
+            revenueGrowthRate: toNullableNumber(metricsData.revenueGrowthRate),
+            expansionRevenue: toNullableNumber(metricsData.expansionRevenue),
+            contractionRevenue: toNullableNumber(metricsData.contractionRevenue),
+            cac: toNullableNumber(metricsData.cac),
+            ltv: toNullableNumber(metricsData.ltv),
+            ltvCac: toNullableNumber(metricsData.ltvCac),
+            paybackPeriodMonths: toNullableNumber(metricsData.paybackPeriodMonths),
+            conversionRate: toNullableNumber(metricsData.conversionRate),
+            cpl: toNullableNumber(metricsData.cpl),
+            salesCycleLengthDays: toNullableNumber(metricsData.salesCycleLengthDays),
+            winRate: toNullableNumber(metricsData.winRate),
+            dauMauRatio: toNullableNumber(metricsData.dauMauRatio),
+            featureAdoptionRate: toNullableNumber(metricsData.featureAdoptionRate),
+            timeToValueDays: toNullableNumber(metricsData.timeToValueDays),
+            nps: toNullableNumber(metricsData.nps),
+            burnRate: toNullableNumber(metricsData.burnRate),
+            runwayMonths: toNullableNumber(metricsData.runwayMonths),
+            grossMargin: toNullableNumber(metricsData.grossMargin),
+            operatingMargin: toNullableNumber(metricsData.operatingMargin),
           }
         : null,
     } satisfies LoaderData;
@@ -206,6 +207,9 @@ const normalizeRateInput = (value: number, min: number, max: number) => {
   const fraction = Math.abs(finite) > 1 ? finite / 100 : finite;
   return Math.min(max, Math.max(min, fraction));
 };
+
+const toNullableNumber = (value: string | null): number | null =>
+  value == null ? null : Number(value);
 
 const normalizeScenarioInput = (input: UpdateScenarioDto) => ({
   userGrowth: normalizeRateInput(input.userGrowth, -0.95, 3),
@@ -480,33 +484,57 @@ const updateMetrics = createServerFn({ method: "POST" })
 
     const arr = data.data.mrr != null ? data.data.mrr * 12 : data.data.arr;
     const ltvCac =
-      data.data.ltv != null && data.data.cac
+      data.data.ltv != null &&
+      data.data.cac != null &&
+      data.data.cac !== 0
         ? data.data.ltv / data.data.cac
         : data.data.ltvCac;
     const dauMauRatio =
-      data.data.dau != null && data.data.mau
+      data.data.dau != null &&
+      data.data.mau != null &&
+      data.data.mau !== 0
         ? data.data.dau / data.data.mau
         : data.data.dauMauRatio;
 
-    const payload = {
+    const metricsPayload = {
+      updatedAt: new Date(),
+    } as Partial<typeof modelMetrics.$inferInsert>;
+
+    const sourceMetrics: UpdateMetricsDto = {
       ...data.data,
       arr,
       ltvCac,
       dauMauRatio,
-      updatedAt: new Date(),
     };
+
+    for (const [key, value] of Object.entries(sourceMetrics) as Array<
+      [keyof UpdateMetricsDto, number | null | undefined]
+    >) {
+      if (value == null) {
+        (metricsPayload as Record<string, unknown>)[key] = null;
+        continue;
+      }
+
+      if (!Number.isFinite(value)) continue;
+      (metricsPayload as Record<string, unknown>)[key] = String(value);
+    }
 
     const existing = await db.query.modelMetrics.findFirst({
       where: eq(modelMetrics.modelId, data.modelId),
     });
 
     if (existing) {
-      await db.update(modelMetrics).set(payload).where(eq(modelMetrics.id, existing.id));
+      await db
+        .update(modelMetrics)
+        .set(metricsPayload)
+        .where(eq(modelMetrics.id, existing.id));
     } else {
-      await db.insert(modelMetrics).values({
+      const insertPayload = {
         modelId: data.modelId,
-        ...payload,
-      });
+        ...metricsPayload,
+      } satisfies typeof modelMetrics.$inferInsert;
+
+      await db.insert(modelMetrics).values(insertPayload);
     }
 
     // Sync to metric_snapshots for dashboard "Stage-based focus" (default stage: early_growth)
@@ -647,7 +675,7 @@ function ModelDetail() {
       return false;
     } catch (error) {
       logger.error("Failed to verify export entitlement:", error);
-      alert("Could not verify subscription. Please try again.");
+      toast.error("Could not verify subscription. Please try again.");
       return false;
     }
   };
@@ -671,7 +699,7 @@ function ModelDetail() {
       });
     } catch (error) {
       logger.error("Failed to export Excel:", error);
-      alert("Failed to export Excel. Please try again.");
+      toast.error("Failed to export Excel. Please try again.");
     }
   };
 
@@ -694,7 +722,7 @@ function ModelDetail() {
       });
     } catch (error) {
       logger.error("Failed to export PDF:", error);
-      alert("Failed to export PDF. Please try again.");
+      toast.error("Failed to export PDF. Please try again.");
     }
   };
 

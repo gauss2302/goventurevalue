@@ -5,12 +5,8 @@ import {
   Link,
   useRouterState,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import { TanStackDevtools } from "@tanstack/react-devtools";
 
 import Header from "../components/Header";
-
-import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
@@ -93,18 +89,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         {!hideHeader && <Header />}
         {children}
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-            TanStackQueryDevtools,
-          ]}
-        />
         <Toaster richColors position="top-right" />
         <Scripts />
       </body>

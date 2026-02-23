@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/Sidebar";
+import type { PresentationStatus } from "@/lib/dto";
 
 const loadPitchDecks = createServerFn({ method: "GET" }).handler(async () => {
   const [
@@ -36,7 +38,23 @@ const loadPitchDecks = createServerFn({ method: "GET" }).handler(async () => {
   }));
 });
 
-const statusClassName: Record<string, string> = {
+const pitchDecksQueryOptions = () => ({
+  queryKey: ["pitch-decks"] as const,
+  queryFn: () => loadPitchDecks() as Promise<
+    Array<{
+      id: number;
+      title: string;
+      startupName: string;
+      status: PresentationStatus;
+      provider: string;
+      updatedAt: Date;
+      createdAt: Date;
+    }>
+  >,
+  staleTime: 60 * 1000,
+});
+
+const statusClassName: Record<PresentationStatus, string> = {
   draft: "bg-gray-100 text-gray-700",
   generating: "bg-blue-100 text-blue-700",
   ready: "bg-green-100 text-green-700",
@@ -44,17 +62,35 @@ const statusClassName: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/pitch-decks/")({
-  loader: async ({ location }) => {
+  loader: async ({ location, context }) => {
     const { requireAuthForLoader } = await import("@/lib/auth/requireAuth");
     await requireAuthForLoader(location);
-    const decks = await loadPitchDecks();
-    return { decks };
+    await context.queryClient.prefetchQuery(pitchDecksQueryOptions());
+    return null;
   },
   component: PitchDecksPage,
 });
 
 function PitchDecksPage() {
-  const { decks } = Route.useLoaderData();
+  const { data: decks, isPending, error } = useQuery(pitchDecksQueryOptions());
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-[var(--brand-muted)]">Loading pitch decks...</div>
+      </div>
+    );
+  }
+
+  if (error || !decks) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-red-600">
+          Failed to load pitch decks. Please refresh the page.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">

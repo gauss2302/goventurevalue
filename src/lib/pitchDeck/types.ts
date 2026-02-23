@@ -1,8 +1,10 @@
 import type {
   AIProvider,
+  PitchDeckAiStyleInstructions,
   PitchDeckBriefDto,
   PitchDeckSlideDto,
   PitchDeckSlideTypeDto,
+  PitchDeckStyleQuestionnaireInput,
 } from "@/lib/dto";
 
 export type DeckSlideTemplate = {
@@ -74,3 +76,17 @@ export type PitchDeckGenerationResult = {
     };
   };
 };
+
+/** Input for Full AI slides generation (content input + style questionnaire) */
+export type PitchDeckFullAiGenerationInput = PitchDeckGenerationInput & {
+  styleQuestionnaire: PitchDeckStyleQuestionnaireInput;
+};
+
+/** Result of Full AI slides generation: slides + style instructions from Gemini */
+export type PitchDeckFullAiGenerationResult = {
+  slides: PitchDeckSlideDto[];
+  styleInstructions: PitchDeckAiStyleInstructions;
+  generationMeta: PitchDeckGenerationResult["generationMeta"];
+};
+
+export type { PitchDeckStyleQuestionnaireInput, PitchDeckAiStyleInstructions };

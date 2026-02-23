@@ -23,6 +23,7 @@ import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as ModelsModelIdCompareRouteImport } from './routes/models/$modelId/compare'
+import { Route as ApiPolarWebhooksRouteImport } from './routes/api/polar/webhooks'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const DashboardRoute = DashboardRouteImport.update({
@@ -95,6 +96,11 @@ const ModelsModelIdCompareRoute = ModelsModelIdCompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => ModelsModelIdRoute,
 } as any)
+const ApiPolarWebhooksRoute = ApiPolarWebhooksRouteImport.update({
+  id: '/api/polar/webhooks',
+  path: '/api/polar/webhooks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -113,9 +119,10 @@ export interface FileRoutesByFullPath {
   '/models/new': typeof ModelsNewRoute
   '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
   '/pitch-decks/new': typeof PitchDecksNewRoute
-  '/models': typeof ModelsIndexRoute
-  '/pitch-decks': typeof PitchDecksIndexRoute
+  '/models/': typeof ModelsIndexRoute
+  '/pitch-decks/': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRoutesByTo {
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/models': typeof ModelsIndexRoute
   '/pitch-decks': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRoutesById {
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/models/': typeof ModelsIndexRoute
   '/pitch-decks/': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRouteTypes {
@@ -167,9 +176,10 @@ export interface FileRouteTypes {
     | '/models/new'
     | '/pitch-decks/$deckId'
     | '/pitch-decks/new'
-    | '/models'
-    | '/pitch-decks'
+    | '/models/'
+    | '/pitch-decks/'
     | '/api/auth/$'
+    | '/api/polar/webhooks'
     | '/models/$modelId/compare'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/models'
     | '/pitch-decks'
     | '/api/auth/$'
+    | '/api/polar/webhooks'
     | '/models/$modelId/compare'
   id:
     | '__root__'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/models/'
     | '/pitch-decks/'
     | '/api/auth/$'
+    | '/api/polar/webhooks'
     | '/models/$modelId/compare'
   fileRoutesById: FileRoutesById
 }
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   ModelsIndexRoute: typeof ModelsIndexRoute
   PitchDecksIndexRoute: typeof PitchDecksIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiPolarWebhooksRoute: typeof ApiPolarWebhooksRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -257,14 +270,14 @@ declare module '@tanstack/react-router' {
     '/pitch-decks/': {
       id: '/pitch-decks/'
       path: '/pitch-decks'
-      fullPath: '/pitch-decks'
+      fullPath: '/pitch-decks/'
       preLoaderRoute: typeof PitchDecksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/models/': {
       id: '/models/'
       path: '/models'
-      fullPath: '/models'
+      fullPath: '/models/'
       preLoaderRoute: typeof ModelsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ModelsModelIdCompareRouteImport
       parentRoute: typeof ModelsModelIdRoute
     }
+    '/api/polar/webhooks': {
+      id: '/api/polar/webhooks'
+      path: '/api/polar/webhooks'
+      fullPath: '/api/polar/webhooks'
+      preLoaderRoute: typeof ApiPolarWebhooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -361,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   ModelsIndexRoute: ModelsIndexRoute,
   PitchDecksIndexRoute: PitchDecksIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiPolarWebhooksRoute: ApiPolarWebhooksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

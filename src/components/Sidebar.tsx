@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { signOutWithMock } from "@/lib/auth/client";
+import { signOut } from "@/lib/auth/client";
 
 export function Sidebar() {
   const router = useRouter();
@@ -165,7 +165,7 @@ export function Sidebar() {
           <button
             className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[var(--brand-muted)] hover:text-[var(--brand-secondary)] hover:bg-[rgba(249,137,107,0.08)] transition-all"
             onClick={async () => {
-              await signOutWithMock();
+              await signOut();
               router.invalidate();
               router.navigate({ to: "/" });
             }}
@@ -232,7 +232,7 @@ export function Sidebar() {
               <button
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[var(--brand-muted)] hover:text-[var(--brand-secondary)] hover:bg-[rgba(249,137,107,0.08)] transition-all"
                 onClick={async () => {
-                  await signOutWithMock();
+                  await signOut();
                   setIsMobileOpen(false);
                   router.invalidate();
                   router.navigate({ to: "/" });

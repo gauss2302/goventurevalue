@@ -1,9 +1,13 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DEFAULT_SETTINGS, DEFAULT_MARKET_SIZING } from "@/lib/calculations";
+import { ExportPaywallModal } from "@/components/billing/ExportPaywallModal";
 import FinancialModelEditor from "@/components/FinancialModelEditor";
 import { Sidebar } from "@/components/Sidebar";
+import { assertExportAccess } from "@/lib/billing/serverFns";
+import { logger } from "@/lib/logger";
 import type {
   ScenarioType,
   UpdateScenarioDto,
@@ -190,6 +194,12 @@ const loadModelDetail = createServerFn({ method: "GET" })
         : null,
     } satisfies LoaderData;
   });
+
+const modelDetailQueryOptions = (modelId: number) => ({
+  queryKey: ["model", modelId] as const,
+  queryFn: () => loadModelDetail({ data: { modelId } }) as Promise<LoaderData>,
+  staleTime: 60 * 1000,
+});
 
 const normalizeRateInput = (value: number, min: number, max: number) => {
   const finite = Number.isFinite(value) ? value : 0;
@@ -565,36 +575,90 @@ const updateMetrics = createServerFn({ method: "POST" })
 
 export const Route = createFileRoute("/models/$modelId")({
   component: ModelDetail,
-  loader: async ({ params, location }) => {
+  loader: async ({ params, location, context }) => {
     const { requireAuthForLoader } = await import("@/lib/auth/requireAuth");
     await requireAuthForLoader(location);
 
     const modelId = parseInt((params as { modelId: string }).modelId);
-    return loadModelDetail({ data: { modelId } });
+    await context.queryClient.prefetchQuery(modelDetailQueryOptions(modelId));
+    return { modelId };
   },
 });
 
 function ModelDetail() {
-  const data = Route.useLoaderData();
-  const { model, scenarios, market, settings: loadedSettings, metrics } = data;
+  const { modelId } = Route.useLoaderData() as { modelId: number };
+  const {
+    data,
+    isPending,
+    error: loadError,
+  } = useQuery(modelDetailQueryOptions(modelId));
   const router = useRouter();
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const settings = useMemo(
-    () => loadedSettings || DEFAULT_SETTINGS,
-    [loadedSettings]
+    () => data?.settings || DEFAULT_SETTINGS,
+    [data?.settings]
   );
   const marketSizingData = useMemo(
-    () => market || DEFAULT_MARKET_SIZING,
-    [market]
+    () => data?.market || DEFAULT_MARKET_SIZING,
+    [data?.market]
   );
-
-  // Use server functions
   const updateScenarioFn = useServerFn(updateScenario);
   const updateSettingsFn = useServerFn(updateSettings);
   const updateMarketSizingFn = useServerFn(updateMarketSizing);
   const updateMetricsFn = useServerFn(updateMetrics);
+  const assertExportAccessFn = useServerFn(assertExportAccess);
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-[var(--brand-muted)]">
+          Loading model...
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !data) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-red-600">
+          Failed to load model. Please refresh the page.
+        </div>
+      </div>
+    );
+  }
+
+  const { model, scenarios, metrics } = data;
+
+  const ensureExportAllowed = async () => {
+    try {
+      const access = await assertExportAccessFn({
+        data: { returnPath: `/models/${modelId}` },
+      });
+
+      if (access.allowed) {
+        return true;
+      }
+
+      setCheckoutUrl(access.checkoutUrl);
+      setPaywallOpen(true);
+      return false;
+    } catch (error) {
+      logger.error("Failed to verify export entitlement:", error);
+      alert("Could not verify subscription. Please try again.");
+      return false;
+    }
+  };
+
   const handleExport = async () => {
     try {
+      const allowed = await ensureExportAllowed();
+      if (!allowed) {
+        return;
+      }
+
       const { exportModelToExcel } = await import("@/lib/excel");
       await exportModelToExcel({
         model: {
@@ -606,14 +670,44 @@ function ModelDetail() {
         market: marketSizingData,
       });
     } catch (error) {
-      console.error("Failed to export Excel:", error);
+      logger.error("Failed to export Excel:", error);
       alert("Failed to export Excel. Please try again.");
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const allowed = await ensureExportAllowed();
+      if (!allowed) {
+        return;
+      }
+
+      const { exportModelToPdf } = await import("@/lib/pdf");
+      await exportModelToPdf({
+        model: {
+          name: model.name,
+          currency: model.currency,
+        },
+        scenarios,
+        settings,
+        market: marketSizingData,
+      });
+    } catch (error) {
+      logger.error("Failed to export PDF:", error);
+      alert("Failed to export PDF. Please try again.");
     }
   };
 
   return (
     <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
       <Sidebar />
+      <ExportPaywallModal
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        checkoutUrl={checkoutUrl}
+        title="Upgrade to export this model"
+        description="Model editing is free. Exporting PDF and Excel files requires Pro ($10/month)."
+      />
       <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
         <div className="bg-white border-b border-[var(--border-soft)] px-6 py-4 flex items-center justify-between shadow-sm">
           <div>
@@ -656,6 +750,12 @@ function ModelDetail() {
             >
               Compare scenarios
             </Link>
+            <button
+              onClick={handleExportPdf}
+              className="px-4 py-2 rounded-full border border-[var(--border-soft)] text-xs text-[var(--brand-muted)] font-semibold hover:text-[var(--brand-primary)] hover:border-[rgba(79,70,186,0.3)]"
+            >
+              Download PDF
+            </button>
             <button
               onClick={handleExport}
               className="px-4 py-2 rounded-full bg-[var(--brand-primary)] text-white text-xs font-semibold shadow-[0_10px_20px_rgba(79,70,186,0.2)]"

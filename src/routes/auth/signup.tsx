@@ -1,7 +1,8 @@
 import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { ChevronLeft } from "lucide-react";
-import { authClient, useSessionWithMock } from "@/lib/auth/client";
+import { authClient } from "@/lib/auth/client";
+import { logger } from "@/lib/logger";
 
 export const Route = createFileRoute("/auth/signup")({
   component: SignUp,
@@ -23,7 +24,7 @@ const getNextFromLocation = () => {
 
 function SignUp() {
   const router = useRouter();
-  const { data: session } = useSessionWithMock();
+  const { data: session } = authClient.useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -114,7 +115,7 @@ function SignUp() {
     } catch (err) {
       setIsGoogleLoading(false);
       setError("An error occurred with Google sign-up. Please try again.");
-      console.error("Google sign-up error:", err);
+      logger.error("Google sign-up error:", err);
     }
   };
 

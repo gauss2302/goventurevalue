@@ -102,6 +102,32 @@ export const todos = pgTable('todos', {
   createdAt: timestamp('created_at').defaultNow(),
 })
 
+export const billingSubscriptions = pgTable(
+  'billing_subscriptions',
+  {
+    id: serial().primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' })
+      .unique(),
+    polarCustomerId: text('polar_customer_id'),
+    polarSubscriptionId: text('polar_subscription_id'),
+    productId: text('product_id'),
+    status: text('status').default('inactive').notNull(),
+    currentPeriodEnd: timestamp('current_period_end'),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('billing_subscriptions_user_idx').on(table.userId),
+    index('billing_subscriptions_status_idx').on(table.status),
+  ],
+)
+
 // Financial Models Schema
 export const financialModels = pgTable('financial_models', {
   id: serial().primaryKey(),
@@ -120,6 +146,7 @@ export const scenarioTypeEnum = pgEnum('scenario_type', ['conservative', 'base',
 export const stageEnum = pgEnum('startup_stage', ['idea', 'early_growth', 'scale'])
 export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'gemini'])
 export const pitchDeckStatusEnum = pgEnum('pitch_deck_status', ['draft', 'generating', 'ready', 'failed'])
+export const pitchDeckDesignModeEnum = pgEnum('pitch_deck_design_mode', ['manual_template', 'ai_designed'])
 
 export const modelScenarios = pgTable('model_scenarios', {
   id: serial().primaryKey(),
@@ -281,6 +308,10 @@ export const pitchDecks = pgTable(
     status: pitchDeckStatusEnum('status').default('draft').notNull(),
     brief: jsonb('brief').notNull(),
     slides: jsonb('slides').default([]).notNull(),
+    template: text('template').default('minimal').notNull(),
+    designMode: pitchDeckDesignModeEnum('design_mode').default('manual_template').notNull(),
+    aiStyleInput: jsonb('ai_style_input'),
+    aiStyleInstructions: jsonb('ai_style_instructions'),
     generationMeta: jsonb('generation_meta'),
     lastError: text('last_error'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -370,5 +401,12 @@ export const pitchDecksRelations = relations(pitchDecks, ({ one }) => ({
   model: one(financialModels, {
     fields: [pitchDecks.modelId],
     references: [financialModels.id],
+  }),
+}))
+
+export const billingSubscriptionsRelations = relations(billingSubscriptions, ({ one }) => ({
+  user: one(user, {
+    fields: [billingSubscriptions.userId],
+    references: [user.id],
   }),
 }))

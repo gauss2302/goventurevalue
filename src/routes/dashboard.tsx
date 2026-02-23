@@ -1,7 +1,8 @@
-import React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn, useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { Sidebar } from "../components/Sidebar";
 import { DashboardStats } from "../components/DashboardStats";
 import { RecentActivity } from "../components/RecentActivity";
@@ -9,12 +10,14 @@ import { QuickActions } from "../components/QuickActions";
 import ModelList from "../components/ModelList";
 import type { Model } from "../components/ModelList";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
+import { openBillingPortal, startBillingCheckout } from "@/lib/billing/serverFns";
+import type { PresentationStatus } from "@/lib/dto";
 
 type PitchDeckSummary = {
   id: number;
   title: string;
   startupName: string;
-  status: string;
+  status: PresentationStatus;
   updatedAt: string;
 };
 
@@ -23,6 +26,7 @@ type LoaderData = {
   user: {
     name: string | null;
     email: string | null;
+    plan: "free" | "pro";
   };
   stats: {
     modelsCount: number;
@@ -46,7 +50,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     { requireAuthFromHeaders },
     { db },
     schema,
-    { eq, desc, sql },
+    { eq, desc, sql, and },
   ] = await Promise.all([
     import("@tanstack/react-start/server"),
     import("@/lib/auth/requireAuth"),
@@ -59,6 +63,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     financialModels,
     modelScenarios,
     modelSettings,
+    billingSubscriptions,
     session: sessionTable,
     pitchDecks: pitchDecksTable,
   } = schema;
@@ -66,7 +71,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
   const headers = getRequestHeaders();
   const session = await requireAuthFromHeaders(headers);
 
-  const [models, scenariosCountRow, totalStartingUsersRow, lastLoginRow, decks] =
+  const [models, scenariosCountRow, totalStartingUsersRow, lastLoginRow, decks, billingSnapshot] =
     await Promise.all([
       db.query.financialModels.findMany({
         where: eq(financialModels.userId, session.user.id),
@@ -101,8 +106,14 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
         .orderBy(desc(sessionTable.createdAt))
         .limit(1),
       db.query.pitchDecks.findMany({
-        where: eq(pitchDecksTable.userId, session.user.id),
+        where: and(
+          eq(pitchDecksTable.userId, session.user.id),
+          eq(pitchDecksTable.status, "ready")
+        ),
         orderBy: [desc(pitchDecksTable.updatedAt)],
+      }),
+      db.query.billingSubscriptions.findFirst({
+        where: eq(billingSubscriptions.userId, session.user.id),
       }),
     ]);
 
@@ -128,6 +139,12 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
   const lastLoginAt = lastLoginRow[0]?.createdAt
     ? lastLoginRow[0].createdAt.toISOString()
     : null;
+  const plan =
+    billingSnapshot &&
+    (billingSnapshot.status === "active" ||
+      billingSnapshot.status === "trialing")
+      ? "pro"
+      : "free";
 
   const activities = models.slice(0, 4).map((model) => ({
     id: model.id,
@@ -143,6 +160,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     user: {
       name: session.user.name ?? null,
       email: session.user.email ?? null,
+      plan,
     },
     models: models.map((m) => ({
       id: m.id,
@@ -170,24 +188,22 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
   };
 });
 
-export const Route = createFileRoute("/dashboard")({
-  loader: async ({ location }): Promise<LoaderData> => {
-    await requireAuthForLoader(location);
-    const data = await loadDashboardData();
+const dashboardQueryOptions = () => ({
+  queryKey: ["dashboard"] as const,
+  queryFn: () => loadDashboardData() as Promise<LoaderData>,
+  staleTime: 60 * 1000,
+});
 
-    return {
-      models: data.models,
-      user: data.user,
-      stats: data.stats,
-      lastLoginAt: data.lastLoginAt,
-      activities: data.activities,
-      pitchDecks: data.pitchDecks,
-    };
+export const Route = createFileRoute("/dashboard")({
+  loader: async ({ location, context }) => {
+    await requireAuthForLoader(location);
+    await context.queryClient.prefetchQuery(dashboardQueryOptions());
+    return null;
   },
   component: Dashboard,
 });
 
-const statusClassName: Record<string, string> = {
+const statusClassName: Record<PresentationStatus, string> = {
   draft: "bg-gray-100 text-gray-700",
   generating: "bg-blue-100 text-blue-700",
   ready: "bg-green-100 text-green-700",
@@ -195,6 +211,28 @@ const statusClassName: Record<string, string> = {
 };
 
 function Dashboard() {
+  const { data, isPending, error } = useQuery(dashboardQueryOptions());
+  const startBillingCheckoutFn = useServerFn(startBillingCheckout);
+  const openBillingPortalFn = useServerFn(openBillingPortal);
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-[var(--brand-muted)]">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-red-600">
+          Failed to load dashboard. Please refresh the page.
+        </div>
+      </div>
+    );
+  }
+
   const {
     models,
     user,
@@ -202,7 +240,7 @@ function Dashboard() {
     lastLoginAt,
     activities,
     pitchDecks,
-  } = Route.useLoaderData();
+  } = data;
   const initials =
     user.name
       ?.split(" ")
@@ -269,6 +307,35 @@ function Dashboard() {
 
   const formatCompact = (value: number) =>
     new Intl.NumberFormat(undefined, { notation: "compact" }).format(value);
+  const planLabel = user.plan === "pro" ? "Pro plan" : "Free plan";
+
+  const handleStartCheckout = async () => {
+    try {
+      const { url } = await startBillingCheckoutFn({
+        data: { returnPath: "/dashboard" },
+      });
+      window.location.assign(url);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to start checkout.";
+      toast.error(message);
+    }
+  };
+
+  const handleOpenPortal = async () => {
+    try {
+      const { url } = await openBillingPortalFn({
+        data: { returnPath: "/dashboard" },
+      });
+      window.location.assign(url);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unable to open billing portal.";
+      toast.error(message);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
@@ -405,7 +472,10 @@ function Dashboard() {
                     {user.name || "Founder"}
                   </h4>
                   <p className="text-xs text-[var(--brand-muted)]">
-                    {user.email || "Starter plan"}
+                    {user.email || "No email set"}
+                  </p>
+                  <p className="text-xs font-semibold text-[var(--brand-primary)]">
+                    {planLabel}
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-4 mt-5 text-center">
@@ -431,11 +501,19 @@ function Dashboard() {
                   </div>
                 </div>
                 <div className="mt-5 flex gap-3">
-                  <button className="flex-1 rounded-2xl bg-[var(--brand-primary)] text-white py-2.5 text-xs font-semibold shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)] transition-shadow">
-                    Upgrade
+                  <button
+                    type="button"
+                    onClick={handleStartCheckout}
+                    className="flex-1 rounded-2xl bg-[var(--brand-primary)] text-white py-2.5 text-xs font-semibold shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)] transition-shadow"
+                  >
+                    {user.plan === "pro" ? "Change plan" : "Upgrade"}
                   </button>
-                  <button className="flex-1 rounded-2xl border border-[var(--border-soft)] text-[var(--brand-ink)] py-2.5 text-xs font-semibold hover:bg-[var(--surface-muted)] transition-colors">
-                    Share
+                  <button
+                    type="button"
+                    onClick={handleOpenPortal}
+                    className="flex-1 rounded-2xl border border-[var(--border-soft)] text-[var(--brand-ink)] py-2.5 text-xs font-semibold hover:bg-[var(--surface-muted)] transition-colors"
+                  >
+                    Manage billing
                   </button>
                 </div>
               </div>

@@ -76,7 +76,9 @@ export type UpdateMetricsDto = {
 
 export type AIProvider = 'openai' | 'gemini'
 
-export type PitchDeckStatus = 'draft' | 'generating' | 'ready' | 'failed'
+export type PresentationStatus = "draft" | "generating" | "ready" | "failed"
+/** @deprecated Use PresentationStatus */
+export type PitchDeckStatus = PresentationStatus
 
 export type PitchDeckBriefDto = {
   problem: string
@@ -103,6 +105,13 @@ export type PitchDeckSlideTypeDto =
   | 'financials'
   | 'ask'
 
+export type SlideLayoutId =
+  | 'default'
+  | 'image-left'
+  | 'image-right'
+  | 'image-top'
+  | 'image-full'
+
 export type PitchDeckSlideDto = {
   id: string
   type: PitchDeckSlideTypeDto
@@ -110,6 +119,63 @@ export type PitchDeckSlideDto = {
   subheading: string
   bullets: string[]
   speakerNotes: string
+  /** 1–4 short key metrics or callouts (e.g. "$2M ARR", "40% MoM") for presentation-style slides */
+  keyMetrics?: string[]
+  /** 0-based index of the bullet to emphasise visually */
+  emphasisBulletIndex?: number
+  /** Image URL for the slide (optional) */
+  imageUrl?: string
+  /** Layout of the slide when image is present */
+  layout?: SlideLayoutId
+  /** Image scale factor from corner-handle resize (0.25–3, default 1) */
+  imageScale?: number
+  /** Horizontal pan when image overflows (0=left, 0.5=center, 1=right) */
+  imagePanX?: number
+  /** Vertical pan when image overflows (0=top, 0.5=center, 1=bottom) */
+  imagePanY?: number
+}
+
+export type PitchDeckTemplateId =
+  | 'minimal'
+  | 'professional-blue'
+  | 'bold-dark'
+  | 'warm-earthy'
+  | 'tech-modern'
+
+/** Design mode: manual template picker vs AI-designed style */
+export type PitchDeckDesignMode = 'manual_template' | 'ai_designed'
+
+/** User questionnaire answers for Full AI slides style */
+export type PitchDeckStyleQuestionnaireInput = {
+  colorDirection?: string
+  imageryStyle?: string
+  visualDensity?: string
+  typographyPersonality?: string
+  brandAlignment?: string
+  investorRiskProfile?: string
+  optionalNote?: string
+}
+
+/** Global theme tokens from Gemini Full AI */
+export type PitchDeckAiStyleGlobal = {
+  palette?: { background?: string; heading?: string; subheading?: string; bullets?: string; accent?: string; footer?: string; border?: string }
+  typographyPersonality?: string
+  visualDensity?: string
+  motif?: string
+  brandAlignment?: string
+  investorEmphasis?: string
+}
+
+/** Per-slide hint from Gemini (layout emphasis, visual motif) */
+export type PitchDeckAiStyleSlideHint = {
+  layoutEmphasis?: string
+  visualMotif?: string
+}
+
+/** Persisted AI style instructions: global + per-slide hints */
+export type PitchDeckAiStyleInstructions = {
+  global?: PitchDeckAiStyleGlobal
+  slideHints?: Partial<Record<PitchDeckSlideTypeDto, PitchDeckAiStyleSlideHint>>
 }
 
 export type CreatePitchDeckDto = {
@@ -122,6 +188,7 @@ export type CreatePitchDeckDto = {
   provider: AIProvider
   providerModel?: string
   modelId?: number
+  template?: PitchDeckTemplateId
   brief: PitchDeckBriefDto
 }
 

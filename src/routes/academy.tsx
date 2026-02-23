@@ -44,7 +44,7 @@ export const Route = createFileRoute("/academy")({
 
 function AcademyPage() {
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
+    <div className="min-h-screen bg-(--page) text-[var(--brand-ink)]">
       <Sidebar />
       <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
         <div className="relative px-6 py-10 lg:px-10 max-w-[1200px] mx-auto space-y-10">
@@ -112,7 +112,10 @@ function AcademyPage() {
               <div className="space-y-3 text-sm text-[var(--brand-muted)]">
                 {checkpoints.map((item) => (
                   <div key={item} className="flex items-start gap-2">
-                    <CheckCircle size={16} className="text-[var(--brand-primary)] mt-0.5" />
+                    <CheckCircle
+                      size={16}
+                      className="text-[var(--brand-primary)] mt-0.5"
+                    />
                     <span>{item}</span>
                   </div>
                 ))}
@@ -127,8 +130,8 @@ function AcademyPage() {
                 </h3>
               </div>
               <p className="text-sm text-[var(--brand-muted)]">
-                Start with simple assumptions, then layer in complexity once
-                you validate conversion and pricing.
+                Start with simple assumptions, then layer in complexity once you
+                validate conversion and pricing.
               </p>
               <div className="mt-4 flex items-center gap-2 text-sm text-[var(--brand-primary)] font-semibold">
                 <Sparkles size={16} />

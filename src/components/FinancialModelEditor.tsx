@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Info } from "lucide-react";
+import { logger } from "@/lib/logger";
 import type { ScenarioType, UpdateScenarioDto, UpdateSettingsDto, MarketSizingDto, UpdateMetricsDto } from "@/lib/dto";
 import type { ModelSettings, MarketSizing, ScenarioParams } from "@/lib/calculations";
 import { calculateProjections } from "@/lib/calculations";
@@ -89,7 +90,7 @@ export default function FinancialModelEditor({
   updateMarketSizingFn,
   updateMetricsFn,
 }: FinancialModelEditorProps) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<EditorTab>("scenarios");
   const [activeScenarioTab, setActiveScenarioTab] = useState<ScenarioType>("base");
   const [scenario, setScenario] = useState<ScenarioType>("base");
@@ -197,12 +198,14 @@ export default function FinancialModelEditor({
           data: scenarioData,
         });
         try {
-          await router.invalidate();
+          await queryClient.invalidateQueries({
+            queryKey: ["model", modelId],
+          });
         } catch (invalidateError) {
-          console.warn("Scenario saved, but failed to refresh data:", invalidateError);
+          logger.warn("Scenario saved, but failed to refresh data:", invalidateError);
         }
       } catch (error) {
-        console.error("Failed to save scenario:", error);
+        logger.error("Failed to save scenario:", error);
         const message =
           (error as any)?.message ||
           (error as any)?.data?.message ||
@@ -212,7 +215,7 @@ export default function FinancialModelEditor({
         setSavingScenario(false);
       }
     },
-    [modelId, scenarios, updateScenarioFn, router]
+    [modelId, scenarios, updateScenarioFn, queryClient]
   );
 
   // Save settings
@@ -224,12 +227,14 @@ export default function FinancialModelEditor({
         data: settings,
       });
       try {
-        await router.invalidate();
+        await queryClient.invalidateQueries({
+          queryKey: ["model", modelId],
+        });
       } catch (invalidateError) {
-        console.warn("Settings saved, but failed to refresh data:", invalidateError);
+        logger.warn("Settings saved, but failed to refresh data:", invalidateError);
       }
     } catch (error) {
-      console.error("Failed to save settings:", error);
+      logger.error("Failed to save settings:", error);
       const message =
         (error as any)?.message ||
         (error as any)?.data?.message ||
@@ -238,7 +243,7 @@ export default function FinancialModelEditor({
     } finally {
       setSavingSettings(false);
     }
-  }, [modelId, settings, updateSettingsFn, router]);
+  }, [modelId, settings, updateSettingsFn, queryClient]);
 
   // Save market sizing
   const handleSaveMarket = useCallback(async () => {
@@ -249,12 +254,14 @@ export default function FinancialModelEditor({
         data: market,
       });
       try {
-        await router.invalidate();
+        await queryClient.invalidateQueries({
+          queryKey: ["model", modelId],
+        });
       } catch (invalidateError) {
-        console.warn("Market sizing saved, but failed to refresh data:", invalidateError);
+        logger.warn("Market sizing saved, but failed to refresh data:", invalidateError);
       }
     } catch (error) {
-      console.error("Failed to save market sizing:", error);
+      logger.error("Failed to save market sizing:", error);
       const message =
         (error as any)?.message ||
         (error as any)?.data?.message ||
@@ -263,7 +270,7 @@ export default function FinancialModelEditor({
     } finally {
       setSavingMarket(false);
     }
-  }, [modelId, market, updateMarketSizingFn, router]);
+  }, [modelId, market, updateMarketSizingFn, queryClient]);
 
   const handleSaveMetrics = useCallback(async () => {
     setSavingMetrics(true);
@@ -278,12 +285,14 @@ export default function FinancialModelEditor({
         },
       });
       try {
-        await router.invalidate();
+        await queryClient.invalidateQueries({
+          queryKey: ["model", modelId],
+        });
       } catch (invalidateError) {
-        console.warn("Metrics saved, but failed to refresh data:", invalidateError);
+        logger.warn("Metrics saved, but failed to refresh data:", invalidateError);
       }
     } catch (error) {
-      console.error("Failed to save metrics:", error);
+      logger.error("Failed to save metrics:", error);
       const message =
         (error as any)?.message ||
         (error as any)?.data?.message ||
@@ -292,7 +301,7 @@ export default function FinancialModelEditor({
     } finally {
       setSavingMetrics(false);
     }
-  }, [modelId, metrics, derivedMetrics, updateMetricsFn, router]);
+  }, [modelId, metrics, derivedMetrics, updateMetricsFn, queryClient]);
 
   const updateMetricsField = useCallback(
     <K extends keyof ModelMetrics>(field: K, value: ModelMetrics[K]) => {

@@ -1,9 +1,11 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { DEFAULT_SETTINGS } from "@/lib/calculations";
 import type { CreateModelDto } from "@/lib/dto";
 import { Sidebar } from "@/components/Sidebar";
+import { logger } from "@/lib/logger";
 
 const createModel = createServerFn({
   method: "POST",
@@ -133,6 +135,7 @@ function NewModel() {
   const [error, setError] = useState<string | null>(null);
 
   const createModelFn = useServerFn(createModel);
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +149,7 @@ function NewModel() {
     setError(null);
 
     try {
-      console.log("Submitting form with data:", { name, companyName, description });
+      logger.info("Submitting form with data:", { name, companyName, description });
       
       // Call server function using useServerFn hook
       const result = await createModelFn({
@@ -157,22 +160,24 @@ function NewModel() {
         },
       });
       
-      console.log("Model created successfully:", result);
+      logger.info("Model created successfully:", result);
       
       if (result && result.id) {
-        // Invalidate router cache to refresh the models list
-        router.invalidate();
-        
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["models"] }),
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        ]);
+
         router.navigate({
           to: "/models/$modelId",
           params: { modelId: result.id.toString() },
         });
       } else {
-        console.error("Invalid response:", result);
+        logger.error("Invalid response:", result);
         throw new Error("Invalid response from server");
       }
     } catch (error: any) {
-      console.error("Failed to create model - full error:", error);
+      logger.error("Failed to create model - full error:", error);
       const errorMessage = error?.message || error?.toString() || "Failed to create model. Please try again.";
       setError(errorMessage);
     } finally {

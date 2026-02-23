@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/Sidebar";
 import type { ScenarioType } from "@/lib/dto";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
@@ -70,17 +71,53 @@ const loadScenarioCompare = createServerFn({ method: "GET" })
     };
   });
 
+const scenarioCompareQueryOptions = (modelId: number) => ({
+  queryKey: ["model", modelId, "compare"] as const,
+  queryFn: () =>
+    loadScenarioCompare({ data: { modelId } }) as Promise<{
+      model: { id: number; name: string; currency: string };
+      scenarios: ScenarioRow[];
+    }>,
+  staleTime: 60 * 1000,
+});
+
 export const Route = createFileRoute("/models/$modelId/compare")({
-  loader: async ({ location, params }) => {
+  loader: async ({ location, params, context }) => {
     await requireAuthForLoader(location);
     const modelId = parseInt((params as { modelId: string }).modelId);
-    return loadScenarioCompare({ data: { modelId } });
+    await context.queryClient.prefetchQuery(scenarioCompareQueryOptions(modelId));
+    return { modelId };
   },
   component: ScenarioComparePage,
 });
 
 function ScenarioComparePage() {
-  const data = Route.useLoaderData();
+  const { modelId } = Route.useLoaderData() as { modelId: number };
+  const {
+    data,
+    isPending,
+    error: loadError,
+  } = useQuery(scenarioCompareQueryOptions(modelId));
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-[var(--brand-muted)]">
+          Loading scenario comparison...
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !data) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-red-600">
+          Failed to load scenario comparison. Please refresh the page.
+        </div>
+      </div>
+    );
+  }
   const scenarioMap = new Map<ScenarioType, ScenarioRow>();
   data.scenarios.forEach((scenario) =>
     scenarioMap.set(scenario.scenarioType, scenario)

@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, isRedirect } from "@tanstack/react-router";
 import LandingPage from "@/components/LandingPage";
 import { getSessionForLoader } from "@/lib/auth/requireAuth";
+import { logger } from "@/lib/logger";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/")({
     } catch (error) {
       // Re-throw redirects so TanStack Router can perform the navigation
       if (isRedirect(error)) throw error;
-      console.error("Error in home route loader:", error);
+      logger.error("Error in home route loader:", error);
       return null;
     }
   },

@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useSessionWithMock } from "@/lib/auth/client";
+import { authClient } from "@/lib/auth/client";
 
 export const Route = createFileRoute("/auth/callback")({
   component: AuthCallback,
@@ -22,7 +22,7 @@ const getNextFromLocation = () => {
 
 function AuthCallback() {
   const router = useRouter();
-  const { data: session, isPending } = useSessionWithMock();
+  const { data: session, isPending } = authClient.useSession();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

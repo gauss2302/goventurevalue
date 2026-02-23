@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import * as schema from "./schema.ts";
+import { logger } from "@/lib/logger";
 
 // Get connection string with fallback for development
 const connectionString =
@@ -19,7 +20,7 @@ const pool = new Pool({
 
 // Handle connection errors gracefully
 pool.on("error", (err) => {
-  console.error("Unexpected error on idle database client", err);
+  logger.error("Unexpected error on idle database client", err);
 });
 
 // Create drizzle instance

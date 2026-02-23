@@ -13,8 +13,10 @@ import Header from "../components/Header";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import appCss from "../styles.css?url";
+import { Toaster } from "sonner";
 
 import type { QueryClient } from "@tanstack/react-query";
+import { logger } from "@/lib/logger";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -69,7 +71,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     const context = Route.useRouteContext();
     isAuthenticated = context?.isAuthenticated ?? false;
   } catch (error) {
-    console.error("Error getting root route context:", error);
+    logger.error("Error getting root route context:", error);
     // Default to not authenticated on error
     isAuthenticated = false;
   }
@@ -103,6 +105,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             TanStackQueryDevtools,
           ]}
         />
+        <Toaster richColors position="top-right" />
         <Scripts />
       </body>
     </html>

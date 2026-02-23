@@ -1,13 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import ModelList from "../../components/ModelList";
 import { Sidebar } from "../../components/Sidebar";
 import type { Model } from "../../components/ModelList";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
-
-type LoaderData = {
-  models: Model[];
-};
 
 const loadModels = createServerFn({ method: "GET" }).handler(async () => {
   const [
@@ -42,20 +39,41 @@ const loadModels = createServerFn({ method: "GET" }).handler(async () => {
   }));
 });
 
-export const Route = createFileRoute("/models/")({
-  loader: async ({ location }): Promise<LoaderData> => {
-    await requireAuthForLoader(location);
-    const models = await loadModels();
+const modelsQueryOptions = () => ({
+  queryKey: ["models"] as const,
+  queryFn: () => loadModels() as Promise<Model[]>,
+  staleTime: 60 * 1000,
+});
 
-    return {
-      models,
-    };
+export const Route = createFileRoute("/models/")({
+  loader: async ({ location, context }) => {
+    await requireAuthForLoader(location);
+    await context.queryClient.prefetchQuery(modelsQueryOptions());
+    return null;
   },
   component: ModelsIndex,
 });
 
 function ModelsIndex() {
-  const { models } = Route.useLoaderData();
+  const { data: models, isPending, error } = useQuery(modelsQueryOptions());
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-[var(--brand-muted)]">Loading models...</div>
+      </div>
+    );
+  }
+
+  if (error || !models) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
+        <div className="text-sm text-red-600">
+          Failed to load models. Please refresh the page.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">

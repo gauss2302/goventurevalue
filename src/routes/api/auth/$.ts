@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth/server";
 import { createFileRoute } from "@tanstack/react-router";
+import { logger } from "@/lib/logger";
 
 export const Route = createFileRoute("/api/auth/$")({
   server: {
@@ -7,12 +8,12 @@ export const Route = createFileRoute("/api/auth/$")({
       GET: async ({ request }: { request: Request }) => {
         try {
           const url = new URL(request.url);
-          console.log("[Better Auth] GET request to:", url.pathname);
+          logger.info("[Better Auth] GET request to:", url.pathname);
           const response = await auth.handler(request);
           return response;
         } catch (error) {
-          console.error("[Better Auth] GET error:", error);
-          console.error(
+          logger.error("[Better Auth] GET error:", error);
+          logger.error(
             "[Better Auth] Error stack:",
             error instanceof Error ? error.stack : "No stack"
           );
@@ -35,14 +36,14 @@ export const Route = createFileRoute("/api/auth/$")({
       POST: async ({ request }: { request: Request }) => {
         try {
           const url = new URL(request.url);
-          console.log("[Better Auth] POST request to:", url.pathname);
+          logger.info("[Better Auth] POST request to:", url.pathname);
 
           // Clone request to read body for debugging (Better Auth will handle the original)
           const clonedRequest = request.clone();
           try {
             const body = await clonedRequest.text();
             if (body) {
-              console.log(
+              logger.debug(
                 "[Better Auth] Request body:",
                 body.substring(0, 200)
               );
@@ -52,11 +53,11 @@ export const Route = createFileRoute("/api/auth/$")({
           }
 
           const response = await auth.handler(request);
-          console.log("[Better Auth] Response status:", response.status);
+          logger.info("[Better Auth] Response status:", response.status);
           return response;
         } catch (error) {
-          console.error("[Better Auth] POST error:", error);
-          console.error(
+          logger.error("[Better Auth] POST error:", error);
+          logger.error(
             "[Better Auth] Error stack:",
             error instanceof Error ? error.stack : "No stack"
           );

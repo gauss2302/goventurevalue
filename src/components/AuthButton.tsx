@@ -1,8 +1,8 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { signOutWithMock, useSessionWithMock } from '@/lib/auth/client'
+import { authClient } from '@/lib/auth/client'
 
 export default function AuthButton() {
-  const { data: session } = useSessionWithMock()
+  const { data: session } = authClient.useSession()
   const router = useRouter()
 
   if (session) {
@@ -13,7 +13,7 @@ export default function AuthButton() {
         </span>
         <button
           onClick={async () => {
-            await signOutWithMock()
+            await authClient.signOut()
             router.invalidate()
             router.navigate({ to: '/' })
           }}

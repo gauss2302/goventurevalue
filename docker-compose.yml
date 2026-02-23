@@ -9,7 +9,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: 3500
       DATABASE_URL: ${DATABASE_URL_INTERNAL:-postgresql://postgres:postgres@postgres:5432/goventurevalue}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3500}
       VITE_BETTER_AUTH_URL: ${VITE_BETTER_AUTH_URL:-http://localhost:3500}
@@ -27,7 +27,11 @@ services:
     ports:
       - "3500:3000"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:'+ (process.env.PORT||3000), { redirect: 'manual' }).then(r=>process.exit(r.status < 500 ? 0 : 1)).catch(()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://127.0.0.1:''+ (process.env.PORT||3000), { redirect: ''manual'' }).then(r=>process.exit(r.status < 500 ? 0 : 1)).catch(()=>process.exit(1))"',
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

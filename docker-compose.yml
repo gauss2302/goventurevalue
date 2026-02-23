@@ -1,13 +1,47 @@
 services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL_INTERNAL:-postgresql://postgres:postgres@postgres:5432/goventurevalue}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      VITE_BETTER_AUTH_URL: ${VITE_BETTER_AUTH_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_PITCH_MODEL: ${OPENAI_PITCH_MODEL:-gpt-4.1-mini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_PITCH_MODEL: ${GEMINI_PITCH_MODEL:-gemini-2.0-flash}
+      POLAR_ACCESS_TOKEN: ${POLAR_ACCESS_TOKEN:-}
+      POLAR_WEBHOOK_SECRET: ${POLAR_WEBHOOK_SECRET:-}
+      POLAR_EXPORTS_PRODUCT_ID: ${POLAR_EXPORTS_PRODUCT_ID:-}
+      POLAR_SERVER: ${POLAR_SERVER:-sandbox}
+    ports:
+      - "0:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:'+ (process.env.PORT||3000)).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   postgres:
     image: postgres:16-alpine
-    container_name: goventurevalue-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: goventurevalue
     ports:
-      - "5432:5432"
+      - "0:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

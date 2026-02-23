@@ -54,25 +54,29 @@ export default defineConfig(({ isSsrBuild }) => ({
             replacement: startStorageContextShim,
           },
           {
-            find: "node:async_hooks",
+            find: /^node:async_hooks$/,
             replacement: nodeAsyncHooksShim,
           },
           {
-            find: "node:stream",
-            replacement: nodeStreamShim,
-          },
-          {
-            find: "stream",
-            replacement: nodeStreamShim,
-          },
-          {
-            find: "node:stream/web",
+            find: /^node:stream\/web$/,
             replacement: nodeStreamWebShim,
+          },
+          {
+            find: /^node:stream$/,
+            replacement: nodeStreamShim,
+          },
+          {
+            find: /^stream\/web$/,
+            replacement: nodeStreamWebShim,
+          },
+          {
+            find: /^stream$/,
+            replacement: nodeStreamShim,
           },
         ],
   },
   esbuild: {
-    jsx: "automatic",
+    jsx: "automatic" as const,
   },
   optimizeDeps: {
     exclude: [
@@ -82,7 +86,7 @@ export default defineConfig(({ isSsrBuild }) => ({
       "tanstack-start-injected-head-scripts:v",
     ],
     esbuildOptions: {
-      jsx: "automatic",
+      jsx: "automatic" as const,
     },
   },
   ssr: {

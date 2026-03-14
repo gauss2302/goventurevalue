@@ -1,5 +1,5 @@
 {
-  "name": "goventurevalue",
+  "name": "havamind",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,10 +16,14 @@
     "db:fix-precision": "tsx scripts/fix-numeric-precision.ts",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:ensure": "tsx scripts/ensure-db.ts",
+    "db:ensure:auth": "tsx scripts/migrate-auth.ts"
   },
   "dependencies": {
+    "@polar-sh/better-auth": "^1.8.1",
     "@polar-sh/sdk": "^0.43.1",
+    "@radix-ui/react-slot": "^1.2.4",
     "@react-pdf/renderer": "^3.4.5",
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/react-query": "^5.66.5",
@@ -47,6 +51,7 @@
     "nitro": "npm:nitro-nightly@latest",
     "pdfmake": "^0.3.4",
     "pg": "^8.16.3",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",

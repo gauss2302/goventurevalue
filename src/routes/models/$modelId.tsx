@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { DEFAULT_SETTINGS, DEFAULT_MARKET_SIZING } from "@/lib/calculations";
 import { ExportPaywallModal } from "@/components/billing/ExportPaywallModal";
 import FinancialModelEditor from "@/components/FinancialModelEditor";
+import type { FundraisingData } from "@/components/FundraisingPanel";
 import { Sidebar } from "@/components/Sidebar";
 import { assertExportAccess } from "@/lib/billing/serverFns";
 import { logger } from "@/lib/logger";
@@ -17,6 +18,34 @@ import type {
   UpdateMetricsDto,
 } from "@/lib/dto";
 import type { ModelSettings, MarketSizing } from "@/lib/calculations";
+
+type MonthlyMetricRow = {
+  id?: number;
+  month: string;
+  mrr: number | null;
+  newMrr: number | null;
+  expansionMrr: number | null;
+  contractionMrr: number | null;
+  churnedMrr: number | null;
+  customers: number | null;
+  newCustomers: number | null;
+  churnedCustomers: number | null;
+  gmv: number | null;
+  revenue: number | null;
+  grossProfit: number | null;
+  opex: number | null;
+  cashBalance: number | null;
+  headcount: number | null;
+  marketingSpend: number | null;
+};
+
+type FundraisingRow = {
+  targetRaise: number | null;
+  preMoneyValuation: number | null;
+  useOfFunds: Record<string, number> | null;
+  runwayTarget: number | null;
+  plannedClose: string | null;
+};
 
 type LoaderData = {
   model: {
@@ -31,12 +60,24 @@ type LoaderData = {
     userGrowth: string;
     arpu: string;
     churnRate: string;
-    farmerGrowth: string;
+    expansionRate: string;
+    grossMarginTarget: string;
     cac: string;
   }>;
   market: MarketSizing | null;
   settings: ModelSettings | null;
   metrics: ModelMetrics | null;
+  monthlyMetrics: MonthlyMetricRow[];
+  cohorts: CohortRow[];
+  fundraising: FundraisingRow | null;
+};
+
+type CohortRow = {
+  id?: number;
+  cohortMonth: string;
+  cohortSize: number;
+  retentionByMonth: number[];
+  revenueByMonth?: number[] | null;
 };
 
 type ModelMetrics = {
@@ -82,13 +123,13 @@ const loadModelDetail = createServerFn({ method: "GET" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
     ]);
 
-    const { financialModels, modelScenarios, marketSizing, modelSettings } =
+    const { financialModels, modelScenarios, marketSizing, modelSettings, modelMonthlyMetrics, modelCohorts, modelFundraising } =
       schema;
     const { modelMetrics } = schema;
 
@@ -122,6 +163,48 @@ const loadModelDetail = createServerFn({ method: "GET" })
       where: eq(modelMetrics.modelId, data.modelId),
     });
 
+    const monthlyMetricsData = await db.query.modelMonthlyMetrics.findMany({
+      where: eq(modelMonthlyMetrics.modelId, data.modelId),
+      orderBy: (m, { desc }) => [desc(m.month)],
+    });
+
+    const cohortsData = await db.query.modelCohorts.findMany({
+      where: eq(modelCohorts.modelId, data.modelId),
+      orderBy: (c, { asc }) => [asc(c.cohortMonth)],
+    });
+
+    const fundraisingData = await db.query.modelFundraising.findFirst({
+      where: eq(modelFundraising.modelId, data.modelId),
+    });
+
+    const cohorts: CohortRow[] = cohortsData.map((c) => ({
+      id: c.id,
+      cohortMonth: typeof c.cohortMonth === "string" ? c.cohortMonth : (c.cohortMonth as Date).toISOString().slice(0, 10),
+      cohortSize: c.cohortSize,
+      retentionByMonth: Array.isArray(c.retentionByMonth) ? c.retentionByMonth : [],
+      revenueByMonth: Array.isArray(c.revenueByMonth) ? c.revenueByMonth : null,
+    }));
+
+    const monthlyMetrics: MonthlyMetricRow[] = monthlyMetricsData.map((m) => ({
+      id: m.id,
+      month: typeof m.month === "string" ? m.month : (m.month as Date).toISOString().slice(0, 10),
+      mrr: toNullableNumber(m.mrr),
+      newMrr: toNullableNumber(m.newMrr),
+      expansionMrr: toNullableNumber(m.expansionMrr),
+      contractionMrr: toNullableNumber(m.contractionMrr),
+      churnedMrr: toNullableNumber(m.churnedMrr),
+      customers: m.customers ?? null,
+      newCustomers: m.newCustomers ?? null,
+      churnedCustomers: m.churnedCustomers ?? null,
+      gmv: toNullableNumber(m.gmv),
+      revenue: toNullableNumber(m.revenue),
+      grossProfit: toNullableNumber(m.grossProfit),
+      opex: toNullableNumber(m.opex),
+      cashBalance: toNullableNumber(m.cashBalance),
+      headcount: m.headcount ?? null,
+      marketingSpend: toNullableNumber(m.marketingSpend),
+    }));
+
     return {
       model: {
         id: model.id,
@@ -135,20 +218,23 @@ const loadModelDetail = createServerFn({ method: "GET" })
         userGrowth: s.userGrowth,
         arpu: s.arpu,
         churnRate: s.churnRate,
-        farmerGrowth: s.farmerGrowth,
+        expansionRate: (s as any).expansionRate ?? s.farmerGrowth ?? "0",
+        grossMarginTarget: (s as any).grossMarginTarget ?? "0.7",
         cac: s.cac,
       })),
       market: marketData
         ? {
             tam: marketData.tam,
+            tamDescription: marketData.tamDescription ?? '',
             sam: marketData.sam,
+            samDescription: marketData.samDescription ?? '',
             som: marketData.som,
+            somDescription: marketData.somDescription ?? '',
           }
         : null,
       settings: settingsData
         ? {
             startUsers: settingsData.startUsers,
-            startFarmers: settingsData.startFarmers,
             taxRate: parseFloat(settingsData.taxRate),
             discountRate: parseFloat(settingsData.discountRate),
             terminalGrowth: parseFloat(settingsData.terminalGrowth),
@@ -158,6 +244,10 @@ const loadModelDetail = createServerFn({ method: "GET" })
             capexByYear: settingsData.capexByYear,
             depreciationByYear: settingsData.depreciationByYear,
             projectionYears: settingsData.projectionYears,
+            monthlyBurnRate: settingsData.monthlyBurnRate != null ? parseFloat(settingsData.monthlyBurnRate) : null,
+            currentCash: settingsData.currentCash != null ? parseFloat(settingsData.currentCash) : null,
+            revenueMultiple: settingsData.revenueMultiple != null ? parseFloat(settingsData.revenueMultiple) : null,
+            arrMultiple: settingsData.arrMultiple != null ? parseFloat(settingsData.arrMultiple) : null,
           }
         : null,
       metrics: metricsData
@@ -193,6 +283,17 @@ const loadModelDetail = createServerFn({ method: "GET" })
             operatingMargin: toNullableNumber(metricsData.operatingMargin),
           }
         : null,
+      monthlyMetrics,
+      cohorts,
+      fundraising: fundraisingData
+        ? {
+            targetRaise: fundraisingData.targetRaise != null ? parseFloat(fundraisingData.targetRaise) : null,
+            preMoneyValuation: fundraisingData.preMoneyValuation != null ? parseFloat(fundraisingData.preMoneyValuation) : null,
+            useOfFunds: (fundraisingData.useOfFunds as Record<string, number> | null) ?? null,
+            runwayTarget: fundraisingData.runwayTarget ?? null,
+            plannedClose: fundraisingData.plannedClose != null ? (typeof fundraisingData.plannedClose === "string" ? fundraisingData.plannedClose : (fundraisingData.plannedClose as Date).toISOString().slice(0, 10)) : null,
+          }
+        : null,
     } satisfies LoaderData;
   });
 
@@ -215,8 +316,10 @@ const normalizeScenarioInput = (input: UpdateScenarioDto) => ({
   userGrowth: normalizeRateInput(input.userGrowth, -0.95, 3),
   arpu: Math.max(0, Number.isFinite(input.arpu) ? input.arpu : 0),
   churnRate: normalizeRateInput(input.churnRate, 0.001, 0.95),
-  farmerGrowth: normalizeRateInput(input.farmerGrowth, -0.95, 3),
+  expansionRate: normalizeRateInput(input.expansionRate ?? 0, 0, 2),
+  grossMarginTarget: normalizeRateInput(input.grossMarginTarget ?? 0.7, 0.1, 0.99),
   cac: Math.max(0, Number.isFinite(input.cac) ? input.cac : 0),
+  farmerGrowth: normalizeRateInput(input.farmerGrowth ?? 0, -0.95, 3),
 });
 
 // Server functions for updating model data
@@ -237,7 +340,7 @@ const updateScenario = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -270,27 +373,30 @@ const updateScenario = createServerFn({ method: "POST" })
       ),
     });
 
+    const scenarioFields = {
+      userGrowth: normalizedScenario.userGrowth.toString(),
+      arpu: normalizedScenario.arpu.toString(),
+      churnRate: normalizedScenario.churnRate.toString(),
+      farmerGrowth: normalizedScenario.farmerGrowth.toString(),
+      cac: normalizedScenario.cac.toString(),
+      ...(normalizedScenario.expansionRate !== undefined && {
+        expansionRate: normalizedScenario.expansionRate.toString(),
+      }),
+      ...(normalizedScenario.grossMarginTarget !== undefined && {
+        grossMarginTarget: normalizedScenario.grossMarginTarget.toString(),
+      }),
+    };
+
     if (existing) {
       await db
         .update(modelScenarios)
-        .set({
-          userGrowth: normalizedScenario.userGrowth.toString(),
-          arpu: normalizedScenario.arpu.toString(),
-          churnRate: normalizedScenario.churnRate.toString(),
-          farmerGrowth: normalizedScenario.farmerGrowth.toString(),
-          cac: normalizedScenario.cac.toString(),
-          updatedAt: new Date(),
-        })
+        .set({ ...scenarioFields, updatedAt: new Date() })
         .where(eq(modelScenarios.id, existing.id));
     } else {
       await db.insert(modelScenarios).values({
         modelId: data.modelId,
         scenarioType: data.scenarioType,
-        userGrowth: normalizedScenario.userGrowth.toString(),
-        arpu: normalizedScenario.arpu.toString(),
-        churnRate: normalizedScenario.churnRate.toString(),
-        farmerGrowth: normalizedScenario.farmerGrowth.toString(),
-        cac: normalizedScenario.cac.toString(),
+        ...scenarioFields,
       });
     }
 
@@ -308,7 +414,7 @@ const updateSettings = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -342,8 +448,6 @@ const updateSettings = createServerFn({ method: "POST" })
 
     if (data.data.startUsers !== undefined)
       updateData.startUsers = data.data.startUsers;
-    if (data.data.startFarmers !== undefined)
-      updateData.startFarmers = data.data.startFarmers;
     if (data.data.taxRate !== undefined)
       updateData.taxRate = normalizeRateInput(data.data.taxRate, 0, 0.9).toString();
     if (data.data.discountRate !== undefined)
@@ -397,7 +501,7 @@ const updateMarketSizing = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -430,8 +534,11 @@ const updateMarketSizing = createServerFn({ method: "POST" })
         .update(marketSizing)
         .set({
           tam: data.data.tam,
+          tamDescription: data.data.tamDescription ?? '',
           sam: data.data.sam,
+          samDescription: data.data.samDescription ?? '',
           som: data.data.som,
+          somDescription: data.data.somDescription ?? '',
           updatedAt: new Date(),
         })
         .where(eq(marketSizing.id, existing.id));
@@ -439,8 +546,11 @@ const updateMarketSizing = createServerFn({ method: "POST" })
       await db.insert(marketSizing).values({
         modelId: data.modelId,
         tam: data.data.tam,
+        tamDescription: data.data.tamDescription ?? '',
         sam: data.data.sam,
+        samDescription: data.data.samDescription ?? '',
         som: data.data.som,
+        somDescription: data.data.somDescription ?? '',
       });
     }
 
@@ -458,7 +568,7 @@ const updateMetrics = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -601,6 +711,218 @@ const updateMetrics = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const upsertMonthlyMetrics = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { modelId: number; rows: Omit<MonthlyMetricRow, "id">[] }) => input
+  )
+  .handler(async ({ data }) => {
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/server"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
+
+    const { financialModels, modelMonthlyMetrics } = schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
+
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    for (const row of data.rows) {
+      const values = {
+        modelId: data.modelId,
+        month: row.month,
+        mrr: row.mrr != null ? String(row.mrr) : null,
+        newMrr: row.newMrr != null ? String(row.newMrr) : null,
+        expansionMrr: row.expansionMrr != null ? String(row.expansionMrr) : null,
+        contractionMrr: row.contractionMrr != null ? String(row.contractionMrr) : null,
+        churnedMrr: row.churnedMrr != null ? String(row.churnedMrr) : null,
+        customers: row.customers ?? null,
+        newCustomers: row.newCustomers ?? null,
+        churnedCustomers: row.churnedCustomers ?? null,
+        gmv: row.gmv != null ? String(row.gmv) : null,
+        revenue: row.revenue != null ? String(row.revenue) : null,
+        grossProfit: row.grossProfit != null ? String(row.grossProfit) : null,
+        opex: row.opex != null ? String(row.opex) : null,
+        cashBalance: row.cashBalance != null ? String(row.cashBalance) : null,
+        headcount: row.headcount ?? null,
+        marketingSpend: row.marketingSpend != null ? String(row.marketingSpend) : null,
+        updatedAt: new Date(),
+      };
+
+      const existing = await db.query.modelMonthlyMetrics.findFirst({
+        where: and(
+          eq(modelMonthlyMetrics.modelId, data.modelId),
+          eq(modelMonthlyMetrics.month, row.month)
+        ),
+      });
+
+      if (existing) {
+        await db
+          .update(modelMonthlyMetrics)
+          .set(values)
+          .where(eq(modelMonthlyMetrics.id, existing.id));
+      } else {
+        await db.insert(modelMonthlyMetrics).values({
+          ...values,
+          createdAt: new Date(),
+        });
+      }
+    }
+
+    return { success: true };
+  });
+
+const updateFundraising = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { modelId: number; data: FundraisingRow }) => input
+  )
+  .handler(async ({ data }) => {
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/server"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
+
+    const { financialModels, modelFundraising } = schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
+
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    const existing = await db.query.modelFundraising.findFirst({
+      where: eq(modelFundraising.modelId, data.modelId),
+    });
+
+    const payload = {
+      targetRaise: data.data.targetRaise != null ? String(data.data.targetRaise) : null,
+      preMoneyValuation: data.data.preMoneyValuation != null ? String(data.data.preMoneyValuation) : null,
+      useOfFunds: data.data.useOfFunds ?? null,
+      runwayTarget: data.data.runwayTarget ?? null,
+      plannedClose: data.data.plannedClose ?? null,
+      updatedAt: new Date(),
+    };
+
+    if (existing) {
+      await db
+        .update(modelFundraising)
+        .set(payload)
+        .where(eq(modelFundraising.id, existing.id));
+    } else {
+      await db.insert(modelFundraising).values({
+        modelId: data.modelId,
+        ...payload,
+        createdAt: new Date(),
+      });
+    }
+
+    return { success: true };
+  });
+
+const upsertCohorts = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { modelId: number; cohorts: Omit<CohortRow, "id">[] }) => input
+  )
+  .handler(async ({ data }) => {
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { db },
+      schema,
+      { eq, and },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/server"),
+      import("@/db/index"),
+      import("@/db/schema"),
+      import("drizzle-orm"),
+    ]);
+
+    const { financialModels, modelCohorts } = schema;
+
+    const headers = getRequestHeaders();
+    const session = await requireAuthFromHeaders(headers);
+
+    const model = await db.query.financialModels.findFirst({
+      where: and(
+        eq(financialModels.id, data.modelId),
+        eq(financialModels.userId, session.user.id)
+      ),
+    });
+
+    if (!model) {
+      throw new Error("Model not found");
+    }
+
+    for (const row of data.cohorts) {
+      const payload = {
+        cohortMonth: row.cohortMonth,
+        cohortSize: row.cohortSize,
+        retentionByMonth: row.retentionByMonth ?? [],
+        revenueByMonth: row.revenueByMonth ?? null,
+        updatedAt: new Date(),
+      };
+
+      const existing = await db.query.modelCohorts.findFirst({
+        where: and(
+          eq(modelCohorts.modelId, data.modelId),
+          eq(modelCohorts.cohortMonth, row.cohortMonth)
+        ),
+      });
+
+      if (existing) {
+        await db
+          .update(modelCohorts)
+          .set(payload)
+          .where(eq(modelCohorts.id, existing.id));
+      } else {
+        await db.insert(modelCohorts).values({
+          modelId: data.modelId,
+          ...payload,
+          createdAt: new Date(),
+        });
+      }
+    }
+
+    return { success: true };
+  });
+
 export const Route = createFileRoute("/models/$modelId")({
   component: ModelDetail,
   loader: async ({ params, location, context }) => {
@@ -636,6 +958,9 @@ function ModelDetail() {
   const updateSettingsFn = useServerFn(updateSettings);
   const updateMarketSizingFn = useServerFn(updateMarketSizing);
   const updateMetricsFn = useServerFn(updateMetrics);
+  const upsertMonthlyMetricsFn = useServerFn(upsertMonthlyMetrics);
+  const upsertCohortsFn = useServerFn(upsertCohorts);
+  const updateFundraisingFn = useServerFn(updateFundraising);
   const assertExportAccessFn = useServerFn(assertExportAccess);
 
   if (isPending) {
@@ -658,7 +983,7 @@ function ModelDetail() {
     );
   }
 
-  const { model, scenarios, metrics } = data;
+  const { model, scenarios, metrics, monthlyMetrics, cohorts, fundraising } = data;
 
   const ensureExportAllowed = async () => {
     try {
@@ -696,6 +1021,26 @@ function ModelDetail() {
         scenarios,
         settings,
         market: marketSizingData,
+        monthlyMetrics: monthlyMetrics.map((m) => ({
+          month: m.month,
+          mrr: m.mrr,
+          customers: m.customers,
+          revenue: m.revenue,
+          opex: m.opex,
+          cashBalance: m.cashBalance,
+          marketingSpend: m.marketingSpend,
+        })),
+        cohorts: cohorts.map((c) => ({
+          cohortMonth: c.cohortMonth,
+          cohortSize: c.cohortSize,
+          retentionByMonth: c.retentionByMonth ?? [],
+        })),
+        fundraising: fundraising ? {
+          targetRaise: fundraising.targetRaise,
+          preMoneyValuation: fundraising.preMoneyValuation,
+          useOfFunds: fundraising.useOfFunds,
+          runwayTarget: fundraising.runwayTarget,
+        } : null,
       });
     } catch (error) {
       logger.error("Failed to export Excel:", error);
@@ -799,6 +1144,7 @@ function ModelDetail() {
             initialSettings={settings}
             initialMarket={marketSizingData}
             initialMetrics={metrics}
+            initialMonthlyMetrics={monthlyMetrics}
             updateScenarioFn={async (data) => {
               const result = await updateScenarioFn({ data });
               return result;
@@ -814,6 +1160,17 @@ function ModelDetail() {
             updateMetricsFn={async (data) => {
               const result = await updateMetricsFn({ data });
               return result;
+            }}
+            upsertMonthlyMetricsFn={async (input) => {
+              return await upsertMonthlyMetricsFn({ data: input });
+            }}
+            initialCohorts={cohorts}
+            upsertCohortsFn={async (input) => {
+              return await upsertCohortsFn({ data: input });
+            }}
+            initialFundraising={fundraising}
+            updateFundraisingFn={async (data: FundraisingData) => {
+              await updateFundraisingFn({ data: { modelId, data } });
             }}
           />
         </div>

@@ -9,7 +9,10 @@ import {
   calculateDCF,
   calculateFundingNeed,
   getCumulativeCash,
+  calculateRevenueCAGR,
 } from "../lib/calculations";
+import { TOOLTIPS } from "../lib/tooltips";
+import { Info } from "lucide-react";
 
 type FinancialModelProps = {
   scenario: ScenarioType;
@@ -17,8 +20,11 @@ type FinancialModelProps = {
   projections: ProjectionData[];
   marketSizing: {
     tam: number;
+    tamDescription?: string;
     sam: number;
+    samDescription?: string;
     som: number[];
+    somDescription?: string;
   };
   settings: ModelSettings;
   scenarioParams: ScenarioParams;
@@ -158,7 +164,7 @@ export default function FinancialModel({
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <AssumptionBox
-                  label="User Growth"
+                  label="Customer Growth"
                   value={`${(scenarioParams.userGrowth * 100).toFixed(0)}%`}
                   unit="YoY"
                 />
@@ -169,18 +175,18 @@ export default function FinancialModel({
                 />
                 <AssumptionBox
                   label="Churn Rate"
-                  value={`${(scenarioParams.churnRate * 100).toFixed(0)}%`}
+                  value={`${(scenarioParams.churnRate * 100).toFixed(1)}%`}
                   unit="monthly"
                 />
                 <AssumptionBox
                   label="CAC"
                   value={`$${scenarioParams.cac}`}
-                  unit="per user"
+                  unit="per customer"
                 />
                 <AssumptionBox
-                  label="Farmer Growth"
-                  value={`${(scenarioParams.farmerGrowth * 100).toFixed(0)}%`}
-                  unit="YoY"
+                  label="Expansion"
+                  value={`${(scenarioParams.expansionRate * 100).toFixed(0)}%`}
+                  unit="of sub rev"
                 />
                 <AssumptionBox
                   label="Tax Rate"
@@ -294,21 +300,21 @@ export default function FinancialModel({
                 title="TAM"
                 subtitle="Total Available Market"
                 value={fmt(marketSizing.tam)}
-                description="Uzbekistan Agriculture Sector"
+                description={marketSizing.tamDescription || "Define in Market tab"}
                 color="amber"
               />
               <MarketCard
                 title="SAM"
                 subtitle="Serviceable Available Market"
                 value={fmt(marketSizing.sam)}
-                description="Digital Agro-Tech Segment"
+                description={marketSizing.samDescription || "Define in Market tab"}
                 color="orange"
               />
               <MarketCard
                 title="SOM"
                 subtitle="Year 5 Obtainable"
-                value={fmt(marketSizing.som[4])}
-                description={`${((marketSizing.som[4] / marketSizing.sam) * 100).toFixed(1)}% of SAM`}
+                value={fmt(marketSizing.som[4] ?? 0)}
+                description={marketSizing.somDescription || (marketSizing.sam > 0 ? `${(((marketSizing.som[4] ?? 0) / marketSizing.sam) * 100).toFixed(1)}% of SAM` : "Set SAM first")}
                 color="emerald"
               />
             </div>
@@ -365,18 +371,10 @@ export default function FinancialModel({
                       ))}
                     </tr>
                     <tr>
-                      <td className="px-5 py-3 text-[var(--brand-muted)]">Total Users</td>
+                      <td className="px-5 py-3 text-[var(--brand-muted)]">Total Customers</td>
                       {projections.map((p, i) => (
                         <td key={i} className="text-right px-4 py-3 font-mono">
                           {fmtNum(p.users)}
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="px-5 py-3 text-[var(--brand-muted)]">Partner Farmers</td>
-                      {projections.map((p, i) => (
-                        <td key={i} className="text-right px-4 py-3 font-mono">
-                          {fmtNum(p.farmers)}
                         </td>
                       ))}
                     </tr>
@@ -414,18 +412,13 @@ export default function FinancialModel({
                   {/* Revenue Section */}
                   <SectionHeader title="REVENUE" color="emerald" />
                   <DataRow
-                    label="Platform Revenue"
-                    data={projections.map((p) => fmt(p.platformRevenue))}
+                    label="Subscription Revenue"
+                    data={projections.map((p) => fmt(p.subscriptionRevenue))}
                     indent
                   />
                   <DataRow
-                    label="Farmer Marketplace"
-                    data={projections.map((p) => fmt(p.farmerRevShare))}
-                    indent
-                  />
-                  <DataRow
-                    label="B2B / SaaS Tools"
-                    data={projections.map((p) => fmt(p.b2bRevenue))}
+                    label="Expansion Revenue"
+                    data={projections.map((p) => fmt(p.expansionRevenue))}
                     indent
                   />
                   <TotalRow
@@ -663,11 +656,13 @@ export default function FinancialModel({
                 title="Discount Rate (WACC)"
                 value={`${(settings.discountRate * 100).toFixed(0)}%`}
                 subtitle="Emerging market + early-stage risk"
+                tooltip={TOOLTIPS.discountRate}
               />
               <ValuationCard
                 title="Terminal Growth"
                 value={`${(settings.terminalGrowth * 100).toFixed(0)}%`}
                 subtitle="Long-term sustainable growth"
+                tooltip={TOOLTIPS.terminalGrowth}
               />
               <ValuationCard
                 title="Terminal Value"
@@ -679,6 +674,7 @@ export default function FinancialModel({
                 value={fmt(dcf.enterpriseValue)}
                 subtitle="Sum of PV of FCF"
                 highlight
+                tooltip={TOOLTIPS.dcf}
               />
             </div>
 
@@ -773,16 +769,18 @@ export default function FinancialModel({
               title="SaaS Unit Economics"
               color="purple"
               items={[
-                { label: "LTV", value: `$${projections[2]?.ltv || 0}` },
-                { label: "CAC", value: `$${scenarioParams.cac}` },
+                { label: "LTV", value: `$${projections[2]?.ltv || 0}`, tooltip: TOOLTIPS.ltv },
+                { label: "CAC", value: `$${scenarioParams.cac}`, tooltip: TOOLTIPS.cac },
                 {
                   label: "LTV:CAC",
                   value: `${projections[2]?.ltvCac || 0}x`,
                   highlight: (projections[2]?.ltvCac || 0) >= 3,
+                  tooltip: TOOLTIPS.ltvCac,
                 },
                 {
                   label: "Payback",
                   value: `${projections[2]?.paybackMonths || 0} months`,
+                  tooltip: TOOLTIPS.paybackMonths,
                 },
               ]}
             />
@@ -792,25 +790,23 @@ export default function FinancialModel({
               items={[
                 {
                   label: "Revenue CAGR",
-                  value: `${(
-                    ((terminalYear.totalRevenue / projections[0].totalRevenue) **
-                      0.25 -
-                      1) *
-                    100
-                  ).toFixed(0)}%`,
+                  value: `${(calculateRevenueCAGR(projections) * 100).toFixed(0)}%`,
                 },
                 {
-                  label: "User Growth",
+                  label: "Customer Growth",
                   value: `${(scenarioParams.userGrowth * 100).toFixed(0)}% YoY`,
+                  tooltip: TOOLTIPS.userGrowth,
                 },
                 {
-                  label: "Churn Rate",
-                  value: `${(scenarioParams.churnRate * 100).toFixed(0)}%`,
+                  label: "Monthly Churn",
+                  value: `${(scenarioParams.churnRate * 100).toFixed(1)}%`,
                   highlight: scenarioParams.churnRate <= 0.05,
+                  tooltip: TOOLTIPS.churnRate,
                 },
                 {
-                  label: "NRR",
-                  value: `${(100 - scenarioParams.churnRate * 100 + 5).toFixed(0)}%`,
+                  label: "Expansion Rate",
+                  value: `${(scenarioParams.expansionRate * 100).toFixed(0)}%`,
+                  tooltip: TOOLTIPS.expansionRate,
                 },
               ]}
             />
@@ -821,22 +817,29 @@ export default function FinancialModel({
                 {
                   label: "Y5 Gross Margin",
                   value: `${terminalYear.grossMargin}%`,
+                  tooltip: TOOLTIPS.grossMargin,
                 },
                 {
                   label: "Y5 EBITDA Margin",
                   value: `${terminalYear.ebitdaMargin}%`,
                   highlight: terminalYear.ebitdaMargin >= 0,
+                  tooltip: TOOLTIPS.ebitdaMargin,
                 },
                 {
                   label: "Rev/Employee",
                   value: fmt(terminalYear.revenuePerEmployee),
+                  tooltip: TOOLTIPS.revenuePerEmployee,
                 },
                 {
                   label: "Y1 Burn Multiple",
-                  value:
-                    projections[0].ebitda < 0
-                      ? `${(Math.abs(projections[0].ebitda) / projections[0].totalRevenue).toFixed(1)}x`
-                      : "Profitable",
+                  value: (() => {
+                    const netBurn = projections[0].ebitda < 0 ? Math.abs(projections[0].ebitda) : 0;
+                    const netNewArr = projections[0].totalRevenue;
+                    if (netBurn === 0) return "Profitable";
+                    if (netNewArr <= 0) return "N/A";
+                    return `${(netBurn / netNewArr).toFixed(1)}x`;
+                  })(),
+                  tooltip: TOOLTIPS.burnMultiple,
                 },
               ]}
             />
@@ -930,18 +933,25 @@ function ValuationCard({
   value,
   subtitle,
   highlight,
+  tooltip,
 }: {
   title: string;
   value: string;
   subtitle: string;
   highlight?: boolean;
+  tooltip?: string;
 }) {
   return (
     <div
       className={`rounded-xl p-5 ${highlight ? "bg-[var(--brand-primary)] text-white" : "bg-white border border-[var(--border-soft)]"}`}
     >
-      <p className={`text-sm ${highlight ? "opacity-80" : "text-[var(--brand-muted)]"}`}>
+      <p className={`text-sm flex items-center gap-1 ${highlight ? "opacity-80" : "text-[var(--brand-muted)]"}`}>
         {title}
+        {tooltip && (
+          <span className="cursor-help" title={tooltip}>
+            <Info size={13} className={highlight ? "opacity-60" : "text-[var(--brand-muted)] opacity-60"} />
+          </span>
+        )}
       </p>
       <p
         className={`text-2xl font-bold mt-1 ${highlight ? "" : "text-[var(--brand-primary)]"}`}
@@ -962,7 +972,7 @@ function KPICard({
 }: {
   title: string;
   color: "purple" | "blue" | "emerald";
-  items: Array<{ label: string; value: string; highlight?: boolean }>;
+  items: Array<{ label: string; value: string; highlight?: boolean; tooltip?: string }>;
 }) {
   const colors = {
     purple: "bg-purple-600",
@@ -980,7 +990,14 @@ function KPICard({
             key={i}
             className="flex justify-between items-center pb-3 border-b border-[var(--surface-muted-border)] last:border-0"
           >
-            <span className="text-[var(--brand-muted)]">{item.label}</span>
+            <span className="flex items-center gap-1 text-[var(--brand-muted)]">
+              {item.label}
+              {item.tooltip && (
+                <span className="cursor-help" title={item.tooltip}>
+                  <Info size={13} className="text-[var(--brand-muted)] opacity-60" />
+                </span>
+              )}
+            </span>
             <span
               className={`font-bold ${item.highlight ? "text-[var(--brand-primary)]" : "text-[var(--brand-ink)]"}`}
             >

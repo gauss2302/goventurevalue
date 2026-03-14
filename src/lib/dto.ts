@@ -1,8 +1,22 @@
+export type BusinessModelType = 'saas_subscription' | 'marketplace' | 'usage_based' | 'ecommerce' | 'other'
+export type StartupStageDto = 'idea' | 'early_growth' | 'scale'
+
 export type CreateModelDto = {
   name: string
   companyName?: string
   description?: string
   currency?: string
+  businessModelType?: BusinessModelType
+  stage?: StartupStageDto
+  foundedAt?: string // YYYY-MM-DD
+  industry?: string
+  /** Optional quick snapshot: creates first monthly metric row */
+  quickSnapshot?: {
+    mrr?: number
+    customers?: number
+    monthlyBurn?: number
+    cashBalance?: number
+  }
 }
 
 export type UpdateModelDto = {
@@ -10,27 +24,41 @@ export type UpdateModelDto = {
   companyName?: string
   description?: string
   currency?: string
+  businessModelType?: BusinessModelType
+  stage?: StartupStageDto
+  foundedAt?: string | null
+  industry?: string | null
+  lastRoundSize?: number | null
+  lastRoundValuation?: number | null
 }
 
 export type UpdateScenarioDto = {
   userGrowth: number
   arpu: number
   churnRate: number
-  farmerGrowth: number
   cac: number
+  expansionRate?: number
+  grossMarginTarget?: number
+  revenueGrowthRate?: number
+  /** @deprecated kept for backward compat during migration */
+  farmerGrowth?: number
+  takeRate?: number
+  gmvGrowth?: number
 }
 
 export type ScenarioType = 'conservative' | 'base' | 'optimistic'
 
 export type MarketSizingDto = {
   tam: number
+  tamDescription?: string
   sam: number
+  samDescription?: string
   som: number[]
+  somDescription?: string
 }
 
 export type UpdateSettingsDto = {
   startUsers?: number
-  startFarmers?: number
   taxRate?: number
   discountRate?: number
   terminalGrowth?: number
@@ -40,6 +68,21 @@ export type UpdateSettingsDto = {
   capexByYear?: number[]
   depreciationByYear?: number[]
   projectionYears?: number[]
+  monthlyBurnRate?: number | null
+  currentCash?: number | null
+  revenueMultiple?: number | null
+  arrMultiple?: number | null
+  costStructure?: {
+    hostingCostPerUser: number
+    paymentProcessingRate: number
+    supportCostPerUser: number
+    rdByYear: number[]
+    gnaByYear: number[]
+  } | null
+  growthModel?: 'linear' | 'scurve'
+  scurveCarryingCapacity?: number | null
+  /** @deprecated kept for backward compat */
+  startFarmers?: number
 }
 
 export type UpdateMetricsDto = {
@@ -72,6 +115,67 @@ export type UpdateMetricsDto = {
   runwayMonths?: number | null
   grossMargin?: number | null
   operatingMargin?: number | null
+}
+
+/** Single row of monthly traction data */
+export type MonthlyMetricDto = {
+  id?: number
+  modelId: number
+  month: string // YYYY-MM-DD first of month
+  mrr?: number | null
+  newMrr?: number | null
+  expansionMrr?: number | null
+  contractionMrr?: number | null
+  churnedMrr?: number | null
+  customers?: number | null
+  newCustomers?: number | null
+  churnedCustomers?: number | null
+  gmv?: number | null
+  revenue?: number | null
+  grossProfit?: number | null
+  opex?: number | null
+  cashBalance?: number | null
+  headcount?: number | null
+  marketingSpend?: number | null
+}
+
+export type UpsertMonthlyMetricsDto = {
+  modelId: number
+  rows: Omit<MonthlyMetricDto, 'modelId' | 'id'>[]
+}
+
+/** Single cohort row */
+export type CohortDto = {
+  id?: number
+  modelId: number
+  cohortMonth: string // YYYY-MM-DD
+  cohortSize: number
+  retentionByMonth: number[]
+  revenueByMonth?: number[] | null
+}
+
+export type UpsertCohortsDto = {
+  modelId: number
+  cohorts: Omit<CohortDto, 'modelId' | 'id'>[]
+}
+
+/** Fundraising round (one per model) */
+export type FundraisingDto = {
+  id?: number
+  modelId: number
+  targetRaise?: number | null
+  preMoneyValuation?: number | null
+  useOfFunds?: Record<string, number> | null // e.g. { engineering: 40, sales: 30, marketing: 20, ops: 10 }
+  runwayTarget?: number | null
+  plannedClose?: string | null // YYYY-MM-DD
+}
+
+export type UpdateFundraisingDto = {
+  targetRaise?: number | null
+  preMoneyValuation?: number | null
+  useOfFunds?: Record<string, number> | null
+  runwayTarget?: number | null
+  plannedClose?: string | null
 }
 
 export type AIProvider = 'openai' | 'gemini'
@@ -145,6 +249,18 @@ export type PitchDeckTemplateId =
 /** Design mode: manual template picker vs AI-designed style */
 export type PitchDeckDesignMode = 'manual_template' | 'ai_designed'
 
+/** A single theme photo — either user-uploaded (base64 data URL) or from Unsplash */
+export type PitchDeckThemePhoto = {
+  /** Base64 data URL (user upload) or remote HTTPS URL (Unsplash) */
+  url: string
+  /** Alt / description text */
+  alt?: string
+  /** Unsplash photo ID if sourced from Unsplash */
+  unsplashId?: string
+  /** Unsplash photographer name for attribution */
+  photographerName?: string
+}
+
 /** User questionnaire answers for Full AI slides style */
 export type PitchDeckStyleQuestionnaireInput = {
   colorDirection?: string
@@ -154,6 +270,8 @@ export type PitchDeckStyleQuestionnaireInput = {
   brandAlignment?: string
   investorRiskProfile?: string
   optionalNote?: string
+  /** Theme photos that define the visual mood/style of the presentation (max 5) */
+  themePhotos?: PitchDeckThemePhoto[]
 }
 
 /** Global theme tokens from Gemini Full AI */
@@ -203,6 +321,12 @@ export type ModelResponseDto = {
   companyName: string | null
   description: string | null
   currency: string
+  businessModelType: BusinessModelType | null
+  stage: StartupStageDto | null
+  foundedAt: string | null
+  industry: string | null
+  lastRoundSize: string | null
+  lastRoundValuation: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -214,8 +338,12 @@ export type ScenarioResponseDto = {
   userGrowth: string
   arpu: string
   churnRate: string
-  farmerGrowth: string
   cac: string
+  expansionRate?: string
+  grossMarginTarget?: string
+  revenueGrowthRate?: string
+  /** @deprecated kept for backward compat */
+  farmerGrowth?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -226,12 +354,10 @@ export type ProjectionResponseDto = {
   scenarioType: ScenarioType
   year: number
   users: number
-  farmers: number
   mau: number
   newUsers: number
-  platformRevenue: number
-  farmerRevShare: number
-  b2bRevenue: number
+  subscriptionRevenue: number
+  expansionRevenue: number
   totalRevenue: number
   hostingCosts: number
   paymentProcessing: number

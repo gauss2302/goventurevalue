@@ -2,13 +2,22 @@ export type ScenarioParams = {
   userGrowth: number;
   arpu: number;
   churnRate: number;
-  farmerGrowth: number;
   cac: number;
+  expansionRate: number;
+  grossMarginTarget: number;
+  revenueGrowthRate: number;
+};
+
+export type CostStructure = {
+  hostingCostPerUser: number;
+  paymentProcessingRate: number;
+  supportCostPerUser: number;
+  rdByYear: number[];
+  gnaByYear: number[];
 };
 
 export type ModelSettings = {
   startUsers: number;
-  startFarmers: number;
   taxRate: number;
   discountRate: number;
   terminalGrowth: number;
@@ -18,17 +27,24 @@ export type ModelSettings = {
   capexByYear: number[];
   depreciationByYear: number[];
   projectionYears: number[];
+  monthlyBurnRate?: number | null;
+  currentCash?: number | null;
+  revenueMultiple?: number | null;
+  arrMultiple?: number | null;
+  costStructure?: CostStructure | null;
+  growthModel?: 'linear' | 'scurve';
+  scurveCarryingCapacity?: number | null;
+  /** @deprecated kept for backward compat during migration */
+  startFarmers?: number;
 };
 
 export type ProjectionData = {
   year: number;
   users: number;
-  farmers: number;
   mau: number;
   newUsers: number;
-  platformRevenue: number;
-  farmerRevShare: number;
-  b2bRevenue: number;
+  subscriptionRevenue: number;
+  expansionRevenue: number;
   totalRevenue: number;
   hostingCosts: number;
   paymentProcessing: number;
@@ -64,13 +80,30 @@ export type ProjectionData = {
 
 export type MarketSizing = {
   tam: number;
+  tamDescription: string;
   sam: number;
+  samDescription: string;
   som: number[];
+  somDescription: string;
+};
+
+export type TractionSeed = {
+  latestMrr: number;
+  latestCustomers: number;
+  latestChurnRate: number | null;
+  latestArpu: number | null;
+};
+
+export const DEFAULT_COST_STRUCTURE: CostStructure = {
+  hostingCostPerUser: 0.5,
+  paymentProcessingRate: 0.03,
+  supportCostPerUser: 0.2,
+  rdByYear: [25000, 40000, 60000, 85000, 115000],
+  gnaByYear: [12000, 18000, 28000, 40000, 55000],
 };
 
 export const DEFAULT_SETTINGS: ModelSettings = {
-  startUsers: 1000,
-  startFarmers: 50,
+  startUsers: 100,
   taxRate: 0.12,
   discountRate: 0.30,
   terminalGrowth: 0.03,
@@ -79,13 +112,18 @@ export const DEFAULT_SETTINGS: ModelSettings = {
   employeesByYear: [2, 4, 8, 12, 16],
   capexByYear: [15000, 10000, 20000, 15000, 10000],
   depreciationByYear: [3750, 6250, 11250, 15000, 13750],
-  projectionYears: [2025, 2026, 2027, 2028, 2029],
+  projectionYears: [2026, 2027, 2028, 2029, 2030],
+  costStructure: DEFAULT_COST_STRUCTURE,
+  growthModel: 'linear',
 };
 
 export const DEFAULT_MARKET_SIZING: MarketSizing = {
-  tam: 850000000,
-  sam: 42000000,
-  som: [210000, 840000, 2520000, 6300000, 12600000],
+  tam: 0,
+  tamDescription: '',
+  sam: 0,
+  samDescription: '',
+  som: [0, 0, 0, 0, 0],
+  somDescription: '',
 };
 
 const toFiniteNumber = (value: number, fallback = 0): number =>
@@ -121,8 +159,10 @@ const normalizeScenario = (scenario: ScenarioParams): ScenarioParams => ({
   userGrowth: normalizeRate(scenario.userGrowth, { min: -0.95, max: 3 }),
   arpu: Math.max(0, toFiniteNumber(scenario.arpu, 0)),
   churnRate: normalizeRate(scenario.churnRate, { min: 0.001, max: 0.95 }),
-  farmerGrowth: normalizeRate(scenario.farmerGrowth, { min: -0.95, max: 3 }),
   cac: Math.max(0, toFiniteNumber(scenario.cac, 0)),
+  expansionRate: normalizeRate(scenario.expansionRate, { min: 0, max: 1 }),
+  grossMarginTarget: normalizeRate(scenario.grossMarginTarget, { min: 0, max: 0.99 }),
+  revenueGrowthRate: normalizeRate(scenario.revenueGrowthRate, { min: -0.95, max: 5 }),
 });
 
 const normalizeSettings = (settings: ModelSettings): ModelSettings => {
@@ -142,7 +182,6 @@ const normalizeSettings = (settings: ModelSettings): ModelSettings => {
   return {
     ...settings,
     startUsers: Math.max(0, Math.round(toFiniteNumber(settings.startUsers, 0))),
-    startFarmers: Math.max(0, Math.round(toFiniteNumber(settings.startFarmers, 0))),
     taxRate: normalizeRate(settings.taxRate, { min: 0, max: 0.9 }),
     discountRate,
     terminalGrowth,
@@ -163,92 +202,95 @@ const normalizeSettings = (settings: ModelSettings): ModelSettings => {
 };
 
 const normalizeMarketSizing = (marketSizing: MarketSizing): MarketSizing => ({
+  ...marketSizing,
   tam: Math.max(0, Math.round(toFiniteNumber(marketSizing.tam, 0))),
   sam: Math.max(1, Math.round(toFiniteNumber(marketSizing.sam, 1))),
   som: marketSizing.som.map((v) => Math.max(0, Math.round(toFiniteNumber(v, 0)))),
 });
 
+function computeScurveUsers(
+  startUsers: number,
+  growthRate: number,
+  yearIndex: number,
+  carryingCapacity: number
+): number {
+  const K = carryingCapacity;
+  const P0 = startUsers;
+  const r = growthRate;
+  const t = yearIndex + 1;
+  return Math.round(K / (1 + ((K - P0) / P0) * Math.exp(-r * t)));
+}
+
 export function calculateProjections(
   scenario: ScenarioParams,
   settings: ModelSettings = DEFAULT_SETTINGS,
-  marketSizing: MarketSizing = DEFAULT_MARKET_SIZING
+  marketSizing: MarketSizing = DEFAULT_MARKET_SIZING,
+  tractionSeed?: TractionSeed | null
 ): ProjectionData[] {
-  const normalizedScenario = normalizeScenario(scenario);
-  const normalizedSettings = normalizeSettings(settings);
-  const normalizedMarketSizing = normalizeMarketSizing(marketSizing);
+  const s = normalizeScenario(scenario);
+  const ns = normalizeSettings(settings);
+  const nm = normalizeMarketSizing(marketSizing);
+  const costs = ns.costStructure ?? DEFAULT_COST_STRUCTURE;
   const projections: ProjectionData[] = [];
-  const years = normalizedSettings.projectionYears;
+  const years = ns.projectionYears;
+
+  const effectiveStartUsers = tractionSeed?.latestCustomers ?? ns.startUsers;
+  const effectiveArpu = tractionSeed?.latestArpu ?? s.arpu;
+  const effectiveChurn = tractionSeed?.latestChurnRate ?? s.churnRate;
+  const useScurve = ns.growthModel === 'scurve';
+  const carryingCapacity = ns.scurveCarryingCapacity ?? effectiveStartUsers * 100;
 
   years.forEach((year, i) => {
-    const users = Math.round(
-      Math.max(
-        0,
-        normalizedSettings.startUsers *
-          Math.pow(1 + normalizedScenario.userGrowth, i + 1)
-      )
-    );
-    const farmers = Math.round(
-      Math.max(
-        0,
-        normalizedSettings.startFarmers *
-          Math.pow(1 + normalizedScenario.farmerGrowth, i + 1)
-      )
-    );
-    const mau = Math.round(Math.max(0, users * (1 - normalizedScenario.churnRate)));
-    const newUsers =
-      i === 0
-        ? users
-        : Math.max(
-            0,
-            Math.round(
-              users -
-                normalizedSettings.startUsers *
-                  Math.pow(1 + normalizedScenario.userGrowth, i)
-            )
-          );
+    let users: number;
+    if (useScurve) {
+      users = computeScurveUsers(effectiveStartUsers, s.userGrowth, i, carryingCapacity);
+    } else {
+      users = Math.round(
+        Math.max(0, effectiveStartUsers * Math.pow(1 + s.userGrowth, i + 1))
+      );
+    }
 
-    // Revenue streams
-    const platformRevenue = Math.round(mau * normalizedScenario.arpu * 12);
-    const farmerRevShare = Math.round(farmers * 500 * 12 * 0.15);
-    const b2bRevenue = Math.round((platformRevenue + farmerRevShare) * 0.1);
-    const totalRevenue = platformRevenue + farmerRevShare + b2bRevenue;
+    const mau = Math.round(Math.max(0, users * (1 - effectiveChurn)));
+    const prevUsers = i === 0
+      ? effectiveStartUsers
+      : (useScurve
+        ? computeScurveUsers(effectiveStartUsers, s.userGrowth, i - 1, carryingCapacity)
+        : Math.round(effectiveStartUsers * Math.pow(1 + s.userGrowth, i)));
+    const newUsers = Math.max(0, users - prevUsers);
 
-    // COGS
-    const hostingCosts = Math.round(users * 0.5 * 12);
-    const paymentProcessing = Math.round(totalRevenue * 0.03);
-    const customerSupport = Math.round(users * 0.2 * 12);
+    const subscriptionRevenue = Math.round(mau * effectiveArpu * 12);
+    const expansionRevenue = Math.round(subscriptionRevenue * s.expansionRate);
+    const totalRevenue = subscriptionRevenue + expansionRevenue;
+
+    const hostingCosts = Math.round(users * costs.hostingCostPerUser * 12);
+    const paymentProcessing = Math.round(totalRevenue * costs.paymentProcessingRate);
+    const customerSupport = Math.round(users * costs.supportCostPerUser * 12);
     const cogs = hostingCosts + paymentProcessing + customerSupport;
     const grossProfit = totalRevenue - cogs;
     const grossMargin = Number(toPercent(grossProfit, totalRevenue).toFixed(1));
 
-    // Operating Expenses
-    const personnel = normalizedSettings.personnelByYear[i] || 0;
-    const employees = normalizedSettings.employeesByYear[i] || 0;
-    const marketing = Math.round(newUsers * normalizedScenario.cac);
-    const rd = Math.round(25000 + i * 15000);
-    const gna = Math.round(12000 + i * 6000);
+    const personnel = ns.personnelByYear[i] || 0;
+    const employees = ns.employeesByYear[i] || 0;
+    const marketing = Math.round(newUsers * s.cac);
+    const rd = costs.rdByYear[i] ?? costs.rdByYear[costs.rdByYear.length - 1] ?? 0;
+    const gna = costs.gnaByYear[i] ?? costs.gnaByYear[costs.gnaByYear.length - 1] ?? 0;
     const opex = personnel + marketing + rd + gna;
 
-    // EBITDA
     const ebitda = grossProfit - opex;
     const ebitdaMargin = Number(toPercent(ebitda, totalRevenue).toFixed(1));
 
-    // Depreciation
-    const capex = normalizedSettings.capexByYear[i] || 0;
-    const depreciation = normalizedSettings.depreciationByYear[i] || 0;
+    const capex = ns.capexByYear[i] || 0;
+    const depreciation = ns.depreciationByYear[i] || 0;
 
-    // EBIT & Taxes
     const ebit = ebitda - depreciation;
     const taxableIncome = Math.max(0, ebit);
-    const taxes = Math.round(taxableIncome * normalizedSettings.taxRate);
+    const taxes = Math.round(taxableIncome * ns.taxRate);
     const netIncome = ebit - taxes;
 
-    // Working Capital
-    const accountsReceivable = Math.round((totalRevenue / 365) * 30); // 30 days
-    const accountsPayable = Math.round((cogs / 365) * 45); // 45 days
+    const accountsReceivable = Math.round((totalRevenue / 365) * 30);
+    const accountsPayable = Math.round((cogs / 365) * 45);
     const workingCapital = accountsReceivable - accountsPayable;
 
-    // Cash Flow
     const prevWorkingCapital =
       i === 0 ? 0 : projections[i - 1]?.workingCapital || 0;
     const operatingCF =
@@ -256,30 +298,28 @@ export function calculateProjections(
     const investingCF = -capex;
     const freeCashFlow = operatingCF + investingCF;
 
-    // KPIs
-    const ltv = Math.round(
-      normalizedScenario.arpu * 12 * (1 / normalizedScenario.churnRate)
-    );
-    const ltvCac = Number(toRatio(ltv, normalizedScenario.cac).toFixed(1));
+    const grossMarginFraction = grossMargin / 100;
+    const ltv = effectiveChurn > 0
+      ? Math.round((effectiveArpu * grossMarginFraction) / effectiveChurn)
+      : 0;
+    const ltvCac = Number(toRatio(ltv, s.cac).toFixed(1));
     const paybackMonths =
-      normalizedScenario.arpu > 0
-        ? Math.round(normalizedScenario.cac / normalizedScenario.arpu)
+      effectiveArpu > 0 && grossMarginFraction > 0
+        ? Math.round(s.cac / (effectiveArpu * grossMarginFraction))
         : 0;
     const revenuePerEmployee =
       employees > 0 ? Math.round(totalRevenue / employees) : 0;
     const marketShare = Number(
-      toPercent(Math.max(totalRevenue, 0), normalizedMarketSizing.sam).toFixed(2)
+      toPercent(Math.max(totalRevenue, 0), nm.sam).toFixed(2)
     );
 
     projections.push({
       year,
       users,
-      farmers,
       mau,
       newUsers,
-      platformRevenue,
-      farmerRevShare,
-      b2bRevenue,
+      subscriptionRevenue,
+      expansionRevenue,
       totalRevenue,
       hostingCosts,
       paymentProcessing,
@@ -357,6 +397,50 @@ export function calculateDCF(
   };
 }
 
+export type VCValuationResult = {
+  expectedExitValue: number;
+  targetReturn: number;
+  impliedPreMoney: number;
+  impliedPostMoney: number;
+  dilutionPercent: number;
+};
+
+export function calculateVCValuation(
+  projections: ProjectionData[],
+  options: {
+    exitMultiple?: number;
+    targetReturn?: number;
+    roundSize?: number;
+    yearsToExit?: number;
+  } = {}
+): VCValuationResult {
+  const exitMultiple = options.exitMultiple ?? 10;
+  const targetReturn = options.targetReturn ?? 10;
+  const roundSize = options.roundSize ?? 0;
+  const yearsToExit = options.yearsToExit ?? Math.max(projections.length, 1);
+
+  const lastProjection = projections[projections.length - 1];
+  const exitRevenue = lastProjection?.totalRevenue ?? 0;
+  const expectedExitValue = exitRevenue * exitMultiple;
+
+  const impliedPostMoney = targetReturn > 0
+    ? expectedExitValue / Math.pow(targetReturn, 1)
+    : expectedExitValue / Math.pow(10, 1 / yearsToExit);
+
+  const impliedPreMoney = Math.max(0, impliedPostMoney - roundSize);
+  const dilutionPercent = impliedPostMoney > 0
+    ? (roundSize / impliedPostMoney) * 100
+    : 0;
+
+  return {
+    expectedExitValue,
+    targetReturn,
+    impliedPreMoney,
+    impliedPostMoney,
+    dilutionPercent,
+  };
+}
+
 export function calculateFundingNeed(
   projections: ProjectionData[],
   safetyBuffer: number
@@ -383,4 +467,46 @@ export function getCumulativeCash(projections: ProjectionData[]): number[] {
     },
     [] as number[]
   );
+}
+
+export function calculateRevenueCAGR(projections: ProjectionData[]): number {
+  if (projections.length < 2) return 0;
+  const first = projections[0].totalRevenue;
+  const last = projections[projections.length - 1].totalRevenue;
+  if (first <= 0 || last <= 0) return 0;
+  const n = projections.length - 1;
+  return Math.pow(last / first, 1 / n) - 1;
+}
+
+export type CapTableEntry = {
+  name: string;
+  sharesOrPercent: number;
+  ownership: number;
+  value: number;
+};
+
+export function calculateCapTable(
+  preMoneyValuation: number,
+  roundSize: number,
+  existingShares: { name: string; percent: number }[]
+): { postMoney: number; dilution: number; entries: CapTableEntry[] } {
+  const postMoney = preMoneyValuation + roundSize;
+  const investorOwnership = postMoney > 0 ? roundSize / postMoney : 0;
+  const founderDilution = investorOwnership;
+
+  const entries: CapTableEntry[] = existingShares.map((s) => ({
+    name: s.name,
+    sharesOrPercent: s.percent * (1 - founderDilution),
+    ownership: s.percent * (1 - founderDilution),
+    value: postMoney * s.percent * (1 - founderDilution),
+  }));
+
+  entries.push({
+    name: 'New Investor',
+    sharesOrPercent: investorOwnership,
+    ownership: investorOwnership,
+    value: roundSize,
+  });
+
+  return { postMoney, dilution: founderDilution, entries };
 }

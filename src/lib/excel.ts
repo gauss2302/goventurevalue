@@ -17,8 +17,32 @@ type ExportScenario = {
   userGrowth: string;
   arpu: string;
   churnRate: string;
-  farmerGrowth: string;
   cac: string;
+  expansionRate?: string;
+  grossMarginTarget?: string;
+};
+
+type ExportMonthlyMetric = {
+  month: string;
+  mrr: number | null;
+  customers: number | null;
+  revenue: number | null;
+  opex: number | null;
+  cashBalance: number | null;
+  marketingSpend: number | null;
+};
+
+type ExportCohort = {
+  cohortMonth: string;
+  cohortSize: number;
+  retentionByMonth: number[];
+};
+
+type ExportFundraising = {
+  targetRaise: number | null;
+  preMoneyValuation: number | null;
+  useOfFunds: Record<string, number> | null;
+  runwayTarget: number | null;
 };
 
 type ExportModelData = {
@@ -29,6 +53,9 @@ type ExportModelData = {
   scenarios: ExportScenario[];
   settings: ModelSettings;
   market: MarketSizing;
+  monthlyMetrics?: ExportMonthlyMetric[];
+  cohorts?: ExportCohort[];
+  fundraising?: ExportFundraising | null;
 };
 
 type CellAlign = "left" | "center" | "right";
@@ -467,8 +494,10 @@ const getScenarioParams = (scenario?: ExportScenario): ScenarioParams => ({
   userGrowth: toNumber(scenario?.userGrowth),
   arpu: toNumber(scenario?.arpu),
   churnRate: toNumber(scenario?.churnRate),
-  farmerGrowth: toNumber(scenario?.farmerGrowth),
   cac: toNumber(scenario?.cac),
+  expansionRate: 0,
+  grossMarginTarget: 0.75,
+  revenueGrowthRate: 0,
 });
 
 const resolveScenarioParams = (
@@ -520,7 +549,7 @@ const appendAssumptionsBlock = (
   return appendSingleRowBlock(sheet, "Scenario Assumptions", [
     {
       key: "userGrowth",
-      label: "User growth",
+      label: "Customer growth",
       value: scenarioParams.userGrowth,
       valueFormat: percentFractionFormat,
     },
@@ -534,12 +563,6 @@ const appendAssumptionsBlock = (
       key: "churnRate",
       label: "Churn rate",
       value: scenarioParams.churnRate,
-      valueFormat: percentFractionFormat,
-    },
-    {
-      key: "farmerGrowth",
-      label: "Farmer growth",
-      value: scenarioParams.farmerGrowth,
       valueFormat: percentFractionFormat,
     },
     {
@@ -560,14 +583,8 @@ const appendSettingsBlock = (
   return appendSingleRowBlock(sheet, "Model Settings", [
     {
       key: "startUsers",
-      label: "Start users",
+      label: "Starting customers",
       value: settings.startUsers,
-      valueFormat: integerFormat,
-    },
-    {
-      key: "startFarmers",
-      label: "Start farmers",
-      value: settings.startFarmers,
       valueFormat: integerFormat,
     },
     {
@@ -634,21 +651,15 @@ const appendPnLBlock = (
   const taxRateLiteral = Number(taxRate.toFixed(6));
   return appendHorizontalYearTable(sheet, "P&L Statement", years, [
     {
-      key: "platformRevenue",
-      label: "Platform revenue",
-      values: projections.map((p) => p.platformRevenue),
+      key: "subscriptionRevenue",
+      label: "Subscription revenue",
+      values: projections.map((p) => p.subscriptionRevenue),
       format: currencyFmt,
     },
     {
-      key: "farmerRevShare",
-      label: "Farmer rev share",
-      values: projections.map((p) => p.farmerRevShare),
-      format: currencyFmt,
-    },
-    {
-      key: "b2bRevenue",
-      label: "B2B revenue",
-      values: projections.map((p) => p.b2bRevenue),
+      key: "expansionRevenue",
+      label: "Expansion revenue",
+      values: projections.map((p) => p.expansionRevenue),
       format: currencyFmt,
     },
     {
@@ -658,7 +669,7 @@ const appendPnLBlock = (
       format: currencyFmt,
       isEmphasis: true,
       formula: (row, c) =>
-        `${columnLetter(c.platformRevenue)}${row}+${columnLetter(c.farmerRevShare)}${row}+${columnLetter(c.b2bRevenue)}${row}`,
+        `${columnLetter(c.subscriptionRevenue)}${row}+${columnLetter(c.expansionRevenue)}${row}`,
     },
     {
       key: "hostingCosts",
@@ -1051,15 +1062,122 @@ const buildScenarioReportSheet = (
   return sheet;
 };
 
+const buildTractionSheet = (
+  workbook: ExcelJS.Workbook,
+  data: ExportModelData,
+  currencyFmt: string
+) => {
+  const metrics = data.monthlyMetrics;
+  if (!metrics || metrics.length === 0) return;
+
+  const sheet = workbook.addWorksheet("Traction");
+  const sorted = [...metrics].sort((a, b) => a.month.localeCompare(b.month));
+
+  addSectionTitleRow(sheet, 7, "Monthly Traction Data");
+  const headerRow = sheet.addRow(["Month", "MRR", "Customers", "Revenue", "OPEX", "Cash Balance", "Marketing"]);
+  headerRow.height = 19;
+  for (let col = 1; col <= 7; col++) {
+    const cell = headerRow.getCell(col);
+    ensureColumnWidth(sheet, col, col === 1 ? 12 : 14);
+    applyCellStyle(cell, { bold: true, fill: colors.headerFill, horizontal: "center", border: borderHeader });
+  }
+
+  sorted.forEach((m) => {
+    const row = sheet.addRow([m.month, m.mrr ?? 0, m.customers ?? 0, m.revenue ?? 0, m.opex ?? 0, m.cashBalance ?? 0, m.marketingSpend ?? 0]);
+    row.height = 18;
+    applyCellStyle(row.getCell(1), { horizontal: "center", border: borderRow });
+    for (let col = 2; col <= 7; col++) {
+      applyCellStyle(row.getCell(col), { horizontal: "right", numFmt: col === 3 ? integerFormat : currencyFmt, border: borderRow });
+    }
+  });
+
+  sheet.views = [{ state: "frozen", ySplit: 2, showGridLines: false }];
+};
+
+const buildCohortsSheet = (
+  workbook: ExcelJS.Workbook,
+  data: ExportModelData
+) => {
+  const cohorts = data.cohorts;
+  if (!cohorts || cohorts.length === 0) return;
+
+  const sheet = workbook.addWorksheet("Cohorts");
+  const maxMonths = Math.max(...cohorts.map((c) => c.retentionByMonth.length), 0);
+  const lastCol = 2 + maxMonths;
+
+  addSectionTitleRow(sheet, lastCol, "Cohort Retention");
+  const headers = ["Cohort", "Size", ...Array.from({ length: maxMonths }, (_, i) => `M${i}`)];
+  const headerRow = sheet.addRow(headers);
+  headerRow.height = 19;
+  for (let col = 1; col <= lastCol; col++) {
+    const cell = headerRow.getCell(col);
+    ensureColumnWidth(sheet, col, col <= 2 ? 12 : 8);
+    applyCellStyle(cell, { bold: true, fill: colors.headerFill, horizontal: "center", border: borderHeader });
+  }
+
+  cohorts.forEach((c) => {
+    const values = [c.cohortMonth, c.cohortSize, ...c.retentionByMonth.map((r) => r * 100)];
+    const row = sheet.addRow(values);
+    row.height = 18;
+    applyCellStyle(row.getCell(1), { horizontal: "center", border: borderRow });
+    applyCellStyle(row.getCell(2), { horizontal: "right", numFmt: integerFormat, border: borderRow });
+    for (let col = 3; col <= 2 + c.retentionByMonth.length; col++) {
+      applyCellStyle(row.getCell(col), { horizontal: "right", numFmt: percentValueFormat, border: borderRow });
+    }
+  });
+
+  sheet.views = [{ state: "frozen", xSplit: 1, ySplit: 2, showGridLines: false }];
+};
+
+const buildFundraisingSheet = (
+  workbook: ExcelJS.Workbook,
+  data: ExportModelData,
+  currencyFmt: string
+) => {
+  const fr = data.fundraising;
+  if (!fr) return;
+
+  const sheet = workbook.addWorksheet("Fundraising");
+  const lastCol = 2;
+
+  addSectionTitleRow(sheet, lastCol, "Fundraising Summary");
+  if (fr.targetRaise != null) addKeyValueRow(sheet, "Target raise", fr.targetRaise, { valueFormat: currencyFmt });
+  if (fr.preMoneyValuation != null) addKeyValueRow(sheet, "Pre-money valuation", fr.preMoneyValuation, { valueFormat: currencyFmt });
+  if (fr.preMoneyValuation != null && fr.targetRaise != null) {
+    const post = fr.preMoneyValuation + fr.targetRaise;
+    addKeyValueRow(sheet, "Post-money valuation", post, { valueFormat: currencyFmt, isTotal: true });
+    addKeyValueRow(sheet, "Dilution", `${((fr.targetRaise / post) * 100).toFixed(1)}%`);
+  }
+  if (fr.runwayTarget != null) addKeyValueRow(sheet, "Runway target (months)", fr.runwayTarget);
+
+  if (fr.useOfFunds) {
+    addSpacerRow(sheet);
+    addSectionTitleRow(sheet, lastCol, "Use of Funds");
+    for (const [key, value] of Object.entries(fr.useOfFunds)) {
+      addKeyValueRow(sheet, key.charAt(0).toUpperCase() + key.slice(1), `${value}%`);
+    }
+  }
+
+  ensureColumnWidth(sheet, 1, 24);
+  ensureColumnWidth(sheet, 2, 18);
+  sheet.views = [{ showGridLines: false }];
+};
+
 export async function exportModelToExcel(data: ExportModelData) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "GoVentureValue";
+  workbook.creator = "Havamind";
   workbook.created = new Date();
 
   const exportedAt = new Date().toLocaleString();
+  const currencyFmt = currencyFormat(data.model.currency);
+
   scenarioOrder.forEach((scenarioType) => {
     buildScenarioReportSheet(workbook, scenarioType, data, exportedAt);
   });
+
+  buildTractionSheet(workbook, data, currencyFmt);
+  buildCohortsSheet(workbook, data);
+  buildFundraisingSheet(workbook, data, currencyFmt);
 
   const safeName = data.model.name
     .replace(/[^\w\s-]/g, "")

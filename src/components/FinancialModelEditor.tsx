@@ -4,9 +4,14 @@ import { Info } from "lucide-react";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import type { ScenarioType, UpdateScenarioDto, UpdateSettingsDto, MarketSizingDto, UpdateMetricsDto } from "@/lib/dto";
-import type { ModelSettings, MarketSizing, ScenarioParams } from "@/lib/calculations";
-import { calculateProjections } from "@/lib/calculations";
+import type { ModelSettings, MarketSizing, ScenarioParams, TractionSeed } from "@/lib/calculations";
+import { calculateProjections, DEFAULT_COST_STRUCTURE } from "@/lib/calculations";
+import { TOOLTIPS } from "@/lib/tooltips";
 import FinancialModel from "./FinancialModel";
+import { MonthlyMetricsTable, type MonthlyMetricRow } from "./MonthlyMetricsTable";
+import { CohortTable, type CohortRow } from "./CohortTable";
+import { InvestorSnapshot } from "./InvestorSnapshot";
+import { FundraisingPanel, type FundraisingData } from "./FundraisingPanel";
 
 type FinancialModelEditorProps = {
   modelId: number;
@@ -15,8 +20,11 @@ type FinancialModelEditorProps = {
     userGrowth: string;
     arpu: string;
     churnRate: string;
-    farmerGrowth: string;
     cac: string;
+    expansionRate?: string;
+    grossMarginTarget?: string;
+    revenueGrowthRate?: string;
+    farmerGrowth?: string;
   }>;
   initialSettings: ModelSettings;
   initialMarket: MarketSizing;
@@ -37,10 +45,22 @@ type FinancialModelEditorProps = {
     modelId: number;
     data: UpdateMetricsDto;
   }) => Promise<{ success: boolean }>;
+  upsertMonthlyMetricsFn?: (input: {
+    modelId: number;
+    rows: Omit<MonthlyMetricRow, "id">[];
+  }) => Promise<{ success: boolean }>;
+  upsertCohortsFn?: (input: {
+    modelId: number;
+    cohorts: Omit<CohortRow, "id">[];
+  }) => Promise<{ success: boolean }>;
+  updateFundraisingFn?: (data: FundraisingData) => Promise<void>;
   initialMetrics: ModelMetrics | null;
+  initialMonthlyMetrics?: MonthlyMetricRow[];
+  initialCohorts?: CohortRow[];
+  initialFundraising?: FundraisingData | null;
 };
 
-type EditorTab = "scenarios" | "settings" | "market" | "metrics" | "results";
+type EditorTab = "snapshot" | "traction" | "cohorts" | "scenarios" | "market" | "metrics" | "fundraising" | "settings" | "results";
 
 type ModelMetrics = {
   usersTotal: number | null;
@@ -86,13 +106,19 @@ export default function FinancialModelEditor({
   initialSettings,
   initialMarket,
   initialMetrics,
+  initialMonthlyMetrics = [],
   updateScenarioFn,
   updateSettingsFn,
   updateMarketSizingFn,
   updateMetricsFn,
+  upsertMonthlyMetricsFn,
+  upsertCohortsFn,
+  updateFundraisingFn,
+  initialCohorts = [],
+  initialFundraising = null,
 }: FinancialModelEditorProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<EditorTab>("scenarios");
+  const [activeTab, setActiveTab] = useState<EditorTab>("snapshot");
   const [activeScenarioTab, setActiveScenarioTab] = useState<ScenarioType>("base");
   const [scenario, setScenario] = useState<ScenarioType>("base");
 
@@ -106,8 +132,10 @@ export default function FinancialModelEditor({
         userGrowth: normalizeRateInput(parseFloat(s.userGrowth), -0.95, 3),
         arpu: Number.isFinite(arpu) ? arpu : 0,
         churnRate: normalizeRateInput(parseFloat(s.churnRate), 0.001, 0.95),
-        farmerGrowth: normalizeRateInput(parseFloat(s.farmerGrowth), -0.95, 3),
         cac: Number.isFinite(cac) ? cac : 0,
+        expansionRate: normalizeRateInput(parseFloat(s.expansionRate ?? '0'), 0, 1),
+        grossMarginTarget: normalizeRateInput(parseFloat(s.grossMarginTarget ?? '0.75'), 0, 0.99),
+        revenueGrowthRate: normalizeRateInput(parseFloat(s.revenueGrowthRate ?? '0'), -0.95, 5),
       });
     });
     return map;
@@ -161,18 +189,40 @@ export default function FinancialModelEditor({
   const [savingMarket, setSavingMarket] = useState(false);
   const [savingMetrics, setSavingMetrics] = useState(false);
 
+  const tractionSeed: TractionSeed | null = (() => {
+    const sorted = [...initialMonthlyMetrics].sort(
+      (a, b) => new Date(b.month).getTime() - new Date(a.month).getTime()
+    );
+    const latest = sorted[0];
+    if (!latest?.mrr && !latest?.customers) return null;
+    const prev = sorted[1] ?? null;
+    const churn = prev?.mrr && latest?.churnedMrr != null
+      ? latest.churnedMrr / prev.mrr
+      : null;
+    return {
+      latestMrr: latest.mrr ?? 0,
+      latestCustomers: latest.customers ?? 0,
+      latestChurnRate: churn,
+      latestArpu: latest.customers && latest.customers > 0 && latest.mrr
+        ? latest.mrr / latest.customers
+        : null,
+    };
+  })();
+
   // Recalculate projections when any input changes
   useEffect(() => {
     const currentScenarioParams = scenarios.get(scenario) || {
       userGrowth: 0.25,
-      arpu: 4.0,
+      arpu: 49,
       churnRate: 0.05,
-      farmerGrowth: 0.2,
-      cac: 18,
+      cac: 150,
+      expansionRate: 0.05,
+      grossMarginTarget: 0.75,
+      revenueGrowthRate: 0.20,
     };
-    const proj = calculateProjections(currentScenarioParams, settings, market);
+    const proj = calculateProjections(currentScenarioParams, settings, market, tractionSeed);
     setProjections(proj);
-  }, [scenario, scenarios, settings, market]);
+  }, [scenario, scenarios, settings, market, initialMonthlyMetrics]);
 
   const derivedMetrics = {
     arr:
@@ -318,10 +368,12 @@ export default function FinancialModelEditor({
         const newMap = new Map(prev);
         const current = newMap.get(scenarioType) || {
           userGrowth: 0.25,
-          arpu: 4.0,
+          arpu: 49,
           churnRate: 0.05,
-          farmerGrowth: 0.2,
-          cac: 18,
+          cac: 150,
+          expansionRate: 0.05,
+          grossMarginTarget: 0.75,
+          revenueGrowthRate: 0.20,
         };
         newMap.set(scenarioType, { ...current, [field]: value });
         return newMap;
@@ -348,18 +400,24 @@ export default function FinancialModelEditor({
 
   const currentScenarioParams = scenarios.get(scenario) || {
     userGrowth: 0.25,
-    arpu: 4.0,
+    arpu: 49,
     churnRate: 0.05,
-    farmerGrowth: 0.2,
-    cac: 18,
+    cac: 150,
+    expansionRate: 0.05,
+    grossMarginTarget: 0.75,
+    revenueGrowthRate: 0.20,
   };
 
   const tabs = [
-    { id: "scenarios" as EditorTab, label: "Scenarios", icon: "📊" },
-    { id: "settings" as EditorTab, label: "Settings", icon: "⚙️" },
+    { id: "snapshot" as EditorTab, label: "Snapshot", icon: "📋" },
+    { id: "traction" as EditorTab, label: "Traction", icon: "📈" },
+    { id: "cohorts" as EditorTab, label: "Cohorts", icon: "📊" },
+    { id: "scenarios" as EditorTab, label: "Scenarios", icon: "🔄" },
     { id: "market" as EditorTab, label: "Market", icon: "🎯" },
     { id: "metrics" as EditorTab, label: "Metrics", icon: "📌" },
-    { id: "results" as EditorTab, label: "Results", icon: "📈" },
+    { id: "fundraising" as EditorTab, label: "Fundraising", icon: "💰" },
+    { id: "settings" as EditorTab, label: "Settings", icon: "⚙️" },
+    { id: "results" as EditorTab, label: "Results", icon: "📉" },
   ];
 
   return (
@@ -387,15 +445,108 @@ export default function FinancialModelEditor({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Snapshot Tab */}
+        {activeTab === "snapshot" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+              <InvestorSnapshot
+                monthlyMetrics={initialMonthlyMetrics}
+                legacyMetrics={metrics ? {
+                  mrr: metrics.mrr,
+                  arr: metrics.arr,
+                  burnRate: metrics.burnRate,
+                  runwayMonths: metrics.runwayMonths,
+                  ltvCac: metrics.ltvCac,
+                  grossMargin: metrics.grossMargin,
+                } : null}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Traction Tab */}
+        {activeTab === "traction" && upsertMonthlyMetricsFn && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+              <MonthlyMetricsTable
+                modelId={modelId}
+                rows={initialMonthlyMetrics}
+                onSave={async (rows) => {
+                  await upsertMonthlyMetricsFn({
+                    modelId,
+                    rows: rows.map((r) => ({
+                        month: r.month,
+                        mrr: r.mrr,
+                        newMrr: r.newMrr,
+                        expansionMrr: r.expansionMrr,
+                        contractionMrr: r.contractionMrr,
+                        churnedMrr: r.churnedMrr,
+                        customers: r.customers,
+                        newCustomers: r.newCustomers,
+                        churnedCustomers: r.churnedCustomers,
+                        gmv: r.gmv,
+                        revenue: r.revenue,
+                        grossProfit: r.grossProfit,
+                        opex: r.opex,
+                        cashBalance: r.cashBalance,
+                        headcount: r.headcount,
+                        marketingSpend: r.marketingSpend,
+                      })),
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["model", modelId] });
+                }}
+                currency="USD"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Cohorts Tab */}
+        {activeTab === "cohorts" && upsertCohortsFn && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+              <CohortTable
+                modelId={modelId}
+                rows={initialCohorts}
+                onSave={async (rows) => {
+                  await upsertCohortsFn({
+                    modelId,
+                    cohorts: rows.map((r) => ({
+                      cohortMonth: r.cohortMonth,
+                      cohortSize: r.cohortSize,
+                      retentionByMonth: r.retentionByMonth ?? [],
+                      revenueByMonth: r.revenueByMonth ?? null,
+                    })),
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["model", modelId] });
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Scenarios Tab */}
         {activeTab === "scenarios" && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
-              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
+              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
                 Scenario parameters
               </h2>
+              <p className="text-sm text-[var(--brand-muted)] mb-6">
+                Model three scenarios to show investors you&apos;ve thought through different outcomes. Values are fractions (e.g. 0.25 = 25%).
+              </p>
 
-              {/* Scenario Type Tabs */}
+              {tractionSeed && (
+                <div className="mb-6 rounded-xl bg-[rgba(79,70,186,0.06)] border border-[rgba(79,70,186,0.15)] p-4">
+                  <p className="text-sm text-[var(--brand-primary)] font-medium">
+                    Projections seeded from your traction data
+                  </p>
+                  <p className="text-xs text-[var(--brand-muted)] mt-1">
+                    Starting with {tractionSeed.latestCustomers} customers, ${tractionSeed.latestArpu?.toFixed(0) ?? '—'}/mo ARPU from your latest monthly metrics.
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-2 mb-6">
                 {(["conservative", "base", "optimistic"] as ScenarioType[]).map(
                   (sc) => (
@@ -418,110 +569,65 @@ export default function FinancialModelEditor({
                 )}
               </div>
 
-              {/* Scenario Form */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    User Growth (% per year)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={scenarios.get(activeScenarioTab)?.userGrowth || 0}
-                    onChange={(e) =>
-                      updateScenarioField(
-                        activeScenarioTab,
-                        "userGrowth",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    ARPU ($/month)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={scenarios.get(activeScenarioTab)?.arpu || 0}
-                    onChange={(e) =>
-                      updateScenarioField(
-                        activeScenarioTab,
-                        "arpu",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Churn Rate (% per month)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    max="1"
-                    value={scenarios.get(activeScenarioTab)?.churnRate || 0}
-                    onChange={(e) =>
-                      updateScenarioField(
-                        activeScenarioTab,
-                        "churnRate",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Farmer Growth (% per year)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={scenarios.get(activeScenarioTab)?.farmerGrowth || 0}
-                    onChange={(e) =>
-                      updateScenarioField(
-                        activeScenarioTab,
-                        "farmerGrowth",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    CAC ($ per user)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={scenarios.get(activeScenarioTab)?.cac || 0}
-                    onChange={(e) =>
-                      updateScenarioField(
-                        activeScenarioTab,
-                        "cac",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
-                </div>
+                <ScenarioField
+                  label="Customer Growth"
+                  tooltip={TOOLTIPS.userGrowth}
+                  unit="% per year"
+                  step={0.01}
+                  min={0}
+                  max={3}
+                  value={scenarios.get(activeScenarioTab)?.userGrowth || 0}
+                  onChange={(v) => updateScenarioField(activeScenarioTab, "userGrowth", v)}
+                />
+                <ScenarioField
+                  label="ARPU"
+                  tooltip={TOOLTIPS.arpu}
+                  unit="$/month"
+                  step={1}
+                  min={0}
+                  value={scenarios.get(activeScenarioTab)?.arpu || 0}
+                  onChange={(v) => updateScenarioField(activeScenarioTab, "arpu", v)}
+                />
+                <ScenarioField
+                  label="Monthly Churn Rate"
+                  tooltip={TOOLTIPS.churnRate}
+                  unit="% per month"
+                  step={0.001}
+                  min={0}
+                  max={0.95}
+                  value={scenarios.get(activeScenarioTab)?.churnRate || 0}
+                  onChange={(v) => updateScenarioField(activeScenarioTab, "churnRate", v)}
+                />
+                <ScenarioField
+                  label="CAC"
+                  tooltip={TOOLTIPS.cac}
+                  unit="$ per customer"
+                  step={1}
+                  min={0}
+                  value={scenarios.get(activeScenarioTab)?.cac || 0}
+                  onChange={(v) => updateScenarioField(activeScenarioTab, "cac", v)}
+                />
+                <ScenarioField
+                  label="Expansion Rate"
+                  tooltip={TOOLTIPS.expansionRate}
+                  unit="% of subscription revenue"
+                  step={0.01}
+                  min={0}
+                  max={1}
+                  value={scenarios.get(activeScenarioTab)?.expansionRate || 0}
+                  onChange={(v) => updateScenarioField(activeScenarioTab, "expansionRate", v)}
+                />
+                <ScenarioField
+                  label="Gross Margin Target"
+                  tooltip={TOOLTIPS.grossMargin}
+                  unit="%"
+                  step={0.01}
+                  min={0}
+                  max={0.99}
+                  value={scenarios.get(activeScenarioTab)?.grossMarginTarget || 0.75}
+                  onChange={(v) => updateScenarioField(activeScenarioTab, "grossMarginTarget", v)}
+                />
               </div>
 
               <div className="mt-6">
@@ -537,238 +643,119 @@ export default function FinancialModelEditor({
           </div>
         )}
 
+        {/* Fundraising Tab */}
+        {activeTab === "fundraising" && (
+          <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            {updateFundraisingFn ? (
+              <FundraisingPanel
+                fundraising={initialFundraising ?? null}
+                onSave={async (data) => {
+                  await updateFundraisingFn(data);
+                  await queryClient.invalidateQueries({ queryKey: ["model", modelId] });
+                }}
+                settings={settings}
+                projections={projections}
+                arr={
+                  (() => {
+                    const sorted = [...initialMonthlyMetrics].sort(
+                      (a, b) => new Date(b.month).getTime() - new Date(a.month).getTime()
+                    );
+                    const latest = sorted[0];
+                    if (latest?.mrr != null) return latest.mrr * 12;
+                    if (metrics?.mrr != null) return metrics.mrr * 12;
+                    return metrics?.arr ?? null;
+                  })()
+                }
+              />
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">Fundraising</h2>
+                <p className="text-sm text-[var(--brand-muted)]">
+                  Round inputs and valuation (DCF + multiples). Save is not available.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Settings Tab */}
         {activeTab === "settings" && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
-              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
+              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
                 Model settings
               </h2>
+              <p className="text-sm text-[var(--brand-muted)] mb-6">
+                Configure starting conditions, tax rates, and cost structure for your projections.
+              </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <SettingsField label="Starting customers" value={settings.startUsers} onChange={(v) => updateSettingsField("startUsers", v)} min={0} step={1} />
+                <SettingsField label="Tax rate" tooltip="Corporate tax rate applied to taxable income. Varies by jurisdiction." value={settings.taxRate} onChange={(v) => updateSettingsField("taxRate", v)} min={0} max={0.9} step={0.01} unit="fraction (0.12 = 12%)" />
+                <SettingsField label="Discount rate (WACC)" tooltip={TOOLTIPS.discountRate} value={settings.discountRate} onChange={(v) => updateSettingsField("discountRate", v)} min={0.01} max={0.95} step={0.01} unit="fraction" />
+                <SettingsField label="Terminal growth" tooltip={TOOLTIPS.terminalGrowth} value={settings.terminalGrowth} onChange={(v) => updateSettingsField("terminalGrowth", v)} min={0} max={0.2} step={0.01} unit="fraction" />
+                <SettingsField label="Safety buffer ($)" tooltip={TOOLTIPS.safetyBuffer} value={settings.safetyBuffer} onChange={(v) => updateSettingsField("safetyBuffer", v)} min={0} step={1000} />
                 <div>
                   <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Starting users
+                    Growth model
+                    <span className="inline-flex text-[var(--brand-muted)] cursor-help ml-1" title={TOOLTIPS.scurveGrowth}>
+                      <Info size={14} />
+                    </span>
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={settings.startUsers}
-                    onChange={(e) =>
-                      updateSettingsField("startUsers", parseInt(e.target.value) || 0)
-                    }
+                  <select
+                    value={settings.growthModel ?? 'linear'}
+                    onChange={(e) => updateSettingsField("growthModel", e.target.value as 'linear' | 'scurve')}
                     className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
+                  >
+                    <option value="linear">Compound (exponential)</option>
+                    <option value="scurve">S-Curve (logistic)</option>
+                  </select>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Starting farmers
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={settings.startFarmers}
-                    onChange={(e) =>
-                      updateSettingsField(
-                        "startFarmers",
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-2">
+                  Cost structure
+                </h3>
+                <p className="text-xs text-[var(--brand-muted)] mb-4">
+                  Customize your per-unit costs. These feed into COGS calculations in projections.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <SettingsField
+                    label="Hosting cost / user / month"
+                    tooltip={TOOLTIPS.hostingCost}
+                    value={settings.costStructure?.hostingCostPerUser ?? DEFAULT_COST_STRUCTURE.hostingCostPerUser}
+                    onChange={(v) => updateSettingsField("costStructure", { ...(settings.costStructure ?? DEFAULT_COST_STRUCTURE), hostingCostPerUser: v })}
+                    min={0} step={0.01} unit="$"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Tax rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={settings.taxRate}
-                    onChange={(e) =>
-                      updateSettingsField("taxRate", parseFloat(e.target.value) || 0)
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+                  <SettingsField
+                    label="Payment processing rate"
+                    tooltip={TOOLTIPS.paymentProcessing}
+                    value={settings.costStructure?.paymentProcessingRate ?? DEFAULT_COST_STRUCTURE.paymentProcessingRate}
+                    onChange={(v) => updateSettingsField("costStructure", { ...(settings.costStructure ?? DEFAULT_COST_STRUCTURE), paymentProcessingRate: v })}
+                    min={0} max={0.2} step={0.001} unit="fraction"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Discount rate (WACC %)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={settings.discountRate}
-                    onChange={(e) =>
-                      updateSettingsField(
-                        "discountRate",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Terminal growth (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={settings.terminalGrowth}
-                    onChange={(e) =>
-                      updateSettingsField(
-                        "terminalGrowth",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    Safety buffer ($)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={settings.safetyBuffer}
-                    onChange={(e) =>
-                      updateSettingsField(
-                        "safetyBuffer",
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+                  <SettingsField
+                    label="Support cost / user / month"
+                    tooltip={TOOLTIPS.supportCost}
+                    value={settings.costStructure?.supportCostPerUser ?? DEFAULT_COST_STRUCTURE.supportCostPerUser}
+                    onChange={(v) => updateSettingsField("costStructure", { ...(settings.costStructure ?? DEFAULT_COST_STRUCTURE), supportCostPerUser: v })}
+                    min={0} step={0.01} unit="$"
                   />
                 </div>
               </div>
 
-              {/* Arrays by Year */}
               <div className="mt-8">
                 <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-4">
                   Values by year
                 </h3>
-
                 <div className="space-y-6">
-                  {/* Personnel by Year */}
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      Personnel by year ($)
-                    </label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {settings.personnelByYear.map((value, index) => (
-                        <div key={index}>
-                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Year {index + 1}
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={value}
-                            onChange={(e) => {
-                              const newArray = [...settings.personnelByYear];
-                              newArray[index] = parseInt(e.target.value) || 0;
-                              updateSettingsField("personnelByYear", newArray);
-                            }}
-                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Employees by Year */}
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      Employees by year
-                    </label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {settings.employeesByYear.map((value, index) => (
-                        <div key={index}>
-                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Year {index + 1}
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={value}
-                            onChange={(e) => {
-                              const newArray = [...settings.employeesByYear];
-                              newArray[index] = parseInt(e.target.value) || 0;
-                              updateSettingsField("employeesByYear", newArray);
-                            }}
-                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* CAPEX by Year */}
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      CAPEX by year ($)
-                    </label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {settings.capexByYear.map((value, index) => (
-                        <div key={index}>
-                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Year {index + 1}
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={value}
-                            onChange={(e) => {
-                              const newArray = [...settings.capexByYear];
-                              newArray[index] = parseInt(e.target.value) || 0;
-                              updateSettingsField("capexByYear", newArray);
-                            }}
-                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Depreciation by Year */}
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                      Depreciation by year ($)
-                    </label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {settings.depreciationByYear.map((value, index) => (
-                        <div key={index}>
-                          <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                            Year {index + 1}
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={value}
-                            onChange={(e) => {
-                              const newArray = [...settings.depreciationByYear];
-                              newArray[index] = parseInt(e.target.value) || 0;
-                              updateSettingsField("depreciationByYear", newArray);
-                            }}
-                            className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <YearArrayField label="Personnel cost ($)" values={settings.personnelByYear} onChange={(arr) => updateSettingsField("personnelByYear", arr)} />
+                  <YearArrayField label="Employees (headcount)" values={settings.employeesByYear} onChange={(arr) => updateSettingsField("employeesByYear", arr)} />
+                  <YearArrayField label="R&D ($)" values={settings.costStructure?.rdByYear ?? DEFAULT_COST_STRUCTURE.rdByYear} onChange={(arr) => updateSettingsField("costStructure", { ...(settings.costStructure ?? DEFAULT_COST_STRUCTURE), rdByYear: arr })} />
+                  <YearArrayField label="G&A ($)" values={settings.costStructure?.gnaByYear ?? DEFAULT_COST_STRUCTURE.gnaByYear} onChange={(arr) => updateSettingsField("costStructure", { ...(settings.costStructure ?? DEFAULT_COST_STRUCTURE), gnaByYear: arr })} />
+                  <YearArrayField label="CAPEX ($)" values={settings.capexByYear} onChange={(arr) => updateSettingsField("capexByYear", arr)} />
+                  <YearArrayField label="Depreciation ($)" values={settings.depreciationByYear} onChange={(arr) => updateSettingsField("depreciationByYear", arr)} />
                 </div>
               </div>
 
@@ -789,74 +776,65 @@ export default function FinancialModelEditor({
         {activeTab === "market" && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
-              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-6">
+              <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
                 Market sizing
               </h2>
+              <p className="text-sm text-[var(--brand-muted)] mb-6">
+                Define your market opportunity. Investors want to see a large TAM with a credible path to capturing SAM/SOM.
+              </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    TAM - Total Available Market ($)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={market.tam}
-                    onChange={(e) =>
-                      updateMarketField("tam", parseInt(e.target.value) || 0)
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--brand-muted)] mb-2">
+                      TAM ($)
+                      <span className="inline-flex cursor-help" title={TOOLTIPS.tam}><Info size={14} /></span>
+                    </label>
+                    <input type="number" min="0" value={market.tam} onChange={(e) => updateMarketField("tam", parseInt(e.target.value) || 0)} className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">TAM description</label>
+                    <input type="text" value={market.tamDescription ?? ''} onChange={(e) => updateMarketField("tamDescription", e.target.value)} placeholder="e.g. Global project management software market" className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--brand-muted)] mb-2">
+                      SAM ($)
+                      <span className="inline-flex cursor-help" title={TOOLTIPS.sam}><Info size={14} /></span>
+                    </label>
+                    <input type="number" min="0" value={market.sam} onChange={(e) => updateMarketField("sam", parseInt(e.target.value) || 0)} className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">SAM description</label>
+                    <input type="text" value={market.samDescription ?? ''} onChange={(e) => updateMarketField("samDescription", e.target.value)} placeholder="e.g. SMB segment in North America" className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent" />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                    SAM - Serviceable Available Market ($)
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--brand-muted)] mb-2">
+                    SOM by year ($)
+                    <span className="inline-flex cursor-help" title={TOOLTIPS.som}><Info size={14} /></span>
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={market.sam}
-                    onChange={(e) =>
-                      updateMarketField("sam", parseInt(e.target.value) || 0)
-                    }
-                    className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                  />
+                  <div className="grid grid-cols-5 gap-2">
+                    {market.som.map((value, index) => (
+                      <div key={index}>
+                        <label className="block text-xs text-[var(--brand-muted)] mb-1">Year {index + 1}</label>
+                        <input type="number" min="0" value={value} onChange={(e) => { const newArray = [...market.som]; newArray[index] = parseInt(e.target.value) || 0; updateMarketField("som", newArray); }} className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">SOM description</label>
+                  <input type="text" value={market.somDescription ?? ''} onChange={(e) => updateMarketField("somDescription", e.target.value)} placeholder="e.g. Realistic capture based on sales capacity and competition" className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent" />
                 </div>
               </div>
 
               <div className="mt-6">
-                <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">
-                  SOM – Serviceable Obtainable Market by year ($)
-                </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {market.som.map((value, index) => (
-                    <div key={index}>
-                      <label className="block text-xs text-[var(--brand-muted)] mb-1">
-                        Year {index + 1}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={value}
-                        onChange={(e) => {
-                          const newArray = [...market.som];
-                          newArray[index] = parseInt(e.target.value) || 0;
-                          updateMarketField("som", newArray);
-                        }}
-                        className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <button
-                  onClick={handleSaveMarket}
-                  disabled={savingMarket}
-                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button onClick={handleSaveMarket} disabled={savingMarket} className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {savingMarket ? "Saving..." : "Save market sizing"}
                 </button>
               </div>
@@ -1153,36 +1131,6 @@ export default function FinancialModelEditor({
         {/* Results Tab */}
         {activeTab === "results" && (
           <div>
-            {/* Scenario Selector */}
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-4 mb-6">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[var(--brand-muted)]">
-                  Scenario:
-                </span>
-                <div className="flex gap-1 bg-[var(--surface-muted)] p-1 rounded-lg">
-                  {(["conservative", "base", "optimistic"] as ScenarioType[]).map(
-                    (sc) => (
-                      <button
-                        key={sc}
-                        onClick={() => setScenario(sc)}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                          scenario === sc
-                            ? "bg-[var(--brand-primary)] text-white shadow-sm"
-                            : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[var(--surface-muted-border)]"
-                        }`}
-                      >
-                        {sc === "conservative"
-                          ? "Conservative"
-                          : sc === "base"
-                            ? "Base"
-                            : "Optimistic"}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-
             {projections.length > 0 && (
               <FinancialModel
                 scenario={scenario}
@@ -1195,6 +1143,124 @@ export default function FinancialModelEditor({
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ScenarioField({
+  label,
+  tooltip,
+  unit,
+  step,
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  label: string;
+  tooltip: string;
+  unit: string;
+  step: number;
+  min: number;
+  max?: number;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--brand-muted)] mb-2">
+        {label}
+        <span className="inline-flex text-[var(--brand-muted)] cursor-help" title={tooltip}>
+          <Info size={14} />
+        </span>
+      </label>
+      <input
+        type="number"
+        step={step}
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+      />
+      <p className="text-xs text-[var(--brand-muted)] mt-1">{unit}</p>
+    </div>
+  );
+}
+
+function SettingsField({
+  label,
+  tooltip,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  unit,
+}: {
+  label: string;
+  tooltip?: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+}) {
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--brand-muted)] mb-2">
+        {label}
+        {tooltip && (
+          <span className="inline-flex text-[var(--brand-muted)] cursor-help" title={tooltip}>
+            <Info size={14} />
+          </span>
+        )}
+      </label>
+      <input
+        type="number"
+        step={step ?? 1}
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        className="w-full px-4 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
+      />
+      {unit && <p className="text-xs text-[var(--brand-muted)] mt-1">{unit}</p>}
+    </div>
+  );
+}
+
+function YearArrayField({
+  label,
+  values,
+  onChange,
+}: {
+  label: string;
+  values: number[];
+  onChange: (values: number[]) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-[var(--brand-muted)] mb-2">{label}</label>
+      <div className="grid grid-cols-5 gap-2">
+        {values.map((value, index) => (
+          <div key={index}>
+            <label className="block text-xs text-[var(--brand-muted)] mb-1">Year {index + 1}</label>
+            <input
+              type="number"
+              min="0"
+              value={value}
+              onChange={(e) => {
+                const newArray = [...values];
+                newArray[index] = parseInt(e.target.value) || 0;
+                onChange(newArray);
+              }}
+              className="w-full px-3 py-2 border border-[var(--border-soft)] rounded-lg focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent text-sm"
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

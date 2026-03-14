@@ -6,6 +6,20 @@ import type { ImproveTextFieldType } from "@/lib/pitchDeck/improveText";
 
 type EditableField = "heading" | "subheading" | "speakerNotes" | `bullet-${number}`;
 
+function SparkleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+    >
+      <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.574.574l-1.192.24a1 1 0 000 1.96l1.192.24a1 1 0 01.574.574l.24 1.192a1 1 0 001.96 0l.24-1.192a1 1 0 01.574-.574l1.192-.24a1 1 0 000-1.96l-1.192-.24a1 1 0 01-.574-.574l-.24-1.192zM4.894 3.894a1 1 0 00-1.788 0l-.575 1.15a1 1 0 01-.447.447l-1.15.575a1 1 0 000 1.788l1.15.575a1 1 0 01.447.447l.575 1.15a1 1 0 001.788 0l.575-1.15a1 1 0 01.447-.447l1.15-.575a1 1 0 000-1.788l-1.15-.575a1 1 0 01-.447-.447L4.894 3.894zM10 8a2 2 0 100 4 2 2 0 000-4zM3.05 11.05a1 1 0 00-1.714 1.014l.857 1.715a1 1 0 01-.357 1.357l-1.715.857a1 1 0 001.014 1.714l1.715-.857a1 1 0 011.357.357l.857 1.715a1 1 0 001.714-1.014l-.857-1.715a1 1 0 01.357-1.357l1.715-.857a1 1 0 00-1.014-1.714l-1.715.857a1 1 0 01-1.357-.357l-.857-1.715zM16.95 3.05a1 1 0 00-1.714 1.014l.857 1.715a1 1 0 01-.357 1.357l-1.715.857a1 1 0 101.014 1.714l1.715-.857a1 1 0 011.357.357l.857 1.715a1 1 0 101.714-1.014l-.857-1.715a1 1 0 01.357-1.357l1.715-.857a1 1 0 10-1.014-1.714l-1.715.857a1 1 0 01-1.357-.357l-.857-1.715z" />
+    </svg>
+  );
+}
+
 type EditableSlideViewProps = {
   slide: PitchDeckSlideDto;
   startupName: string;
@@ -22,6 +36,8 @@ type EditableSlideViewProps = {
     bulletIndex?: number;
   }) => Promise<string>;
   isImproving?: boolean;
+  /** When true, speaker notes are not rendered inside the slide (e.g. shown in a separate panel). */
+  hideSpeakerNotes?: boolean;
 };
 
 function EditableSlideViewComponent({
@@ -36,10 +52,14 @@ function EditableSlideViewComponent({
   onRemoveBullet,
   onImproveWithAi,
   isImproving = false,
+  hideSpeakerNotes = false,
 }: EditableSlideViewProps) {
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [editValue, setEditValue] = useState("");
   const [improvingField, setImprovingField] = useState<EditableField | null>(null);
+  const [justImprovedField, setJustImprovedField] = useState<EditableField | null>(null);
+  const [imageToolbarExpanded, setImageToolbarExpanded] = useState(false);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -217,11 +237,36 @@ function EditableSlideViewComponent({
         else if (fieldType === "speakerNotes") onUpdate({ speakerNotes: improved });
         else if (fieldType === "bullet" && bulletIndex !== undefined)
           onUpdateBullet(bulletIndex, improved);
+        setJustImprovedField(field);
+        if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+        flashTimeoutRef.current = setTimeout(() => {
+          setJustImprovedField(null);
+          flashTimeoutRef.current = null;
+        }, 600);
       } finally {
         setImprovingField(null);
       }
     },
     [onImproveWithAi, onUpdate, onUpdateBullet],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    };
+  }, []);
+
+  const triggerImprove = useCallback(
+    (field: EditableField) => {
+      if (field === "heading") handleImproveWithAi("heading", slide.heading);
+      else if (field === "subheading") handleImproveWithAi("subheading", slide.subheading);
+      else if (field === "speakerNotes") handleImproveWithAi("speakerNotes", slide.speakerNotes);
+      else if (field.startsWith("bullet-")) {
+        const i = parseInt(field.replace("bullet-", ""), 10);
+        handleImproveWithAi("bullet", slide.bullets[i] ?? "", i);
+      }
+    },
+    [handleImproveWithAi, slide.heading, slide.subheading, slide.speakerNotes, slide.bullets],
   );
 
   const improveButton = (field: EditableField) =>
@@ -230,21 +275,19 @@ function EditableSlideViewComponent({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          if (field === "heading")
-            handleImproveWithAi("heading", slide.heading);
-          else if (field === "subheading")
-            handleImproveWithAi("subheading", slide.subheading);
-          else if (field === "speakerNotes")
-            handleImproveWithAi("speakerNotes", slide.speakerNotes);
-          else if (field.startsWith("bullet-")) {
-            const i = parseInt(field.replace("bullet-", ""), 10);
-            handleImproveWithAi("bullet", slide.bullets[i] ?? "", i);
-          }
+          e.preventDefault();
+          triggerImprove(field);
         }}
         disabled={isImproving || improvingField !== null}
-        className="text-[10px] px-1.5 py-0.5 rounded text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.1)] disabled:opacity-50"
+        title="Improve with AI"
+        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-[var(--brand-primary)] opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-1 hover:bg-[rgba(79,70,186,0.12)] disabled:opacity-50 transition-opacity duration-150"
+        aria-label="Improve with AI"
       >
-        {improvingField === field ? "…" : "Improve with AI"}
+        {improvingField === field ? (
+          <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-[var(--brand-primary)] border-t-transparent animate-spin" />
+        ) : (
+          <SparkleIcon className="w-4 h-4" />
+        )}
       </button>
     ) : null;
 
@@ -340,13 +383,21 @@ function EditableSlideViewComponent({
             rows={2}
           />
         ) : (
-          <div className="mb-2 flex items-start gap-2">
+          <div
+            className={`group mb-2 flex items-start gap-2 rounded-lg transition-all duration-200 ${
+              improvingField === "heading"
+                ? "ring-2 ring-[var(--brand-primary)] ring-opacity-60 animate-pulse"
+                : justImprovedField === "heading"
+                  ? "ring-2 ring-[var(--brand-primary)] ring-opacity-30"
+                  : ""
+            }`}
+          >
             <h2
               role="button"
               tabIndex={0}
               onClick={() => startEditing("heading", slide.heading)}
               onKeyDown={(e) => e.key === "Enter" && startEditing("heading", slide.heading)}
-              className="flex-1 font-bold leading-tight cursor-text rounded px-1 -mx-1 hover:bg-black/5"
+              className="flex-1 font-bold leading-tight cursor-text rounded px-1 -mx-1 hover:bg-black/5 min-h-[1.5rem] border border-transparent hover:border-dashed hover:border-[var(--border-soft)]"
               style={{
                 color: colors.heading,
                 fontSize: isCover ? "clamp(1.25rem, 3vw, 1.75rem)" : "clamp(1rem, 2vw, 1.5rem)",
@@ -380,13 +431,21 @@ function EditableSlideViewComponent({
             placeholder="Add subheading…"
           />
         ) : (
-          <div className="mb-4 flex items-start gap-2">
+          <div
+            className={`group mb-4 flex items-start gap-2 rounded-lg transition-all duration-200 ${
+              improvingField === "subheading"
+                ? "ring-2 ring-[var(--brand-primary)] ring-opacity-60 animate-pulse"
+                : justImprovedField === "subheading"
+                  ? "ring-2 ring-[var(--brand-primary)] ring-opacity-30"
+                  : ""
+            }`}
+          >
             <p
               role="button"
               tabIndex={0}
               onClick={() => startEditing("subheading", slide.subheading)}
               onKeyDown={(e) => e.key === "Enter" && startEditing("subheading", slide.subheading)}
-              className="flex-1 text-sm cursor-text rounded px-1 -mx-1 hover:bg-black/5 min-h-[1.5rem]"
+              className="flex-1 text-sm cursor-text rounded px-1 -mx-1 hover:bg-black/5 min-h-[1.5rem] border border-transparent hover:border-dashed hover:border-[var(--border-soft)]"
               style={{ color: colors.subheading }}
             >
               {slide.subheading ? (
@@ -485,13 +544,21 @@ function EditableSlideViewComponent({
                   </button>
                 </div>
               ) : (
-                <div className="flex-1 min-w-0 flex items-start gap-1">
+                <div
+                  className={`group flex-1 min-w-0 flex items-start gap-1 rounded transition-all duration-200 ${
+                    improvingField === `bullet-${i}`
+                      ? "ring-2 ring-[var(--brand-primary)] ring-opacity-60 animate-pulse"
+                      : justImprovedField === `bullet-${i}`
+                        ? "ring-2 ring-[var(--brand-primary)] ring-opacity-30"
+                        : ""
+                  }`}
+                >
                   <span
                     role="button"
                     tabIndex={0}
                     onClick={() => startEditing(`bullet-${i}` as EditableField, bullet)}
                     onKeyDown={(e) => e.key === "Enter" && startEditing(`bullet-${i}` as EditableField, bullet)}
-                    className="flex-1 cursor-text rounded px-1 -mx-1 hover:bg-black/5"
+                    className="flex-1 cursor-text rounded px-1 -mx-1 hover:bg-black/5 border border-transparent hover:border-dashed hover:border-[var(--border-soft)]"
                   >
                     <ReactMarkdown
                       components={{
@@ -520,59 +587,67 @@ function EditableSlideViewComponent({
           </button>
         )}
 
-        {/* Speaker notes */}
-        <div
-          className="mt-4 p-3 rounded-lg"
-          style={{
-            backgroundColor: colors.speakerNotesBg,
-            borderWidth: 1,
-            borderStyle: "solid",
-            borderColor: colors.speakerNotesBorder,
-          }}
-        >
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <p className="text-xs font-semibold" style={{ color: colors.accent }}>
-              Speaker Notes
-            </p>
-            {improveButton("speakerNotes")}
+        {/* Speaker notes (hidden when rendered in external panel) */}
+        {!hideSpeakerNotes && (
+          <div
+            className={`group mt-4 p-3 rounded-lg transition-all duration-200 ${
+              improvingField === "speakerNotes"
+                ? "ring-2 ring-[var(--brand-primary)] ring-opacity-60 animate-pulse"
+                : justImprovedField === "speakerNotes"
+                  ? "ring-2 ring-[var(--brand-primary)] ring-opacity-30"
+                  : ""
+            }`}
+            style={{
+              backgroundColor: colors.speakerNotesBg,
+              borderWidth: 1,
+              borderStyle: "solid",
+              borderColor: colors.speakerNotesBorder,
+            }}
+          >
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-xs font-semibold" style={{ color: colors.accent }}>
+                Speaker Notes
+              </p>
+              {improveButton("speakerNotes")}
+            </div>
+            {editingField === "speakerNotes" ? (
+              <textarea
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                className="w-full text-xs bg-white/80 rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
+                style={{ color: colors.bullets, minHeight: "4rem" }}
+                rows={4}
+                placeholder="Add speaker notes…"
+              />
+            ) : (
+              <p
+                role="button"
+                tabIndex={0}
+                onClick={() => startEditing("speakerNotes", slide.speakerNotes)}
+                onKeyDown={(e) => e.key === "Enter" && startEditing("speakerNotes", slide.speakerNotes)}
+                className="text-xs cursor-text rounded px-1 -mx-1 hover:bg-black/5 min-h-12"
+                style={{ color: colors.bullets }}
+              >
+                {slide.speakerNotes ? (
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <>{children}</>,
+                      strong: ({ children }) => <strong>{children}</strong>,
+                      em: ({ children }) => <em>{children}</em>,
+                    }}
+                  >
+                    {slide.speakerNotes}
+                  </ReactMarkdown>
+                ) : (
+                  <span className="opacity-60">Click to add speaker notes</span>
+                )}
+              </p>
+            )}
           </div>
-          {editingField === "speakerNotes" ? (
-            <textarea
-              ref={inputRef}
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
-              className="w-full text-xs bg-white/80 rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
-              style={{ color: colors.bullets, minHeight: "4rem" }}
-              rows={4}
-              placeholder="Add speaker notes…"
-            />
-          ) : (
-            <p
-              role="button"
-              tabIndex={0}
-              onClick={() => startEditing("speakerNotes", slide.speakerNotes)}
-              onKeyDown={(e) => e.key === "Enter" && startEditing("speakerNotes", slide.speakerNotes)}
-              className="text-xs cursor-text rounded px-1 -mx-1 hover:bg-black/5 min-h-[3rem]"
-              style={{ color: colors.bullets }}
-            >
-              {slide.speakerNotes ? (
-                <ReactMarkdown
-                  components={{
-                    p: ({ children }) => <>{children}</>,
-                    strong: ({ children }) => <strong>{children}</strong>,
-                    em: ({ children }) => <em>{children}</em>,
-                  }}
-                >
-                  {slide.speakerNotes}
-                </ReactMarkdown>
-              ) : (
-                <span className="opacity-60">Click to add speaker notes</span>
-              )}
-            </p>
-          )}
-        </div>
+        )}
       </div>
   );
 
@@ -587,49 +662,75 @@ function EditableSlideViewComponent({
         <div className="h-1.5 shrink-0" style={{ backgroundColor: colors.accent }} />
       ) : null}
       <div className="flex-1 p-2 flex flex-col min-h-0 min-w-0">
-        <div className="flex flex-wrap items-center gap-2 mb-2 px-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file?.type.startsWith("image/")) return;
-              const reader = new FileReader();
-              reader.onloadend = () => onUpdate({ imageUrl: reader.result as string });
-              reader.readAsDataURL(file);
-              e.target.value = "";
-            }}
-          />
+        <div className="mb-2 px-2">
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="text-[10px] text-[var(--brand-primary)] hover:underline"
+            onClick={() => setImageToolbarExpanded((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-[var(--brand-muted)] hover:text-[var(--brand-ink)] transition-colors"
+            aria-expanded={imageToolbarExpanded}
           >
-            Choose image…
-          </button>
-          <span className="text-[10px] text-[var(--brand-muted)]">or paste (Ctrl+V)</span>
-          <select
-            value={slideLayout}
-            onChange={(e) => onUpdate({ layout: e.target.value as SlideLayoutId })}
-            className="text-xs px-2 py-1 rounded border border-[var(--border-soft)] bg-white"
-          >
-            {LAYOUT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          {hasImage ? (
-            <button
-              type="button"
-              onClick={() => onUpdate({ imageUrl: undefined, layout: "default" })}
-              className="text-[10px] text-red-600 hover:underline"
+            <svg
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${imageToolbarExpanded ? "rotate-90" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Clear image
-            </button>
-          ) : null}
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Image & layout
+          </button>
+          <div
+            className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+              imageToolbarExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="overflow-hidden">
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file?.type.startsWith("image/")) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => onUpdate({ imageUrl: reader.result as string });
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-soft)] text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.06)] transition-colors"
+                >
+                  Choose image…
+                </button>
+                <span className="text-xs text-[var(--brand-muted)]">or paste (Ctrl+V)</span>
+                <select
+                  value={slideLayout}
+                  onChange={(e) => onUpdate({ layout: e.target.value as SlideLayoutId })}
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-soft)] bg-white"
+                >
+                  {LAYOUT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {hasImage ? (
+                  <button
+                    type="button"
+                    onClick={() => onUpdate({ imageUrl: undefined, layout: "default" })}
+                    className="text-xs px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Clear image
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </div>
         {layoutWithImage ? (
           <div

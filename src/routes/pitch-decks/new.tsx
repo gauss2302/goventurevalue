@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "@/components/Sidebar";
 import { StyleQuestionnaireModal } from "@/components/pitch-deck";
@@ -9,9 +9,11 @@ import type {
   PitchDeckBriefDto,
   PitchDeckTemplateId,
   PitchDeckStyleQuestionnaireInput,
+  PitchDeckThemePhoto,
 } from "@/lib/dto";
 import { getAllTemplates } from "@/lib/pitchDeck/templates";
 import type { ModelContextSummary } from "@/lib/pitchDeck/types";
+import { buildUnsplashQueriesFromStyle } from "@/lib/pitchDeck/unsplash";
 
 const BRIEF_KEYS: Array<keyof PitchDeckBriefDto> = [
   "problem",
@@ -97,9 +99,6 @@ const validateCreatePayload = (data: CreatePitchDeckDto): CreatePitchDeckDto => 
   if (!data.startupName?.trim()) {
     throw new Error("Startup name is required");
   }
-  if (data.provider !== "openai" && data.provider !== "gemini") {
-    throw new Error("Unsupported AI provider");
-  }
 
   BRIEF_KEYS.forEach((key) => {
     if (!data.brief[key] || !data.brief[key].trim()) {
@@ -122,7 +121,7 @@ const loadCreateDeckData = createServerFn({ method: "GET" }).handler(async () =>
     { eq, desc },
   ] = await Promise.all([
     import("@tanstack/react-start/server"),
-    import("@/lib/auth/requireAuth"),
+    import("@/lib/auth/server"),
     import("@/db/index"),
     import("@/db/schema"),
     import("drizzle-orm"),
@@ -155,7 +154,7 @@ const createPitchDeck = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -206,14 +205,14 @@ const createPitchDeck = createServerFn({ method: "POST" })
               userGrowth: Number(baseScenario.userGrowth),
               arpu: Number(baseScenario.arpu),
               churnRate: Number(baseScenario.churnRate),
-              farmerGrowth: Number(baseScenario.farmerGrowth),
+              expansionRate: Number((baseScenario as any).expansionRate ?? 0),
+              grossMarginTarget: Number((baseScenario as any).grossMarginTarget ?? 0.7),
               cac: Number(baseScenario.cac),
             }
           : undefined,
         keySettings: settings
           ? {
               startUsers: settings.startUsers,
-              startFarmers: settings.startFarmers,
               taxRate: Number(settings.taxRate),
               discountRate: Number(settings.discountRate),
               terminalGrowth: Number(settings.terminalGrowth),
@@ -324,7 +323,7 @@ const createPitchDeckFullAi = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -375,14 +374,14 @@ const createPitchDeckFullAi = createServerFn({ method: "POST" })
               userGrowth: Number(baseScenario.userGrowth),
               arpu: Number(baseScenario.arpu),
               churnRate: Number(baseScenario.churnRate),
-              farmerGrowth: Number(baseScenario.farmerGrowth),
+              expansionRate: Number((baseScenario as any).expansionRate ?? 0),
+              grossMarginTarget: Number((baseScenario as any).grossMarginTarget ?? 0.7),
               cac: Number(baseScenario.cac),
             }
           : undefined,
         keySettings: settings
           ? {
               startUsers: settings.startUsers,
-              startFarmers: settings.startFarmers,
               taxRate: Number(settings.taxRate),
               discountRate: Number(settings.discountRate),
               terminalGrowth: Number(settings.terminalGrowth),
@@ -463,6 +462,13 @@ const createPitchDeckFullAi = createServerFn({ method: "POST" })
     }
   });
 
+const searchUnsplash = createServerFn({ method: "GET" })
+  .inputValidator((data: { query: string }) => data)
+  .handler(async ({ data }) => {
+    const { searchUnsplashPhotos } = await import("@/lib/pitchDeck/unsplash");
+    return searchUnsplashPhotos(data.query, 12);
+  });
+
 const createDeckDataQueryOptions = () => ({
   queryKey: ["pitch-decks-create-data"] as const,
   queryFn: () =>
@@ -495,12 +501,11 @@ function NewPitchDeckPage() {
   const queryClient = useQueryClient();
   const createPitchDeckFn = useServerFn(createPitchDeck);
   const createPitchDeckFullAiFn = useServerFn(createPitchDeckFullAi);
+  const searchUnsplashFn = useServerFn(searchUnsplash);
 
   const [title, setTitle] = useState("");
   const [startupName, setStartupName] = useState("");
   const [oneLiner, setOneLiner] = useState("");
-  const [provider, setProvider] = useState<"openai" | "gemini">("openai");
-  const [providerModel, setProviderModel] = useState("");
   const [modelId, setModelId] = useState<string>("");
   const [language, setLanguage] = useState("en");
   const [currency, setCurrency] = useState("USD");
@@ -524,6 +529,8 @@ function NewPitchDeckPage() {
   const [fullAiModalOpen, setFullAiModalOpen] = useState(false);
   const [fullAiSubmitting, setFullAiSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generationMode, setGenerationMode] = useState<"standard" | "fullAi">("standard");
+  const [styleQuestionnaire, setStyleQuestionnaire] = useState<PitchDeckStyleQuestionnaireInput>({});
 
   const selectedModel = useMemo(
     () => models?.find((model) => model.id === Number(modelId)),
@@ -534,7 +541,26 @@ function NewPitchDeckPage() {
     setBrief((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleFullAiSubmit = async (styleQuestionnaire: PitchDeckStyleQuestionnaireInput) => {
+  const handleSearchUnsplash = useCallback(async (query: string): Promise<PitchDeckThemePhoto[]> => {
+    try {
+      const result = await searchUnsplashFn({ data: { query } });
+      return result.photos;
+    } catch {
+      throw new Error("Unsplash search is not available. Make sure UNSPLASH_ACCESS_KEY is set.");
+    }
+  }, [searchUnsplashFn]);
+
+  const suggestedQueries = useMemo(() => {
+    return buildUnsplashQueriesFromStyle({
+      imageryStyle: styleQuestionnaire.imageryStyle,
+      colorDirection: styleQuestionnaire.colorDirection,
+      optionalNote: styleQuestionnaire.optionalNote,
+      startupName: startupName || undefined,
+    });
+  }, [styleQuestionnaire.imageryStyle, styleQuestionnaire.colorDirection, styleQuestionnaire.optionalNote, startupName]);
+
+  const handleFullAiSubmit = async (submitted: PitchDeckStyleQuestionnaireInput) => {
+    setStyleQuestionnaire(submitted);
     setFullAiSubmitting(true);
     setError(null);
     try {
@@ -548,7 +574,7 @@ function NewPitchDeckPage() {
           currency: selectedModel?.currency || currency,
           modelId: modelId ? Number(modelId) : undefined,
           brief,
-          styleQuestionnaire,
+          styleQuestionnaire: submitted,
         },
       });
       await Promise.all([
@@ -568,6 +594,10 @@ function NewPitchDeckPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (generationMode === "fullAi") {
+      setFullAiModalOpen(true);
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -580,8 +610,7 @@ function NewPitchDeckPage() {
           audience,
           language,
           currency: selectedModel?.currency || currency,
-          provider,
-          providerModel,
+          provider: "gemini",
           modelId: modelId ? Number(modelId) : undefined,
           template: templateId,
           brief,
@@ -634,6 +663,8 @@ function NewPitchDeckPage() {
         isPending={fullAiSubmitting}
         title="Full AI slides — style"
         submitLabel="Generate with Full AI"
+        onSearchUnsplash={handleSearchUnsplash}
+        suggestedQueries={suggestedQueries}
       />
       <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
         <div className="relative px-6 py-10 lg:px-10 max-w-[1200px] mx-auto">
@@ -651,8 +682,42 @@ function NewPitchDeckPage() {
 
           <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-6">
+              {/* Generation mode toggle */}
+              <section className="bg-white rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)]">
+                <h2 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mb-3">Generation mode</h2>
+                <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-muted)] w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setGenerationMode("standard")}
+                    className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      generationMode === "standard"
+                        ? "bg-white text-[var(--brand-ink)] shadow-sm"
+                        : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)]"
+                    }`}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGenerationMode("fullAi")}
+                    className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      generationMode === "fullAi"
+                        ? "bg-white text-[var(--brand-ink)] shadow-sm"
+                        : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)]"
+                    }`}
+                  >
+                    Full AI design
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-[var(--brand-muted)]">
+                  {generationMode === "standard"
+                    ? "Pick a template and generate slide content with Gemini."
+                    : "AI will design the look and content; you’ll choose style preferences in the next step."}
+                </p>
+              </section>
+
               <section className="bg-white rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)] space-y-4">
-                <h2 className="text-lg font-[var(--font-display)]">Deck Setup</h2>
+                <h2 className="text-lg font-[var(--font-display)]">Deck setup</h2>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="text-sm text-[var(--brand-muted)]">
@@ -690,58 +755,37 @@ function NewPitchDeckPage() {
                     />
                   </label>
 
-                  <div className="md:col-span-2">
-                    <p className="text-sm text-[var(--brand-muted)] mb-2">Template</p>
-                    <div className="flex flex-wrap gap-3">
-                      {getAllTemplates().map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setTemplateId(t.id)}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-left transition-colors ${
-                            templateId === t.id
-                              ? "border-[var(--brand-primary)] bg-[rgba(79,70,186,0.08)]"
-                              : "border-[var(--border-soft)] bg-white hover:border-[var(--brand-primary)]/40"
-                          }`}
-                        >
-                          <span
-                            className="w-6 h-6 rounded-lg shrink-0 border border-[var(--border-soft)]"
-                            style={{ backgroundColor: t.colors.background }}
-                          />
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: t.colors.accent }}
-                          />
-                          <span className="text-sm font-medium text-[var(--brand-ink)]">
-                            {t.name}
-                          </span>
-                        </button>
-                      ))}
+                  {generationMode === "standard" && (
+                    <div className="md:col-span-2">
+                      <p className="text-sm text-[var(--brand-muted)] mb-2">Template</p>
+                      <div className="flex flex-wrap gap-3">
+                        {getAllTemplates().map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setTemplateId(t.id)}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-left transition-colors ${
+                              templateId === t.id
+                                ? "border-[var(--brand-primary)] bg-[rgba(79,70,186,0.08)]"
+                                : "border-[var(--border-soft)] bg-white hover:border-[var(--brand-primary)]/40"
+                            }`}
+                          >
+                            <span
+                              className="w-6 h-6 rounded-lg shrink-0 border border-[var(--border-soft)]"
+                              style={{ backgroundColor: t.colors.background }}
+                            />
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: t.colors.accent }}
+                            />
+                            <span className="text-sm font-medium text-[var(--brand-ink)]">
+                              {t.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-
-                  <label className="text-sm text-[var(--brand-muted)]">
-                    Provider
-                    <select
-                      value={provider}
-                      onChange={(event) => setProvider(event.target.value as "openai" | "gemini")}
-                      className="mt-1 w-full px-3 py-2 rounded-xl border border-[var(--border-soft)]"
-                    >
-                      <option value="openai">OpenAI</option>
-                      <option value="gemini">Gemini</option>
-                    </select>
-                  </label>
-
-                  <label className="text-sm text-[var(--brand-muted)]">
-                    Provider Model (optional override)
-                    <input
-                      type="text"
-                      value={providerModel}
-                      onChange={(event) => setProviderModel(event.target.value)}
-                      className="mt-1 w-full px-3 py-2 rounded-xl border border-[var(--border-soft)]"
-                      placeholder={provider === "openai" ? "gpt-4.1-mini" : "gemini-2.0-flash"}
-                    />
-                  </label>
+                  )}
 
                   <label className="text-sm text-[var(--brand-muted)]">
                     Link Financial Model (optional)
@@ -875,22 +919,19 @@ function NewPitchDeckPage() {
                 disabled={submitting || fullAiSubmitting}
                 className="w-full px-4 py-3 rounded-xl bg-[var(--brand-primary)] text-white font-semibold disabled:opacity-60"
               >
-                {submitting ? "Generating..." : "Generate Pitch Deck"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setFullAiModalOpen(true)}
-                disabled={submitting || fullAiSubmitting}
-                className="w-full px-4 py-3 rounded-xl border border-[var(--border-soft)] text-[var(--brand-ink)] disabled:opacity-60"
-              >
-                {fullAiSubmitting ? "Full AI…" : "Full AI slides"}
+                {submitting
+                  ? "Generating…"
+                  : fullAiSubmitting
+                    ? "Full AI…"
+                    : generationMode === "fullAi"
+                      ? "Continue to style"
+                      : "Generate Pitch Deck"}
               </button>
 
               <button
                 type="button"
                 onClick={() => router.navigate({ to: "/pitch-decks" as any })}
-                className="w-full px-4 py-3 rounded-xl border border-[var(--border-soft)] text-[var(--brand-muted)]"
+                className="w-full px-4 py-3 rounded-xl border border-[var(--border-soft)] text-[var(--brand-muted)] hover:bg-[var(--surface-muted)]"
               >
                 Cancel
               </button>

@@ -13,7 +13,7 @@ const loadPitchDecks = createServerFn({ method: "GET" }).handler(async () => {
     { eq, desc },
   ] = await Promise.all([
     import("@tanstack/react-start/server"),
-    import("@/lib/auth/requireAuth"),
+    import("@/lib/auth/server"),
     import("@/db/index"),
     import("@/db/schema"),
     import("drizzle-orm"),
@@ -114,17 +114,19 @@ function PitchDecksPage() {
           </div>
 
           {decks.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[var(--border-soft)] p-10 text-center shadow-[var(--card-shadow)]">
-              <h2 className="text-xl font-[var(--font-display)]">No decks yet</h2>
-              <p className="text-sm text-[var(--brand-muted)] mt-2">
-                Create your first AI-generated pitch deck to start iterating your fundraising narrative.
-              </p>
-              <Link
-                to={"/pitch-decks/new" as any}
-                className="inline-flex items-center justify-center mt-6 px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold"
-              >
-                Create First Deck
-              </Link>
+            <div className="bg-white rounded-2xl border border-[var(--border-soft)] p-12 text-center shadow-[var(--card-shadow)]">
+              <div className="max-w-sm mx-auto">
+                <h2 className="text-xl font-[var(--font-display)] text-[var(--brand-ink)]">No pitch decks yet</h2>
+                <p className="text-sm text-[var(--brand-muted)] mt-2 leading-relaxed">
+                  Create your first investor-ready deck with AI in a few minutes. Add your brief, pick a style, and get a full 10-slide presentation you can edit and export.
+                </p>
+                <Link
+                  to={"/pitch-decks/new" as any}
+                  className="inline-flex items-center justify-center mt-6 px-5 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold hover:opacity-95 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-2"
+                >
+                  Create your first deck
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -133,7 +135,7 @@ function PitchDecksPage() {
                   key={deck.id}
                   to={"/pitch-decks/$deckId" as any}
                   params={{ deckId: String(deck.id) } as any}
-                  className="bg-white rounded-2xl border border-[var(--border-soft)] p-5 shadow-[var(--card-shadow)] hover:border-[rgba(79,70,186,0.3)] transition-colors"
+                  className="bg-white rounded-2xl border border-[var(--border-soft)] p-5 shadow-[var(--card-shadow)] hover:border-[var(--brand-primary)]/30 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-2"
                 >
                   <div className="flex items-center justify-between">
                     <span className={`text-xs px-2 py-1 rounded-full ${statusClassName[deck.status] || statusClassName.draft}`}>

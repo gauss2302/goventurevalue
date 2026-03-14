@@ -58,7 +58,7 @@ const resolveReturnUrl = (headers: Headers, returnPath?: string | null): string 
 
 const resolveCheckoutSuccessUrl = (headers: Headers): string => {
   const origin = getRequestOrigin(headers);
-  return `${origin}/dashboard?billing=success`;
+  return `${origin}/billing/success`;
 };
 
 const billingInputValidator = (data: BillingFlowInput | undefined): BillingFlowInput => ({
@@ -74,7 +74,7 @@ export const startBillingCheckout = createServerFn({ method: "POST" })
       { createCheckoutForUser },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/lib/billing/polar"),
     ]);
 
@@ -101,10 +101,14 @@ export const openBillingPortal = createServerFn({ method: "POST" })
     const [
       { getRequestHeaders },
       { requireAuthFromHeaders },
-      { createPortalForUser },
+      {
+        createPortalForUser,
+        createCheckoutForUser,
+        getCustomerStateExternal,
+      },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/lib/billing/polar"),
     ]);
 
@@ -112,15 +116,25 @@ export const openBillingPortal = createServerFn({ method: "POST" })
     const session = await requireAuthFromHeaders(headers);
 
     try {
-      const url = await createPortalForUser({
+      const customerState = await getCustomerStateExternal(session.user.id);
+
+      if (customerState) {
+        const url = await createPortalForUser({
+          userId: session.user.id,
+          returnUrl: resolveReturnUrl(headers, data.returnPath),
+        });
+        return { url };
+      }
+
+      const url = await createCheckoutForUser({
         userId: session.user.id,
+        successUrl: resolveCheckoutSuccessUrl(headers),
         returnUrl: resolveReturnUrl(headers, data.returnPath),
       });
-
       return { url };
     } catch (error) {
-      logger.error("[Billing] Failed to create portal session:", error);
-      throw new Error("Unable to open billing portal. Please try again.");
+      logger.error("[Billing] Failed to open billing portal or checkout:", error);
+      throw new Error("Unable to open billing. Please try again.");
     }
   });
 
@@ -134,7 +148,7 @@ export const assertExportAccess = createServerFn({ method: "POST" })
       { createCheckoutForUser },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/lib/billing/subscription"),
       import("@/lib/billing/polar"),
     ]);

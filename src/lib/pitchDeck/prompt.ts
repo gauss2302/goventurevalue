@@ -66,7 +66,8 @@ export const buildPitchDeckUserPrompt = (input: PitchDeckGenerationInput) => {
         `  * User growth: ${model.baseScenario.userGrowth}`,
         `  * ARPU: ${model.baseScenario.arpu}`,
         `  * Churn rate: ${model.baseScenario.churnRate}`,
-        `  * Farmer growth: ${model.baseScenario.farmerGrowth}`,
+        `  * Expansion rate: ${model.baseScenario.expansionRate}`,
+        `  * Gross margin: ${model.baseScenario.grossMarginTarget}`,
         `  * CAC: ${model.baseScenario.cac}`,
       );
     }
@@ -75,7 +76,6 @@ export const buildPitchDeckUserPrompt = (input: PitchDeckGenerationInput) => {
       sections.push(
         "- Key settings:",
         `  * Start users: ${model.keySettings.startUsers}`,
-        `  * Start farmers: ${model.keySettings.startFarmers}`,
         `  * Tax rate: ${model.keySettings.taxRate}`,
         `  * Discount rate: ${model.keySettings.discountRate}`,
         `  * Terminal growth: ${model.keySettings.terminalGrowth}`,
@@ -158,13 +158,13 @@ export const buildPitchDeckFullAiUserPrompt = (input: PitchDeckFullAiGenerationI
     if (model.baseScenario) {
       contentSections.push(
         "- Base scenario:",
-        `  * User growth: ${model.baseScenario.userGrowth}, ARPU: ${model.baseScenario.arpu}, Churn: ${model.baseScenario.churnRate}, Farmer growth: ${model.baseScenario.farmerGrowth}, CAC: ${model.baseScenario.cac}`,
+        `  * User growth: ${model.baseScenario.userGrowth}, ARPU: ${model.baseScenario.arpu}, Churn: ${model.baseScenario.churnRate}, Expansion: ${model.baseScenario.expansionRate}, Gross margin: ${model.baseScenario.grossMarginTarget}, CAC: ${model.baseScenario.cac}`,
       );
     }
     if (model.keySettings) {
       contentSections.push(
         "- Key settings:",
-        `  * Start users: ${model.keySettings.startUsers}, Start farmers: ${model.keySettings.startFarmers}, Tax: ${model.keySettings.taxRate}, Discount: ${model.keySettings.discountRate}, Terminal growth: ${model.keySettings.terminalGrowth}`,
+        `  * Start users: ${model.keySettings.startUsers}, Tax: ${model.keySettings.taxRate}, Discount: ${model.keySettings.discountRate}, Terminal growth: ${model.keySettings.terminalGrowth}`,
       );
     }
   }
@@ -180,6 +180,18 @@ export const buildPitchDeckFullAiUserPrompt = (input: PitchDeckFullAiGenerationI
     `- Investor risk/emphasis: ${compact(q.investorRiskProfile)}`,
     `- Optional note: ${compact(q.optionalNote)}`,
   ];
+
+  if (q.themePhotos && q.themePhotos.length > 0) {
+    styleSections.push(
+      `- Theme photos provided: ${q.themePhotos.length} image(s).`,
+      "  Use the dominant colors, mood, and visual style suggested by these photos to inform the palette and visual motif.",
+      "  The photos are attached separately; base your color palette and motif on their described mood:",
+      ...q.themePhotos.map(
+        (p, i) =>
+          `  Photo ${i + 1}: ${p.alt ?? "visual reference"} ${p.photographerName ? `(by ${p.photographerName})` : ""}`,
+      ),
+    );
+  }
 
   return [...contentSections, "", ...styleSections].join("\n");
 };

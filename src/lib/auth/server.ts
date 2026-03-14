@@ -1,6 +1,8 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
+import { polar, checkout } from '@polar-sh/better-auth'
+import { Polar } from '@polar-sh/sdk'
 
 import { db } from '@/db/index'
 import * as schema from '@/db/schema'
@@ -31,6 +33,39 @@ if (!baseURL) {
 
 const secret = requireEnv('BETTER_AUTH_SECRET')
 
+const polarAccessToken = getOptionalEnv('POLAR_ACCESS_TOKEN')
+const polarProductId = getOptionalEnv('POLAR_EXPORTS_PRODUCT_ID')
+const polarSuccessUrl =
+  getOptionalEnv('POLAR_SUCCESS_URL') ??
+  `${baseURL.replace(/\/+$/, '')}/billing/success`
+const polarCheckoutSlug = getOptionalEnv('POLAR_CHECKOUT_SLUG') ?? 'exports'
+
+const polarPlugin =
+  polarAccessToken && polarProductId && polarSuccessUrl
+    ? polar({
+        client: new Polar({
+          accessToken: polarAccessToken,
+          server: (() => {
+            const v = getOptionalEnv('POLAR_SERVER')?.trim().toLowerCase()
+            return v === 'production' ? 'production' : 'sandbox'
+          })(),
+        }),
+        createCustomerOnSignUp: true,
+        use: [
+          checkout({
+            products: [
+              {
+                productId: polarProductId,
+                slug: polarCheckoutSlug,
+              },
+            ],
+            successUrl: polarSuccessUrl,
+            authenticatedUsersOnly: true,
+          }),
+        ],
+      })
+    : null
+
 export const auth = betterAuth({
   baseURL,
   secret,
@@ -54,9 +89,17 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
-  plugins: [tanstackStartCookies()],
+  plugins: [tanstackStartCookies(), ...(polarPlugin ? [polarPlugin] : [])],
 })
 
 export const getServerSession = async (headers?: Headers) => {
   return auth.api.getSession({ headers: headers || new Headers() })
+}
+
+export const requireAuthFromHeaders = async (headers: Headers) => {
+  const session = await getServerSession(headers)
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+  return session
 }

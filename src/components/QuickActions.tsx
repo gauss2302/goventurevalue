@@ -1,85 +1,79 @@
 import { Link } from "@tanstack/react-router";
 import { Plus, Upload, Sparkles, Presentation } from "lucide-react";
 
+const actions = [
+  {
+    to: "/models/new",
+    icon: Plus,
+    iconBg: "bg-[var(--brand-primary)]",
+    iconColor: "text-white",
+    title: "New Model",
+    subtitle: "Clean slate",
+    isLink: true,
+  },
+  {
+    to: "#",
+    icon: Upload,
+    iconBg: "bg-[var(--brand-ice)]/15",
+    iconColor: "text-[var(--brand-primary)]",
+    title: "Import Data",
+    subtitle: "CSV / Sheets",
+    isLink: false,
+  },
+  {
+    to: "/academy",
+    icon: Sparkles,
+    iconBg: "bg-[var(--brand-secondary)]/15",
+    iconColor: "text-[var(--brand-secondary)]",
+    title: "Walkthrough",
+    subtitle: "Guided tour",
+    isLink: true,
+  },
+  {
+    to: "/pitch-decks/new",
+    icon: Presentation,
+    iconBg: "bg-[var(--brand-primary)]/10",
+    iconColor: "text-[var(--brand-primary)]",
+    title: "Pitch Deck",
+    subtitle: "AI slides",
+    isLink: true,
+  },
+];
+
 export function QuickActions() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-      <Link
-        to="/models/new"
-        className="group relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-white px-5 py-4 shadow-[var(--card-shadow)] transition-all duration-200 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5"
-      >
-        <div className="absolute -right-6 -top-10 h-20 w-20 rounded-full bg-[rgba(79,70,186,0.1)] blur-2xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-[var(--brand-primary)] text-white flex items-center justify-center shadow-[0_4px_14px_rgba(79,70,186,0.25)]">
-            <Plus size={20} />
+    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      {actions.map((action) => {
+        const Icon = action.icon;
+        const inner = (
+          <div className="flex items-center gap-2.5">
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${action.iconBg} ${action.iconColor}`}>
+              <Icon size={14} />
+            </div>
+            <div className="min-w-0">
+              <span className="block truncate text-[12px] font-semibold text-[var(--brand-ink)]">
+                {action.title}
+              </span>
+              <span className="block text-[10px] text-[var(--brand-muted)]">
+                {action.subtitle}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="block text-sm font-semibold text-[var(--brand-ink)]">
-              New Model
-            </span>
-            <span className="block text-xs text-[var(--brand-muted)]">
-              Start from a clean slate
-            </span>
-          </div>
-        </div>
-      </Link>
+        );
 
-      <button className="group relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-white px-5 py-4 shadow-[var(--card-shadow)] transition-all duration-200 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5">
-        <div className="absolute -right-6 -top-10 h-20 w-20 rounded-full bg-[rgba(36,88,255,0.1)] blur-2xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-[rgba(36,88,255,0.12)] text-[#2458FF] flex items-center justify-center">
-            <Upload size={20} />
-          </div>
-          <div>
-            <span className="block text-sm font-semibold text-[var(--brand-ink)]">
-              Import Data
-            </span>
-            <span className="block text-xs text-[var(--brand-muted)]">
-              CSV or spreadsheet upload
-            </span>
-          </div>
-        </div>
-      </button>
+        const cls =
+          "rounded-lg border border-[var(--border-soft)] bg-white px-3 py-2.5 shadow-[var(--shadow-sm)] transition-all duration-150 hover:shadow-[var(--shadow-md)]";
 
-      <Link
-        to="/academy"
-        className="group relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-white px-5 py-4 shadow-[var(--card-shadow)] transition-all duration-200 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5"
-      >
-        <div className="absolute -right-6 -top-10 h-20 w-20 rounded-full bg-[rgba(249,137,107,0.12)] blur-2xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-[rgba(249,137,107,0.18)] text-[var(--brand-secondary)] flex items-center justify-center">
-            <Sparkles size={20} />
-          </div>
-          <div>
-            <span className="block text-sm font-semibold text-[var(--brand-ink)]">
-              Guided Walkthrough
-            </span>
-            <span className="block text-xs text-[var(--brand-muted)]">
-              See a valuation in minutes
-            </span>
-          </div>
-        </div>
-      </Link>
-
-      <Link
-        to={"/pitch-decks/new" as any}
-        className="group relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-white px-5 py-4 shadow-[var(--card-shadow)] transition-all duration-200 hover:shadow-[var(--card-shadow-hover)] hover:-translate-y-0.5"
-      >
-        <div className="absolute -right-6 -top-10 h-20 w-20 rounded-full bg-[rgba(79,70,186,0.12)] blur-2xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-[rgba(79,70,186,0.14)] text-[var(--brand-primary)] flex items-center justify-center">
-            <Presentation size={20} />
-          </div>
-          <div>
-            <span className="block text-sm font-semibold text-[var(--brand-ink)]">
-              New Pitch Deck
-            </span>
-            <span className="block text-xs text-[var(--brand-muted)]">
-              AI-generated investor slides
-            </span>
-          </div>
-        </div>
-      </Link>
+        return action.isLink ? (
+          <Link key={action.title} to={action.to as any} className={cls}>
+            {inner}
+          </Link>
+        ) : (
+          <button key={action.title} className={`${cls} w-full text-left`}>
+            {inner}
+          </button>
+        );
+      })}
     </div>
   );
 }

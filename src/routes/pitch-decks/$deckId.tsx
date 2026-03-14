@@ -127,7 +127,7 @@ const loadPitchDeckDetail = createServerFn({ method: "GET" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -188,7 +188,7 @@ const savePitchDeckSlides = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -234,7 +234,7 @@ const savePitchDeckTemplate = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -277,7 +277,7 @@ const improvePitchDeckText = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -318,7 +318,7 @@ const regeneratePitchDeck = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -368,14 +368,14 @@ const regeneratePitchDeck = createServerFn({ method: "POST" })
                 userGrowth: Number(baseScenario.userGrowth),
                 arpu: Number(baseScenario.arpu),
                 churnRate: Number(baseScenario.churnRate),
-                farmerGrowth: Number(baseScenario.farmerGrowth),
+                expansionRate: Number((baseScenario as any).expansionRate ?? 0),
+                grossMarginTarget: Number((baseScenario as any).grossMarginTarget ?? 0.7),
                 cac: Number(baseScenario.cac),
               }
             : undefined,
           keySettings: settings
             ? {
                 startUsers: settings.startUsers,
-                startFarmers: settings.startFarmers,
                 taxRate: Number(settings.taxRate),
                 discountRate: Number(settings.discountRate),
                 terminalGrowth: Number(settings.terminalGrowth),
@@ -452,7 +452,7 @@ const regeneratePitchDeckFullAi = createServerFn({ method: "POST" })
       { eq, and },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -505,14 +505,14 @@ const regeneratePitchDeckFullAi = createServerFn({ method: "POST" })
                 userGrowth: Number(baseScenario.userGrowth),
                 arpu: Number(baseScenario.arpu),
                 churnRate: Number(baseScenario.churnRate),
-                farmerGrowth: Number(baseScenario.farmerGrowth),
+                expansionRate: Number((baseScenario as any).expansionRate ?? 0),
+                grossMarginTarget: Number((baseScenario as any).grossMarginTarget ?? 0.7),
                 cac: Number(baseScenario.cac),
               }
             : undefined,
           keySettings: settings
             ? {
                 startUsers: settings.startUsers,
-                startFarmers: settings.startFarmers,
                 taxRate: Number(settings.taxRate),
                 discountRate: Number(settings.discountRate),
                 terminalGrowth: Number(settings.terminalGrowth),
@@ -647,6 +647,7 @@ function PitchDeckDetailPage() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [slides, setSlides] = useState<PitchDeckSlideDto[]>([]);
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
+  const [speakerNotesPanelOpen, setSpeakerNotesPanelOpen] = useState(true);
   const prevDeckIdRef = useRef(deckId);
 
   const saveMutation = useMutation({
@@ -805,8 +806,13 @@ function PitchDeckDetailPage() {
   if (isPending) {
     return (
       <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-[var(--brand-muted)]">
-          Loading pitch deck...
+        <div className="w-full max-w-md mx-auto px-4">
+          <div className="rounded-2xl border border-[var(--border-soft)] bg-white p-8 shadow-[var(--card-shadow)] animate-pulse">
+            <div className="h-6 bg-[var(--surface-muted)] rounded w-3/4 mb-4" />
+            <div className="h-4 bg-[var(--surface-muted)] rounded w-1/2 mb-6" />
+            <div className="aspect-[297/210] bg-[var(--surface-muted)] rounded-xl" />
+            <p className="text-sm text-[var(--brand-muted)] mt-4 text-center">Loading pitch deck…</p>
+          </div>
         </div>
       </div>
     );
@@ -927,8 +933,39 @@ function PitchDeckDetailPage() {
 
   const regenerating = regenerateMutation.isPending;
 
+  const improveSpeakerNotesFromPanel = async () => {
+    if (!selectedSlide) return;
+    const improved = await improveTextMutation.mutateAsync({
+      deckId: data.id,
+      fieldType: "speakerNotes",
+      currentValue: selectedSlide.speakerNotes,
+      slideType: selectedSlide.type,
+    });
+    updateSlide(selectedSlideIndex, { speakerNotes: improved });
+  };
+
+  const isGenerating = data.status === "generating" && slides.length === 0;
+
+  if (isGenerating) {
+    return (
+      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex flex-col">
+        <Sidebar />
+        <main className="flex-1 md:ml-[var(--sidebar-width)] flex items-center justify-center p-8">
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--border-soft)] bg-white p-10 shadow-[var(--card-shadow)] text-center">
+            <div className="inline-block w-10 h-10 rounded-full border-2 border-[var(--brand-primary)] border-t-transparent animate-spin mx-auto mb-4" />
+            <h2 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">Generating your deck</h2>
+            <p className="text-sm text-[var(--brand-muted)] mt-2">
+              AI is creating your investor pitch deck. This usually takes a moment.
+            </p>
+            <p className="text-xs text-[var(--brand-muted)] mt-4">You can leave and come back—we’ll save your progress.</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
+    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex flex-col">
       <Sidebar />
       <ExportPaywallModal
         open={paywallOpen}
@@ -963,102 +1000,90 @@ function PitchDeckDetailPage() {
         title="Full AI slides — style"
         submitLabel="Regenerate with Full AI"
       />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="px-6 py-8 lg:px-10 max-w-[1600px] mx-auto space-y-5">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                Pitch Deck Editor
-              </p>
-              <h1 className="text-3xl font-[var(--font-display)]">{data.title}</h1>
-              <p className="text-sm text-[var(--brand-muted)] mt-1">{data.startupName}</p>
-              <p className="text-xs text-[var(--brand-muted)] mt-1 flex items-center gap-2">
-                Status: <span className="font-semibold">{data.status}</span>
-                {data.lastError ? ` • ${data.lastError}` : ""}
-                <AutosaveIndicator
-                  isPending={saveMutation.isPending}
-                  isSuccess={saveMutation.isSuccess}
-                  isError={saveMutation.isError}
-                />
-              </p>
+      <main className="relative flex-1 flex flex-col md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
+        {/* Compact top toolbar */}
+        <div className="shrink-0 px-4 py-3 border-b border-[var(--border-soft)] bg-white/80 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => router.navigate({ to: "/pitch-decks" as any })}
+              className="shrink-0 px-3 py-2 rounded-lg text-sm text-[var(--brand-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand-ink)] transition-colors"
+            >
+              Back
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-lg font-[var(--font-display)] truncate">{data.title}</h1>
+              <p className="text-xs text-[var(--brand-muted)] truncate">{data.startupName}</p>
             </div>
-            <div className="flex flex-wrap gap-2 items-center">
-              {data.designMode === "ai_designed" ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--brand-primary)]/40 bg-[rgba(79,70,186,0.08)] text-sm text-[var(--brand-primary)]">
-                  <span aria-hidden>AI-designed style</span>
-                </span>
-              ) : (
-                <>
-                  <label className="text-xs text-[var(--brand-muted)] mr-1">
-                    Template
-                  </label>
-                  <select
-                    value={data.template ?? "minimal"}
-                    onChange={(e) =>
-                      handleTemplateChange(
-                        e.target.value as "minimal" | "professional-blue" | "bold-dark" | "warm-earthy" | "tech-modern"
-                      )
-                    }
-                    disabled={saveTemplateMutation.isPending}
-                    className="px-3 py-2 rounded-xl border border-[var(--border-soft)] text-sm bg-white disabled:opacity-50"
-                  >
-                    {getAllTemplates().map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => router.navigate({ to: "/pitch-decks" as any })}
-                className="px-4 py-2 rounded-xl border border-[var(--border-soft)] text-sm"
+            {data.designMode === "ai_designed" ? (
+              <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--brand-primary)]/40 bg-[rgba(79,70,186,0.08)] text-xs text-[var(--brand-primary)]">
+                AI-designed
+              </span>
+            ) : (
+              <select
+                value={data.template ?? "minimal"}
+                onChange={(e) =>
+                  handleTemplateChange(
+                    e.target.value as "minimal" | "professional-blue" | "bold-dark" | "warm-earthy" | "tech-modern"
+                  )
+                }
+                disabled={saveTemplateMutation.isPending}
+                className="shrink-0 px-3 py-2 rounded-lg border border-[var(--border-soft)] text-sm bg-white disabled:opacity-50"
               >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => setRetryModalOpen(true)}
-                disabled={regenerating}
-                className="px-4 py-2 rounded-xl border border-[var(--border-soft)] text-sm disabled:opacity-50"
-              >
-                {regenerating ? "Regenerating…" : "Regenerate"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFullAiModalOpen(true)}
-                disabled={regenerating || fullAiRegenerateMutation.isPending}
-                className="px-4 py-2 rounded-xl border border-[var(--border-soft)] text-sm disabled:opacity-50"
-              >
-                {fullAiRegenerateMutation.isPending ? "Full AI…" : "Full AI slides"}
-              </button>
-              <button
-                type="button"
-                onClick={handleExportPdf}
-                className="px-4 py-2 rounded-xl bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)] text-sm"
-              >
-                Download PDF
-              </button>
-            </div>
+                {getAllTemplates().map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRetryModalOpen(true)}
+              disabled={regenerating}
+              className="px-3 py-2 rounded-lg border border-[var(--border-soft)] text-sm text-[var(--brand-ink)] hover:bg-[var(--surface-muted)] disabled:opacity-50 transition-colors"
+            >
+              {regenerating ? "Regenerating…" : "Regenerate"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFullAiModalOpen(true)}
+              disabled={regenerating || fullAiRegenerateMutation.isPending}
+              className="px-3 py-2 rounded-lg border border-[var(--border-soft)] text-sm text-[var(--brand-ink)] hover:bg-[var(--surface-muted)] disabled:opacity-50 transition-colors"
+            >
+              {fullAiRegenerateMutation.isPending ? "Full AI…" : "Full AI slides"}
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-white text-sm font-medium hover:opacity-95 transition-opacity"
+            >
+              Download PDF
+            </button>
+          </div>
+        </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-center gap-4">
+        {/* Main content: slide + optional speaker notes panel */}
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+            <div className="flex items-center justify-center gap-3 py-6 px-4">
               <button
                 type="button"
                 onClick={() => setSelectedSlideIndex((i) => Math.max(0, i - 1))}
                 disabled={selectedSlideIndex === 0}
-                className="shrink-0 w-10 h-10 rounded-full border border-[var(--border-soft)] flex items-center justify-center text-[var(--brand-ink)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--surface-muted)]"
+                className="shrink-0 w-11 h-11 rounded-full border border-[var(--border-soft)] flex items-center justify-center text-[var(--brand-ink)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--surface-muted)] transition-colors"
                 aria-label="Previous slide"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <div className="flex-1 flex justify-center max-w-4xl w-full min-w-0">
+              <div className="flex-1 flex justify-center max-w-4xl w-full min-w-0 max-h-[calc(100vh-280px)]">
                 {selectedSlide ? (
-                  <EditableSlideView
+                  <div key={selectedSlideIndex} className="w-full max-w-4xl animate-in fade-in duration-200">
+                    <EditableSlideView
                     slide={selectedSlide}
                     startupName={data.startupName}
                     slideIndex={selectedSlideIndex}
@@ -1081,7 +1106,9 @@ function PitchDeckDetailPage() {
                       })
                     }
                     isImproving={improveTextMutation.isPending}
+                    hideSpeakerNotes={speakerNotesPanelOpen}
                   />
+                  </div>
                 ) : null}
               </div>
               <button
@@ -1090,7 +1117,7 @@ function PitchDeckDetailPage() {
                   setSelectedSlideIndex((i) => Math.min(slides.length - 1, i + 1))
                 }
                 disabled={selectedSlideIndex >= slides.length - 1}
-                className="shrink-0 w-10 h-10 rounded-full border border-[var(--border-soft)] flex items-center justify-center text-[var(--brand-ink)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--surface-muted)]"
+                className="shrink-0 w-11 h-11 rounded-full border border-[var(--border-soft)] flex items-center justify-center text-[var(--brand-ink)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--surface-muted)] transition-colors"
                 aria-label="Next slide"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1098,8 +1125,33 @@ function PitchDeckDetailPage() {
                 </svg>
               </button>
             </div>
-            <div>
-              <p className="text-xs text-[var(--brand-muted)] mb-2">Slides</p>
+
+            {/* Bottom: carousel + autosave */}
+            <div className="shrink-0 px-4 pb-4 pt-2 border-t border-[var(--border-soft)] bg-[var(--page)]">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-xs text-[var(--brand-muted)]">Slides</p>
+                <div className="flex items-center gap-3 text-xs text-[var(--brand-muted)]">
+                  {data.status === "failed" && data.lastError ? (
+                    <span className="text-red-600 truncate max-w-[200px]" title={data.lastError}>
+                      {data.lastError}
+                    </span>
+                  ) : null}
+                  <AutosaveIndicator
+                    isPending={saveMutation.isPending}
+                    isSuccess={saveMutation.isSuccess}
+                    isError={saveMutation.isError}
+                  />
+                  {!speakerNotesPanelOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setSpeakerNotesPanelOpen(true)}
+                      className="text-[var(--brand-primary)] hover:underline"
+                    >
+                      Speaker notes
+                    </button>
+                  )}
+                </div>
+              </div>
               <SlideCarousel
                 slides={slides}
                 selectedIndex={selectedSlideIndex}
@@ -1108,7 +1160,69 @@ function PitchDeckDetailPage() {
               />
             </div>
           </div>
+
+          {/* Collapsible speaker notes panel */}
+          <div
+            className={`shrink-0 border-l border-[var(--border-soft)] bg-white flex flex-col transition-[width] duration-200 overflow-hidden ${
+              speakerNotesPanelOpen ? "w-80 lg:w-96" : "w-0 border-l-0"
+            }`}
+          >
+            {speakerNotesPanelOpen && (
+              <>
+                <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-soft)]">
+                  <h2 className="text-sm font-semibold text-[var(--brand-ink)]">Speaker notes</h2>
+                  <button
+                    type="button"
+                    onClick={() => setSpeakerNotesPanelOpen(false)}
+                    className="p-1.5 rounded-lg text-[var(--brand-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand-ink)]"
+                    aria-label="Close speaker notes panel"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0 flex flex-col p-4 overflow-auto">
+                  {selectedSlide ? (
+                    <>
+                      <p className="text-xs text-[var(--brand-muted)] mb-2">
+                        Slide {selectedSlideIndex + 1}: {selectedSlide.type}
+                      </p>
+                      <textarea
+                        value={selectedSlide.speakerNotes}
+                        onChange={(e) =>
+                          updateSlide(selectedSlideIndex, { speakerNotes: e.target.value })
+                        }
+                        placeholder="Add speaker notes for this slide…"
+                        className="flex-1 min-h-[120px] w-full rounded-lg border border-[var(--border-soft)] px-3 py-2 text-sm text-[var(--brand-ink)] placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/30 focus:border-[var(--brand-primary)] resize-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={improveSpeakerNotesFromPanel}
+                        disabled={improveTextMutation.isPending}
+                        className="mt-3 w-full px-3 py-2 rounded-lg border border-[var(--brand-primary)]/40 text-sm text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.08)] disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {improveTextMutation.isPending ? (
+                          <span className="inline-block w-4 h-4 rounded-full border-2 border-[var(--brand-primary)] border-t-transparent animate-spin" />
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                              <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.574.574l-1.192.24a1 1 0 000 1.96l1.192.24a1 1 0 01.574.574l.24 1.192a1 1 0 001.96 0l.24-1.192a1 1 0 01.574-.574l1.192-.24a1 1 0 000-1.96l-1.192-.24a1 1 0 01-.574-.574l-.24-1.192zM4.894 3.894a1 1 0 00-1.788 0l-.575 1.15a1 1 0 01-.447.447l-1.15.575a1 1 0 000 1.788l1.15.575a1 1 0 01.447.447l.575 1.15a1 1 0 001.788 0l.575-1.15a1 1 0 01.447-.447l1.15-.575a1 1 0 000-1.788l-1.15-.575a1 1 0 01-.447-.447L4.894 3.894z" />
+                            </svg>
+                            Improve with AI
+                          </>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[var(--brand-muted)]">Select a slide to edit speaker notes.</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
       </main>
     </div>
   );

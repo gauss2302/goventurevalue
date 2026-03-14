@@ -37,6 +37,39 @@ const isPayloadSchemaMismatchError = (status: number, body: string) =>
     body,
   );
 
+const isQuotaExhaustedError = (status: number) => status === 429;
+
+/** Parse retry delay (seconds) from Gemini 429 error body. Returns undefined if not found. */
+const parseRetryDelaySeconds = (body: string): number | undefined => {
+  try {
+    const data = JSON.parse(body) as {
+      error?: {
+        details?: Array<{ "@type"?: string; retryDelay?: string }>;
+      };
+    };
+    const retryInfo = data?.error?.details?.find(
+      (d) => d["@type"] === "type.googleapis.com/google.rpc.RetryInfo",
+    );
+    const delay = retryInfo?.retryDelay;
+    if (delay) {
+      const seconds = parseFloat(delay.replace("s", ""));
+      return Number.isFinite(seconds) ? Math.min(Math.ceil(seconds), 60) : undefined;
+    }
+    const match = body.match(/retry in (\d+(?:\.\d+)?)\s*s/i);
+    if (match) {
+      const seconds = parseFloat(match[1]);
+      return Number.isFinite(seconds) ? Math.min(Math.ceil(seconds), 60) : undefined;
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const MAX_QUOTA_RETRIES = 2;
+
 type GenerateRequestParams = {
   apiKey: string;
   apiVersion: string;
@@ -158,11 +191,14 @@ const extractGeneratedText = (data: any) => {
   return text;
 };
 
+const GEMINI_KEY_MSG =
+  "GEMINI_API_KEY is not set. Add it to your .env file (see .env.example), then restart the dev server so it picks up the change.";
+
 export const geminiPitchDeckProvider: PitchDeckProvider = {
   async generate({ model, systemPrompt, userPrompt }) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not configured");
+      throw new Error(GEMINI_KEY_MSG);
     }
 
     const requestedModel = normalizeModelName(model);
@@ -181,7 +217,7 @@ export const geminiPitchDeckProvider: PitchDeckProvider = {
 
       for (const candidateModel of modelCandidates) {
         const targetLabel = `${apiVersion}/${candidateModel}`;
-        let result = await attemptGenerateContent({
+        let result: GenerateAttemptResult = await attemptGenerateContent({
           apiKey,
           apiVersion,
           model: candidateModel,
@@ -198,6 +234,32 @@ export const geminiPitchDeckProvider: PitchDeckProvider = {
             userPrompt,
             compatibilityMode: true,
           });
+        }
+
+        // Retry on 429 (quota exceeded) with delay from response or default
+        if (isGenerateAttemptError(result) && isQuotaExhaustedError(result.status)) {
+          let last429Body = result.body;
+          for (let retry = 0; retry < MAX_QUOTA_RETRIES; retry++) {
+            const waitSeconds = parseRetryDelaySeconds(result.body) ?? 24;
+            await sleep(waitSeconds * 1000);
+            result = await attemptGenerateContent({
+              apiKey,
+              apiVersion,
+              model: candidateModel,
+              systemPrompt,
+              userPrompt,
+            });
+            if (isGenerateAttemptError(result) && isQuotaExhaustedError(result.status)) {
+              last429Body = result.body;
+              continue;
+            }
+            break;
+          }
+          if (isGenerateAttemptError(result) && isQuotaExhaustedError(result.status)) {
+            throw new Error(
+              "Gemini rate limit exceeded (free tier quota). Please wait a few minutes and try again, or check your quota at https://ai.google.dev/gemini-api/docs/rate-limits.",
+            );
+          }
         }
 
         if (result.ok) {

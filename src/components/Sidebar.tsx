@@ -20,9 +20,7 @@ export function Sidebar() {
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
+    if (typeof window === "undefined") return false;
     return window.localStorage.getItem("sidebar-collapsed") === "true";
   });
   const pathname = useRouterState({
@@ -30,36 +28,11 @@ export function Sidebar() {
   });
 
   const menuItems = [
-    {
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      href: "/dashboard",
-      isActive: pathname.startsWith("/dashboard"),
-    },
-    {
-      icon: FileSpreadsheet,
-      label: "My Models",
-      href: "/models",
-      isActive: pathname.startsWith("/models"),
-    },
-    {
-      icon: Presentation,
-      label: "Pitch Decks",
-      href: "/pitch-decks",
-      isActive: pathname.startsWith("/pitch-decks"),
-    },
-    {
-      icon: BookOpen,
-      label: "Academy",
-      href: "/academy",
-      isActive: pathname.startsWith("/academy"),
-    },
-    {
-      icon: Library,
-      label: "Assumptions",
-      href: "/assumptions",
-      isActive: pathname.startsWith("/assumptions"),
-    },
+    { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", isActive: pathname.startsWith("/dashboard") },
+    { icon: FileSpreadsheet, label: "My Models", href: "/models", isActive: pathname.startsWith("/models") },
+    { icon: Presentation, label: "Pitch Decks", href: "/pitch-decks", isActive: pathname.startsWith("/pitch-decks") },
+    { icon: BookOpen, label: "Academy", href: "/academy", isActive: pathname.startsWith("/academy") },
+    { icon: Library, label: "Assumptions", href: "/assumptions", isActive: pathname.startsWith("/assumptions") },
   ];
 
   useEffect(() => {
@@ -70,115 +43,129 @@ export function Sidebar() {
     window.localStorage.setItem("sidebar-collapsed", String(isCollapsed));
   }, [isCollapsed]);
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.invalidate();
+    router.navigate({ to: "/" });
+  };
+
+  const navItemClass = (active: boolean) =>
+    `flex items-center gap-2.5 px-3 min-h-[40px] rounded-lg transition-all duration-200 active:scale-[0.97] ${
+      active
+        ? "bg-[var(--brand-primary)]/8 text-[var(--brand-primary)] font-medium"
+        : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)] hover:bg-[var(--surface-2)]"
+    }`;
+
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Mobile toggle */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white text-[var(--brand-primary)] rounded-full border border-[var(--border-soft)] shadow-sm"
+        className="fixed left-3 top-3 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-soft)] bg-white text-[var(--brand-ink)] shadow-sm transition-transform duration-150 active:scale-95 md:hidden"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
+        aria-label="Toggle sidebar"
       >
-        {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
+        {isMobileOpen ? <X size={18} /> : <Menu size={18} />}
       </button>
 
-      {/* Mobile Overlay */}
+      {/* Mobile overlay */}
       <AnimatePresence>
         {isMobileOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="md:hidden fixed inset-0 bg-black/60 z-40"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
             onClick={() => setIsMobileOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Desktop Sidebar */}
+      {/* Desktop sidebar */}
       <motion.aside
-        className="fixed top-0 left-0 h-screen bg-white border-r border-[var(--border-soft)] hidden md:flex flex-col z-40"
+        aria-label="Sidebar"
+        className="fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-[var(--border-soft)] bg-white md:flex"
         initial={false}
-        animate={{ width: isCollapsed ? "5rem" : "18rem" }}
+        animate={{ width: isCollapsed ? "4rem" : "14rem" }}
         transition={{ duration: 0.25, ease: "easeInOut" }}
       >
-        {/* Logo */}
-        <div className="relative px-4 py-6">
-          <button
-            className="absolute right-4 top-4 flex items-center justify-center h-8 w-8 rounded-full border border-[var(--border-soft)] text-[var(--brand-muted)] hover:text-[var(--brand-primary)] bg-white"
-            onClick={() => setIsCollapsed((prev) => !prev)}
-            aria-label="Toggle sidebar"
-          >
-            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
-          <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
-            <div className="relative">
-              <div
-                className={`${
-                  isCollapsed ? "w-10 h-10 text-base" : "w-12 h-12 text-lg"
-                } bg-[var(--brand-primary)] rounded-xl flex items-center justify-center text-white font-[var(--font-display)] shadow-[0_12px_24px_rgba(79,70,186,0.25)]`}
-              >
-                GV
+        {/* Logo area: toggle in flow so it doesn't overlay */}
+        <div
+          className={`flex px-3 py-3 ${isCollapsed ? "flex-col items-center gap-2" : "flex-row items-center gap-2.5"}`}
+        >
+          <div className={`flex min-w-0 flex-1 items-center gap-2.5 ${isCollapsed ? "justify-center" : ""}`}>
+            <div
+              className={`${
+                isCollapsed ? "h-8 w-8" : "h-9 w-9"
+              } flex shrink-0 items-center justify-center rounded-lg bg-[var(--brand-ink)]`}
+            >
+              <div className="grid grid-cols-2 gap-[2px]">
+                <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)]" />
+                <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-ink)]" />
+                <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)]" />
+                <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)]" />
               </div>
-              <div className="absolute -top-2 -right-2 w-4 h-4 bg-[var(--brand-accent)] rounded-full shadow-sm" />
             </div>
             {!isCollapsed && (
-              <div className="leading-tight">
-                <div className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
-                  GoVenture
+              <div className="min-w-0 leading-tight">
+                <div
+                  className="truncate text-sm font-bold text-[var(--brand-ink)]"
+                  style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
+                >
+                  Havamind
                 </div>
-                <div className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                  Valuation Lab
+                <div className="truncate text-[10px] uppercase tracking-wider text-[var(--brand-muted)]">
+                  Financial modeling
                 </div>
               </div>
             )}
           </div>
+          <button
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[var(--border-soft)] bg-white text-[var(--brand-muted)] transition-colors hover:text-[var(--brand-ink)]"
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            aria-label="Toggle sidebar"
+          >
+            {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+          </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 space-y-2">
+        {/* Nav */}
+        <nav className="flex-1 space-y-0.5 px-2.5 pt-1">
           {menuItems.map((item) => (
             <Link
               key={item.href}
               to={item.href as any}
               title={isCollapsed ? item.label : undefined}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
-                item.isActive
-                  ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)]"
-                  : "text-[rgba(28,30,47,0.7)] hover:text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.08)]"
-              }`}
+              className={navItemClass(item.isActive)}
             >
-              <item.icon size={20} />
-              {!isCollapsed && <span className="font-medium">{item.label}</span>}
+              <item.icon size={16} className="shrink-0" />
+              {!isCollapsed && <span className="truncate text-[13px]">{item.label}</span>}
             </Link>
           ))}
         </nav>
 
-        {/* Bottom Actions */}
-        <div className="px-4 pb-6 space-y-3">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-[var(--border-soft)] text-[rgba(28,30,47,0.8)] hover:text-[var(--brand-primary)] hover:border-[rgba(79,70,186,0.3)] transition-all">
-            <span className="w-8 h-8 rounded-full bg-[rgba(132,232,244,0.5)] text-[var(--brand-primary)] flex items-center justify-center">
-              <Plus size={16} />
+        {/* Bottom */}
+        <div className="space-y-1 px-2.5 pb-3">
+          <button className="flex w-full items-center gap-2.5 rounded-lg border border-[var(--border-soft)] px-3 py-2 text-[var(--brand-muted)] transition-colors hover:border-[var(--brand-primary)]/30 hover:text-[var(--brand-primary)]">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+              <Plus size={12} />
             </span>
             {!isCollapsed && (
-              <span className="text-sm font-semibold">Invite a member</span>
+              <span className="truncate text-[12px] font-medium">Invite</span>
             )}
           </button>
           <button
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[var(--brand-muted)] hover:text-[var(--brand-secondary)] hover:bg-[rgba(249,137,107,0.08)] transition-all"
-            onClick={async () => {
-              await signOut();
-              router.invalidate();
-              router.navigate({ to: "/" });
-            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[var(--brand-muted)] transition-all hover:bg-red-50 hover:text-red-600"
+            onClick={handleSignOut}
           >
-            <LogOut size={18} />
+            <LogOut size={14} />
             {!isCollapsed && (
-              <span className="text-sm font-semibold">Sign out</span>
+              <span className="truncate text-[12px] font-medium">Sign out</span>
             )}
           </button>
         </div>
       </motion.aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile sidebar */}
       <AnimatePresence>
         {isMobileOpen && (
           <motion.aside
@@ -186,51 +173,56 @@ export function Sidebar() {
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-            className="fixed top-0 left-0 h-screen w-72 bg-white border-r border-[var(--border-soft)] z-50 md:hidden flex flex-col"
+            className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-[var(--border-soft)] bg-white md:hidden"
+            aria-label="Sidebar"
           >
-            <div className="px-6 py-6 border-b border-[var(--border-soft)]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[var(--brand-primary)] rounded-xl flex items-center justify-center text-white font-[var(--font-display)] text-base shadow-[0_12px_24px_rgba(79,70,186,0.25)]">
-                  GV
-                </div>
-                <div>
-                  <div className="font-[var(--font-display)] text-base text-[var(--brand-ink)]">
-                    GoVenture
+            <div className="border-b border-[var(--border-soft)] px-4 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-ink)]">
+                  <div className="grid grid-cols-2 gap-[2px]">
+                    <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)]" />
+                    <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-ink)]" />
+                    <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)]" />
+                    <div className="h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)]" />
                   </div>
-                  <div className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                    Valuation Lab
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className="text-sm font-bold text-[var(--brand-ink)]"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    Havamind
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--brand-muted)]">
+                    Financial modeling
                   </div>
                 </div>
               </div>
             </div>
 
-            <nav className="flex-1 py-6 px-4 space-y-2">
+            <nav className="flex-1 space-y-0.5 px-2.5 py-4">
               {menuItems.map((item) => (
                 <Link
                   key={item.href}
                   to={item.href as any}
                   onClick={() => setIsMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
-                    item.isActive
-                      ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)]"
-                      : "text-[rgba(28,30,47,0.7)] hover:text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.08)]"
-                  }`}
+                  className={navItemClass(item.isActive)}
                 >
-                  <item.icon size={20} />
-                  <span className="font-medium">{item.label}</span>
+                  <item.icon size={16} className="shrink-0" />
+                  <span className="truncate text-[13px]">{item.label}</span>
                 </Link>
               ))}
             </nav>
 
-            <div className="px-4 pb-6 space-y-3 border-t border-[var(--border-soft)] pt-4">
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-[var(--border-soft)] text-[rgba(28,30,47,0.8)] hover:text-[var(--brand-primary)] hover:border-[rgba(79,70,186,0.3)] transition-all">
-                <span className="w-8 h-8 rounded-full bg-[rgba(132,232,244,0.5)] text-[var(--brand-primary)] flex items-center justify-center">
-                  <Plus size={16} />
+            <div className="space-y-1 border-t border-[var(--border-soft)] px-2.5 pb-4 pt-3">
+              <button className="flex w-full items-center gap-2.5 rounded-lg border border-[var(--border-soft)] px-3 py-2 text-[var(--brand-muted)] transition-colors hover:border-[var(--brand-primary)]/30 hover:text-[var(--brand-primary)]">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                  <Plus size={12} />
                 </span>
-                <span className="text-sm font-semibold">Invite a member</span>
+                <span className="text-[12px] font-medium">Invite</span>
               </button>
               <button
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[var(--brand-muted)] hover:text-[var(--brand-secondary)] hover:bg-[rgba(249,137,107,0.08)] transition-all"
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[var(--brand-muted)] transition-all hover:bg-red-50 hover:text-red-600"
                 onClick={async () => {
                   await signOut();
                   setIsMobileOpen(false);
@@ -238,8 +230,8 @@ export function Sidebar() {
                   router.navigate({ to: "/" });
                 }}
               >
-                <LogOut size={18} />
-                <span className="text-sm font-semibold">Sign out</span>
+                <LogOut size={14} />
+                <span className="text-[12px] font-medium">Sign out</span>
               </button>
             </div>
           </motion.aside>

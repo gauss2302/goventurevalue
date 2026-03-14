@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 
 @import 'tailwindcss';
 
@@ -19,29 +19,43 @@ code {
 }
 
 :root {
-  --font-sans: "Manrope", "Sora", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Sora", "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-script: "Caveat", "Sora", cursive;
+  /* Typography families — Sora for display, Manrope for body/UI */
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Sora", "Manrope", system-ui, -apple-system, sans-serif;
+
+  /* Brand palette */
   --brand-primary: #4f46ba;
   --brand-secondary: #f9896b;
   --brand-accent: #fdbc64;
-  --brand-ice: #84e8f4;
   --brand-ink: #1c1e2f;
   --brand-muted: #707a89;
-  --page: #fafafa;
-  --surface: #ffffff;
-  --surface-muted: #f6f6fc;
-  --surface-muted-border: #ededf7;
-  --border-soft: #e2e2e2;
-  --sidebar-expanded-width: 18rem;
-  --sidebar-collapsed-width: 5rem;
+  --brand-ice: #84e8f4;
+
+  /* Easing tokens — natural deceleration, no bounce */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Surfaces */
+  --page: #FFFFFF;
+  --surface: #FAFAFA;
+  --surface-2: #F4F6F8;
+  --surface-muted: #F4F6F8;
+  --surface-muted-border: #E6E8EC;
+  --border-soft: #E6E8EC;
+
+  /* Sidebar */
+  --sidebar-expanded-width: 14rem;
+  --sidebar-collapsed-width: 4rem;
   --sidebar-width: var(--sidebar-expanded-width);
+
+  /* Shadcn tokens */
   --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.145 0.005 285.823);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
+  --card-foreground: oklch(0.145 0.005 285.823);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
+  --popover-foreground: oklch(0.145 0.005 285.823);
   --primary: oklch(0.21 0.006 285.885);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.967 0.001 286.375);
@@ -52,6 +66,12 @@ code {
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
+  --success: #16A34A;
+  --success-foreground: #ffffff;
+  --warning: #F59E0B;
+  --warning-foreground: #ffffff;
+  --info: #3B82F6;
+  --info-foreground: #ffffff;
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.871 0.006 286.286);
@@ -60,10 +80,48 @@ code {
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+
+  /* Radius — ChronoTask style (larger, softer) */
   --radius: 0.625rem;
-  --card-radius: 1.5rem;
-  --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06);
-  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.05), 0 12px 28px rgba(0,0,0,0.08);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --card-radius: 24px;
+
+  /* Spacing (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* Type scale */
+  --text-display: 3.5rem;
+  --text-headline: 2.5rem;
+  --text-title1: 2rem;
+  --text-title2: 1.5rem;
+  --text-title3: 1.25rem;
+  --text-body: 1rem;
+  --text-callout: 0.9375rem;
+  --text-subheadline: 0.875rem;
+  --text-footnote: 0.8125rem;
+  --text-caption1: 0.75rem;
+  --text-caption2: 0.6875rem;
+
+  /* Shadows — soft, wide (ChronoTask signature) */
+  --shadow-sm: 0 6px 18px rgba(17, 24, 39, 0.06);
+  --shadow-md: 0 14px 30px rgba(17, 24, 39, 0.08);
+  --shadow-lg: 0 24px 50px rgba(17, 24, 39, 0.12);
+  --card-shadow: 0 6px 18px rgba(17, 24, 39, 0.06);
+  --card-shadow-hover: 0 14px 30px rgba(17, 24, 39, 0.08);
+
+  /* Sidebar shadcn */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: oklch(0.21 0.006 285.885);
@@ -91,6 +149,12 @@ code {
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
+  --success: #2dd4bf;
+  --success-foreground: #0f766e;
+  --warning: #fbbf24;
+  --warning-foreground: #1c1917;
+  --info: #60a5fa;
+  --info-foreground: #1e3a8a;
   --border: oklch(0.274 0.006 286.033);
   --input: oklch(0.274 0.006 286.033);
   --ring: oklch(0.442 0.017 285.786);
@@ -126,7 +190,34 @@ code {
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-9: var(--space-9);
+  --spacing-10: var(--space-10);
+  --font-size-display: var(--text-display);
+  --font-size-headline: var(--text-headline);
+  --font-size-title1: var(--text-title1);
+  --font-size-title2: var(--text-title2);
+  --font-size-title3: var(--text-title3);
+  --font-size-body: var(--text-body);
+  --font-size-callout: var(--text-callout);
+  --font-size-subheadline: var(--text-subheadline);
+  --font-size-footnote: var(--text-footnote);
+  --font-size-caption1: var(--text-caption1);
+  --font-size-caption2: var(--text-caption2);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
@@ -154,47 +245,93 @@ code {
   }
   body {
     @apply bg-background text-foreground;
-    /* Prevent overscroll/bounce behavior */
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
   }
   html {
-    /* Prevent overscroll/bounce behavior */
     overscroll-behavior: none;
     overflow-x: hidden;
   }
 }
 
-/* Floating animation for formulas */
+/* Dot pattern background utility */
+.bg-dot-pattern {
+  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Floating animation for decorative elements */
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-15px) rotate(1deg);
-  }
-  50% {
-    transform: translateY(-8px) rotate(0deg);
-  }
-  75% {
-    transform: translateY(-20px) rotate(-1deg);
-  }
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-15px) rotate(1deg); }
+  50% { transform: translateY(-8px) rotate(0deg); }
+  75% { transform: translateY(-20px) rotate(-1deg); }
 }
 
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
 
-/* Infinite scroll animation for formulas - left to right */
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(-1deg); }
+  50% { transform: translateY(-18px) rotate(0deg); }
+  75% { transform: translateY(-6px) rotate(1deg); }
+}
+
+.animate-float-delayed {
+  animation: float-delayed 7s ease-in-out infinite;
+}
+
 @keyframes scroll-left {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
 .animate-scroll-left {
   animation: scroll-left 30s linear infinite;
+}
+
+/* Responsive type scale — tablet */
+@media (max-width: 1199px) and (min-width: 768px) {
+  :root {
+    --text-display: 3rem;
+    --text-headline: 2.25rem;
+    --text-title1: 1.75rem;
+    --text-title2: 1.375rem;
+    --text-title3: 1.125rem;
+  }
+}
+
+/* Responsive type scale — mobile */
+@media (max-width: 767px) {
+  :root {
+    --text-display: 2.5rem;
+    --text-headline: 2rem;
+    --text-title1: 1.625rem;
+    --text-title2: 1.25rem;
+    --text-title3: 1.125rem;
+  }
+}
+
+/* Reduced motion — accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch target minimum for interactive elements on mobile */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

@@ -12,6 +12,7 @@ import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
 
 import type { QueryClient } from "@tanstack/react-query";
+import { getRootAuth } from "@/lib/auth/rootAuth";
 import { logger } from "@/lib/logger";
 
 interface MyRouterContext {
@@ -24,13 +25,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     if (!import.meta.env.SSR) {
       return { isAuthenticated: false };
     }
-
-    const { getRequestHeaders } = await import("@tanstack/react-start/server");
-    const { getServerSession } = await import("@/lib/auth/server");
-
-    const headers = getRequestHeaders();
-    const session = await getServerSession(headers);
-    return { isAuthenticated: !!session?.user };
+    const { isAuthenticated } = await getRootAuth();
+    return { isAuthenticated };
   },
   head: () => ({
     meta: [
@@ -42,7 +38,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Financial Modeling SaaS",
+        title: "Havamind — Financial modeling & pitch decks for investors",
       },
     ],
     links: [
@@ -59,7 +55,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const router = useRouterState();
-  const pathname = router.location.pathname;
+  const pathname = router?.location?.pathname ?? "/";
 
   // Safely get route context with fallback
   let isAuthenticated = false;
@@ -74,6 +70,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
   const hideHeader =
     pathname.startsWith("/auth/") ||
+    pathname.startsWith("/billing/") ||
     (pathname === "/" && !isAuthenticated) ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/models") ||
@@ -98,20 +95,28 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function NotFoundComponent() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[var(--page)] flex items-center justify-center px-[var(--space-4)]">
       <div className="text-center max-w-md">
-        <div className="mb-6">
-          <h1 className="text-9xl font-bold text-emerald-600">404</h1>
+        <div className="mb-[var(--space-5)]">
+          <h1
+            className="text-[var(--text-display)] text-[var(--brand-primary)]"
+            style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "8rem", lineHeight: 1 }}
+          >
+            404
+          </h1>
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+        <h2
+          className="text-[var(--text-title1)] text-[var(--brand-ink)] mb-[var(--space-4)]"
+          style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
+        >
           Page Not Found
         </h2>
-        <p className="text-gray-600 mb-8">
-          The page you're looking for doesn't exist or has been moved.
+        <p className="text-[var(--text-body)] text-[var(--brand-muted)] mb-[var(--space-6)]">
+          The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
         <Link
           to="/"
-          className="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors"
+          className="inline-flex items-center px-[var(--space-5)] py-[var(--space-3)] bg-[var(--brand-primary)] hover:bg-[#1565D8] text-white font-semibold rounded-full transition-all shadow-[0_4px_14px_rgba(27,118,252,0.25)] hover:shadow-[0_6px_20px_rgba(27,118,252,0.3)]"
         >
           Go Back Home
         </Link>

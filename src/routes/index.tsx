@@ -5,8 +5,10 @@ import { logger } from "@/lib/logger";
 
 export const Route = createFileRoute("/")({
   component: Home,
-  loader: async () => {
+  loader: async ({ location }) => {
     try {
+      // Guard: location may be undefined in some SSR/request edge cases
+      if (location == null) return null;
       const session = await getSessionForLoader();
       if (session?.user) {
         throw redirect({ to: "/dashboard" });

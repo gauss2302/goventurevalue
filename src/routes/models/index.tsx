@@ -6,20 +6,25 @@ import { Sidebar } from "../../components/Sidebar";
 import type { Model } from "../../components/ModelList";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 
+const toNum = (v: string | null): number | null =>
+  v == null ? null : (Number.isFinite(Number(v)) ? Number(v) : null);
+
 const loadModels = createServerFn({ method: "GET" }).handler(async () => {
   const [
     { getRequestHeaders },
     { requireAuthFromHeaders },
     { db },
-    { financialModels },
+    schema,
     { eq, desc },
   ] = await Promise.all([
     import("@tanstack/react-start/server"),
-    import("@/lib/auth/requireAuth"),
+    import("@/lib/auth/server"),
     import("@/db/index"),
     import("@/db/schema"),
     import("drizzle-orm"),
   ]);
+
+  const { financialModels, modelMonthlyMetrics, modelMetrics } = schema;
 
   const headers = getRequestHeaders();
   const session = await requireAuthFromHeaders(headers);
@@ -28,15 +33,51 @@ const loadModels = createServerFn({ method: "GET" }).handler(async () => {
     where: eq(financialModels.userId, session.user.id),
     orderBy: [desc(financialModels.updatedAt)],
   });
+  const modelIds = models.map((m) => m.id);
+  if (modelIds.length === 0) {
+    return [] as Model[];
+  }
 
-  return models.map((m) => ({
-    id: m.id,
-    name: m.name,
-    companyName: m.companyName,
-    description: m.description,
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-  }));
+  const { inArray } = await import("drizzle-orm");
+  const monthlyRows = await db.query.modelMonthlyMetrics.findMany({
+    where: inArray(modelMonthlyMetrics.modelId, modelIds),
+    columns: { modelId: true, month: true, mrr: true },
+    orderBy: [desc(modelMonthlyMetrics.month)],
+  });
+  const latestMrrByModel = new Map<number, number>();
+  for (const row of monthlyRows) {
+    if (!latestMrrByModel.has(row.modelId)) {
+      const n = toNum(row.mrr);
+      if (n != null) latestMrrByModel.set(row.modelId, n);
+    }
+  }
+
+  const metricsRows = await db.query.modelMetrics.findMany({
+    where: inArray(modelMetrics.modelId, modelIds),
+    columns: { modelId: true, arr: true },
+  });
+  const arrByModel = new Map<number, number | null>();
+  for (const row of metricsRows) {
+    const n = toNum(row.arr);
+    arrByModel.set(row.modelId, n);
+  }
+
+  return models.map((m) => {
+    const latestMrr = latestMrrByModel.get(m.id);
+    const arrFallback = arrByModel.get(m.id);
+    const latestArr =
+      latestMrr != null ? latestMrr * 12 : (arrFallback ?? null);
+    return {
+      id: m.id,
+      name: m.name,
+      companyName: m.companyName,
+      description: m.description,
+      stage: m.stage ?? null,
+      latestArr: latestArr != null && Number.isFinite(latestArr) ? latestArr : null,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+    };
+  }) as Model[];
 });
 
 const modelsQueryOptions = () => ({

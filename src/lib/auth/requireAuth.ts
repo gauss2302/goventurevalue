@@ -1,39 +1,28 @@
 import { redirect } from "@tanstack/react-router";
 import type { ParsedLocation } from "@tanstack/react-router";
 
-const isSafeNextPath = (next: string | null | undefined) => {
-  if (!next) return false;
-  if (!next.startsWith("/")) return false;
-  if (next.startsWith("//")) return false;
-  if (next.includes("://")) return false;
-  return true;
-};
+import { getSession } from "@/lib/auth/rootAuth";
 
 const getNextFromLocation = (location: ParsedLocation | null | undefined) => {
   const next = location?.href;
-  return isSafeNextPath(next) ? next : null;
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("://")) {
+    return null;
+  }
+  return next;
 };
 
-const extractSession = (result: any) => {
+const extractSession = (result: unknown) => {
   if (!result) return null;
-  if (typeof result === "object" && "data" in result) {
-    return (result as { data?: any }).data ?? null;
+  if (typeof result === "object" && result !== null && "data" in result) {
+    return (result as { data?: unknown }).data ?? null;
   }
   return result;
 };
 
-const getServerSessionSafe = async (headers: Headers) => {
-  const { getServerSession } = await import("@/lib/auth/server");
-  return getServerSession(headers);
-};
-
 export const getSessionForLoader = async () => {
-  if (typeof window === "undefined") {
-    const { getRequestHeaders } = await import("@tanstack/react-start/server");
-    const headers = getRequestHeaders();
-    return getServerSessionSafe(headers);
+  if (import.meta.env.SSR) {
+    return getSession();
   }
-
   const { authClient } = await import("@/lib/auth/client");
   const result = await authClient.getSession();
   return extractSession(result);
@@ -41,26 +30,6 @@ export const getSessionForLoader = async () => {
 
 export const requireAuthForLoader = async (location: ParsedLocation) => {
   const session = await getSessionForLoader();
-  if (!session?.user) {
-    const next = getNextFromLocation(location) || "/dashboard";
-    throw redirect({ to: "/auth/signin", search: { next } });
-  }
-  return session;
-};
-
-export const requireAuthFromHeaders = async (headers: Headers) => {
-  const session = await getServerSessionSafe(headers);
-  if (!session?.user) {
-    throw new Error("Unauthorized");
-  }
-  return session;
-};
-
-export const requireAuthFromHeadersAndLocation = async (
-  headers: Headers,
-  location: ParsedLocation,
-) => {
-  const session = await getServerSessionSafe(headers);
   if (!session?.user) {
     const next = getNextFromLocation(location) || "/dashboard";
     throw redirect({ to: "/auth/signin", search: { next } });

@@ -12,65 +12,67 @@ const formatRelativeTime = (date: Date) => {
   const diffMs = Date.now() - date.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);
   if (diffMinutes < 1) return "just now";
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
   const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return date.toLocaleDateString();
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
 export function RecentActivity({ activities }: { activities: ActivityItem[] }) {
   if (activities.length === 0) {
     return (
-      <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
-        <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
+      <div className="rounded-lg border border-[var(--border-soft)] bg-white p-3 shadow-[var(--shadow-sm)]">
+        <h3
+          className="text-[12px] font-semibold text-[var(--brand-ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
           Recent Activity
         </h3>
-        <p className="text-sm text-[var(--brand-muted)]">
-          No recent updates yet. Create your first model to see activity here.
+        <p className="mt-1 text-[11px] text-[var(--brand-muted)]">
+          No activity yet. Create a model to get started.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
+    <div className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)]">
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <h3
+          className="text-[12px] font-semibold text-[var(--brand-ink)]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
           Recent Activity
         </h3>
         <Link
           to="/models"
-          className="text-sm text-[var(--brand-primary)] hover:text-[var(--brand-secondary)] flex items-center gap-1"
+          className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--brand-primary)] hover:underline"
         >
-          View all <ArrowRight size={14} />
+          All <ArrowRight size={9} />
         </Link>
       </div>
-      <div className="space-y-6">
-        {activities.map((activity) => (
-          <div
-            key={activity.id}
-            className="relative pl-6 pb-6 last:pb-0 border-l-2 border-[var(--surface-muted-border)] last:border-0 border-solid"
-          >
-            <div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-[var(--brand-primary)] ring-4 ring-white" />
-            <div className="flex flex-col gap-1">
-              <p className="text-sm text-[var(--brand-muted)]">
-                <span className="font-semibold text-[var(--brand-ink)]">
-                  {activity.action}
-                </span>
-                {" - "}
-                <span className="text-[var(--brand-primary)]">
-                  {activity.target}
-                </span>
+      <div className="border-t border-[var(--border-soft)] px-3 py-2.5">
+        <div className="space-y-2.5">
+          {activities.map((activity) => (
+            <div
+              key={activity.id}
+              className="relative border-l-2 border-[var(--border-soft)] pl-3 last:border-transparent"
+            >
+              <div className="absolute -left-[3.5px] top-0.5 h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)] ring-2 ring-white" />
+              <p className="text-[11px] text-[var(--brand-muted)]">
+                <span className="font-medium text-[var(--brand-ink)]">{activity.action}</span>
+                {" \u2014 "}
+                <span className="text-[var(--brand-primary)]">{activity.target}</span>
               </p>
-              <div className="flex items-center gap-1 text-xs text-[var(--brand-muted)]">
-                <Clock size={12} />
-                <span>{formatRelativeTime(new Date(activity.at))}</span>
+              <div className="mt-0.5 flex items-center gap-0.5 text-[9px] text-[var(--brand-muted)]">
+                <Clock size={8} />
+                {formatRelativeTime(new Date(activity.at))}
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

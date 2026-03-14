@@ -34,12 +34,12 @@ export type ModelContextSummary = {
     userGrowth: number;
     arpu: number;
     churnRate: number;
-    farmerGrowth: number;
+    expansionRate: number;
+    grossMarginTarget: number;
     cac: number;
   };
   keySettings?: {
     startUsers: number;
-    startFarmers: number;
     taxRate: number;
     discountRate: number;
     terminalGrowth: number;

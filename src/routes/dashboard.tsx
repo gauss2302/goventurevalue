@@ -6,9 +6,9 @@ import { toast } from "sonner";
 import { Sidebar } from "../components/Sidebar";
 import { DashboardStats } from "../components/DashboardStats";
 import { RecentActivity } from "../components/RecentActivity";
-import { QuickActions } from "../components/QuickActions";
 import ModelList from "../components/ModelList";
 import type { Model } from "../components/ModelList";
+import { Button } from "@/components/ui/button";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 import { openBillingPortal, startBillingCheckout } from "@/lib/billing/serverFns";
 import type { PresentationStatus } from "@/lib/dto";
@@ -53,7 +53,7 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
     { eq, desc, sql, and },
   ] = await Promise.all([
     import("@tanstack/react-start/server"),
-    import("@/lib/auth/requireAuth"),
+    import("@/lib/auth/server"),
     import("@/db/index"),
     import("@/db/schema"),
     import("drizzle-orm"),
@@ -204,10 +204,10 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 const statusClassName: Record<PresentationStatus, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  generating: "bg-blue-100 text-blue-700",
-  ready: "bg-green-100 text-green-700",
-  failed: "bg-red-100 text-red-700",
+  draft: "bg-[var(--surface-2)] text-[var(--brand-muted)]",
+  generating: "bg-blue-50 text-[var(--brand-primary)]",
+  ready: "bg-green-50 text-green-600",
+  failed: "bg-red-50 text-red-600",
 };
 
 function Dashboard() {
@@ -217,16 +217,16 @@ function Dashboard() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-[var(--brand-muted)]">Loading dashboard...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--page)]">
+        <div className="text-[13px] text-[var(--brand-muted)]">Loading dashboard...</div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-red-600">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--page)]">
+        <div className="text-[13px] text-red-600">
           Failed to load dashboard. Please refresh the page.
         </div>
       </div>
@@ -237,7 +237,7 @@ function Dashboard() {
     models,
     user,
     stats,
-    lastLoginAt,
+    lastLoginAt: _lastLoginAt,
     activities,
     pitchDecks,
   } = data;
@@ -253,61 +253,44 @@ function Dashboard() {
 
   const numberFormat = new Intl.NumberFormat();
   const formatDateShort = (value: string | null) => {
-    if (!value) return "—";
+    if (!value) return "\u2014";
     const date = new Date(value);
     return date.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
-      year: "numeric",
     });
-  };
-  const formatLastLogin = (value: string | null) => {
-    if (!value) return "Last login: —";
-    const date = new Date(value);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    const isYesterday = date.toDateString() === yesterday.toDateString();
-    const time = date.toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    if (isToday) return `Last login: Today, ${time}`;
-    if (isYesterday) return `Last login: Yesterday, ${time}`;
-    return `Last login: ${date.toLocaleDateString()}, ${time}`;
   };
 
   const statsData = [
     {
-      label: "Total Models",
+      label: "Models",
       value: numberFormat.format(stats.modelsCount),
-      helper: "Financial models",
+      helper: "Financial",
       tone: "primary" as const,
     },
     {
-      label: "Active Scenarios",
+      label: "Scenarios",
       value: numberFormat.format(stats.scenariosCount),
-      helper: "Across models",
+      helper: "Active",
       tone: "secondary" as const,
     },
     {
       label: "Starting Users",
       value: numberFormat.format(stats.totalStartingUsers),
-      helper: "Initial cohorts",
+      helper: "Cohorts",
       tone: "ice" as const,
     },
     {
       label: "Last Update",
       value: formatDateShort(stats.lastModelUpdatedAt),
-      helper: "Most recent model",
+      helper: "Recent",
       tone: "accent" as const,
     },
   ];
 
   const formatCompact = (value: number) =>
     new Intl.NumberFormat(undefined, { notation: "compact" }).format(value);
-  const planLabel = user.plan === "pro" ? "Pro plan" : "Free plan";
+  const planLabel = user.plan === "pro" ? "Pro" : "Free";
 
   const handleStartCheckout = async () => {
     try {
@@ -338,209 +321,247 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
+    <div className="min-h-screen bg-[var(--surface)] text-[var(--brand-ink)]">
       <Sidebar />
 
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="relative px-6 py-8 lg:px-10 max-w-[1200px] mx-auto">
-          <div className="pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.12),transparent_70%)] blur-3xl" />
-          <div className="pointer-events-none absolute top-40 -left-16 h-60 w-60 rounded-full bg-[radial-gradient(circle,rgba(249,137,107,0.12),transparent_70%)] blur-3xl" />
-
+      <main className="relative transition-[margin] duration-300 md:ml-[var(--sidebar-width)]">
+        <div className="relative mx-auto max-w-[1200px] px-3 py-4 lg:px-4">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.04, delayChildren: 0.03 },
+              },
+            }}
+            className="relative space-y-4"
           >
-            <div className="space-y-8">
-              {/* Header */}
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                    Dashboard
-                  </p>
-                  <h1 className="text-3xl lg:text-4xl font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
-                    Valuation Command Center
-                  </h1>
-                  <p className="text-[var(--brand-muted)]">
-                    {`Welcome back${user.name ? `, ${user.name}` : ""}. Track your models, scenarios, and momentum at a glance.`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="px-4 py-2.5 bg-white rounded-full text-sm text-[var(--brand-muted)] border border-[var(--border-soft)] shadow-[var(--card-shadow)]">
-                    {formatLastLogin(lastLoginAt)}
-                  </div>
-                  <Link
-                    to="/models/new"
-                    className="px-5 py-2.5 rounded-full bg-[var(--brand-primary)] text-white text-sm font-semibold shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)] transition-shadow"
-                  >
-                    New model
-                  </Link>
-                </div>
+            {/* ── Application header: title + controls ── */}
+            <motion.header
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+              }}
+              className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <h1
+                className="text-base font-bold text-[var(--brand-ink)]"
+                style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
+              >
+                Dashboard
+              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-[var(--border-soft)] bg-white px-2.5 py-1.5 text-[11px] text-[var(--brand-muted)]">
+                  {formatDateShort(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())} – {formatDateShort(new Date().toISOString())}
+                </span>
+                <Button variant="outline" size="sm" className="h-7 rounded-md px-2.5 text-[11px]">
+                  Export
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 shrink-0 rounded-full bg-[var(--brand-primary)] px-2.5 text-[11px] font-semibold text-white shadow-[0_4px_14px_rgba(27,118,252,0.25)] hover:bg-[#1565D8]"
+                  asChild
+                >
+                  <Link to="/models/new">+ New model</Link>
+                </Button>
               </div>
+            </motion.header>
 
-              {/* Stats Overview */}
-              <DashboardStats stats={statsData} />
+            {/* ── Row 1: 3 KPI cards ── */}
+            <motion.div
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+              }}
+            >
+              <DashboardStats stats={statsData.slice(0, 3)} />
+            </motion.div>
 
-              {/* Quick Actions */}
-              <QuickActions />
-
-              {/* My Pitch decks */}
-              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                      Studio
-                    </p>
-                    <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
-                      My Pitch decks
-                    </h3>
-                  </div>
-                  <Link
-                    to={"/pitch-decks/new" as any}
-                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+            {/* ── Row 2: 2/3 + 1/3 — Pitch Decks (left), Profile / Subscriber (right) ── */}
+            <motion.div
+              className="grid gap-4 lg:grid-cols-3"
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+              }}
+            >
+              <section className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)] lg:col-span-2">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <h2
+                    className="text-[14px] text-[var(--brand-ink)]"
+                    style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
                   >
-                    New deck
-                  </Link>
+                    Pitch Decks
+                  </h2>
+                  <Button
+                    size="sm"
+                    className="h-6 rounded-full bg-[var(--brand-primary)] px-2.5 text-[11px] font-semibold text-white hover:bg-[#1565D8]"
+                    asChild
+                  >
+                    <Link to={"/pitch-decks/new" as any}>New deck</Link>
+                  </Button>
                 </div>
-                {pitchDecks.length === 0 ? (
-                  <>
-                    <p className="text-sm text-[var(--brand-muted)] mb-4">
-                      No pitch decks yet. Create your first AI-generated deck to share with investors.
+                <div className="border-t border-[var(--border-soft)] px-4 py-3">
+                  {pitchDecks.length === 0 ? (
+                    <p className="text-[13px] text-[var(--brand-muted)]">
+                      No pitch decks yet.{" "}
+                      <Link to={"/pitch-decks/new" as any} className="font-semibold text-[var(--brand-primary)] hover:underline">
+                        Create your first deck
+                      </Link>
                     </p>
-                    <Link
-                      to={"/pitch-decks/new" as any}
-                      className="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-[var(--border-soft)] text-[var(--brand-ink)] text-sm font-semibold hover:bg-[var(--surface-muted)] transition-colors"
-                    >
-                      Create first deck
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <ul className="space-y-3">
+                  ) : (
+                    <div className="space-y-1.5">
                       {pitchDecks.map((deck) => (
-                        <li key={deck.id}>
-                          <Link
-                            to={"/pitch-decks/$deckId" as any}
-                            params={{ deckId: String(deck.id) } as any}
-                            className="flex items-center justify-between rounded-2xl border border-[var(--border-soft)] px-4 py-3 hover:border-[var(--brand-primary)]/30 hover:bg-[var(--surface-muted)]/50 transition-colors"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-[var(--brand-ink)] truncate">
-                                {deck.title}
-                              </p>
-                              <p className="text-xs text-[var(--brand-muted)] truncate">
-                                {deck.startupName}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-3 ml-3 flex-shrink-0">
-                              <span
-                                className={`text-xs px-2 py-1 rounded-full ${statusClassName[deck.status] ?? statusClassName.draft}`}
-                              >
-                                {deck.status}
-                              </span>
-                              <span className="text-xs text-[var(--brand-muted)]">
-                                {new Date(deck.updatedAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </Link>
-                        </li>
+                        <Link
+                          key={deck.id}
+                          to={"/pitch-decks/$deckId" as any}
+                          params={{ deckId: String(deck.id) } as any}
+                          className="flex items-center justify-between rounded-md px-2.5 py-1.5 transition-colors hover:bg-[var(--surface)]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-medium text-[var(--brand-ink)]">
+                              {deck.title}
+                            </p>
+                            <p className="truncate text-[11px] text-[var(--brand-muted)]">
+                              {deck.startupName}
+                            </p>
+                          </div>
+                          <div className="ml-3 flex shrink-0 items-center gap-2">
+                            <span
+                              className={`rounded-full px-2 py-px text-[10px] font-medium ${statusClassName[deck.status] ?? statusClassName.draft}`}
+                            >
+                              {deck.status}
+                            </span>
+                            <span className="text-[11px] tabular-nums text-[var(--brand-muted)]">
+                              {new Date(deck.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+                        </Link>
                       ))}
-                    </ul>
-                    <Link
-                      to={"/pitch-decks" as any}
-                      className="mt-4 inline-block text-sm font-semibold text-[var(--brand-primary)] hover:underline"
-                    >
-                      View all
-                    </Link>
-                  </>
-                )}
-              </div>
+                      <Link
+                        to={"/pitch-decks" as any}
+                        className="mt-2 inline-block text-xs font-semibold text-[var(--brand-primary)] hover:underline"
+                      >
+                        View all decks
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </section>
 
-              {/* Models */}
-              <ModelList models={models} />
-            </div>
-
-            {/* Right Sidebar */}
-            <aside className="space-y-6">
-              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)]">
-                <div className="flex flex-col items-center text-center gap-4">
-                  <div className="w-20 h-20 rounded-3xl bg-[linear-gradient(135deg,rgba(79,70,186,0.2),rgba(249,137,107,0.2))] flex items-center justify-center text-[var(--brand-primary)] font-[var(--font-display)] text-lg">
+              <div className="rounded-lg border border-[var(--border-soft)] bg-white p-3 shadow-[var(--shadow-sm)]">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-[var(--brand-primary)]"
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      background: "linear-gradient(135deg, rgba(27,118,252,0.12), rgba(54,201,249,0.12))",
+                    }}
+                  >
                     {initials}
                   </div>
-                  <h4 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
-                    {user.name || "Founder"}
-                  </h4>
-                  <p className="text-xs text-[var(--brand-muted)]">
-                    {user.email || "No email set"}
-                  </p>
-                  <p className="text-xs font-semibold text-[var(--brand-primary)]">
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="truncate text-[12px] font-semibold text-[var(--brand-ink)]"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {user.name || "Founder"}
+                    </p>
+                    <p className="truncate text-[10px] text-[var(--brand-muted)]">
+                      {user.email || "No email set"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[var(--brand-primary)]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--brand-primary)]">
                     {planLabel}
-                  </p>
+                  </span>
                 </div>
-                <div className="grid grid-cols-3 gap-4 mt-5 text-center">
+                <div className="mt-2.5 grid grid-cols-3 gap-1.5 rounded-md bg-[var(--surface)] p-2 text-center">
                   <div>
-                    <p className="text-base font-semibold text-[var(--brand-ink)]">
+                    <p className="text-xs font-semibold tabular-nums text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
                       {numberFormat.format(stats.modelsCount)}
                     </p>
-                    <p className="text-xs text-[var(--brand-muted)]">Models</p>
+                    <p className="text-[9px] text-[var(--brand-muted)]">Models</p>
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-[var(--brand-ink)]">
+                    <p className="text-xs font-semibold tabular-nums text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
                       {numberFormat.format(stats.scenariosCount)}
                     </p>
-                    <p className="text-xs text-[var(--brand-muted)]">Scenarios</p>
+                    <p className="text-[9px] text-[var(--brand-muted)]">Scenarios</p>
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-[var(--brand-ink)]">
+                    <p className="text-xs font-semibold tabular-nums text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
                       {formatCompact(stats.totalStartingUsers)}
                     </p>
-                    <p className="text-xs text-[var(--brand-muted)]">
-                      Starting users
-                    </p>
+                    <p className="text-[9px] text-[var(--brand-muted)]">Users</p>
                   </div>
                 </div>
-                <div className="mt-5 flex gap-3">
-                  <button
+                <div className="mt-2.5 flex gap-1.5">
+                  <Button
                     type="button"
+                    size="sm"
+                    className="h-7 flex-1 rounded-md bg-[var(--brand-primary)] text-[11px] font-semibold text-white hover:bg-[#1565D8]"
                     onClick={handleStartCheckout}
-                    className="flex-1 rounded-2xl bg-[var(--brand-primary)] text-white py-2.5 text-xs font-semibold shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)] transition-shadow"
                   >
                     {user.plan === "pro" ? "Change plan" : "Upgrade"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 flex-1 rounded-md text-[11px]"
                     onClick={handleOpenPortal}
-                    className="flex-1 rounded-2xl border border-[var(--border-soft)] text-[var(--brand-ink)] py-2.5 text-xs font-semibold hover:bg-[var(--surface-muted)] transition-colors"
                   >
-                    Manage billing
-                  </button>
+                    Billing
+                  </Button>
                 </div>
               </div>
+            </motion.div>
 
-              <RecentActivity activities={activities} />
-
-              <div className="bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] p-6 shadow-[var(--card-shadow)] space-y-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
+            {/* ── Row 3: 1/2 + 1/2 — Distribution / Next steps (left), Model list (right) ── */}
+            <motion.div
+              className="grid gap-4 lg:grid-cols-2"
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+              }}
+            >
+              <div className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)]">
+                <div className="px-3 py-2.5">
+                  <h3
+                    className="text-[12px] font-semibold text-[var(--brand-ink)]"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
                     Next steps
-                  </p>
-                  <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
-                    Polish your model
                   </h3>
                 </div>
-                <div className="space-y-3 text-sm text-[var(--brand-muted)]">
-                  <div className="flex items-center justify-between rounded-2xl border border-[var(--border-soft)] px-4 py-2.5 hover:bg-[var(--surface-muted)] transition-colors">
-                    <span>Upload your logo</span>
-                    <span className="text-[var(--brand-primary)] font-semibold">Add</span>
+                <div className="space-y-px border-t border-[var(--border-soft)]">
+                  <div className="flex items-center justify-between px-3 py-2 transition-colors hover:bg-[var(--surface)]">
+                    <span className="truncate text-[12px] text-[var(--brand-muted)]">Upload your logo</span>
+                    <span className="ml-2 shrink-0 text-[10px] font-semibold text-[var(--brand-primary)]">Add</span>
                   </div>
-                  <div className="flex items-center justify-between rounded-2xl border border-[var(--border-soft)] px-4 py-2.5 hover:bg-[var(--surface-muted)] transition-colors">
-                    <span>Set default currency</span>
-                    <span className="text-[var(--brand-primary)] font-semibold">Update</span>
+                  <div className="flex items-center justify-between px-3 py-2 transition-colors hover:bg-[var(--surface)]">
+                    <span className="truncate text-[12px] text-[var(--brand-muted)]">Set default currency</span>
+                    <span className="ml-2 shrink-0 text-[10px] font-semibold text-[var(--brand-primary)]">Update</span>
                   </div>
                 </div>
               </div>
-            </aside>
+
+              <div className="lg:min-w-0">
+                <ModelList models={models} />
+              </div>
+            </motion.div>
+
+            {/* ── Recent activity (full width below row 3) ── */}
+            <motion.div
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+              }}
+            >
+              <RecentActivity activities={activities} />
+            </motion.div>
           </motion.div>
         </div>
       </main>

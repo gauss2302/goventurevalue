@@ -10,7 +10,8 @@ type ScenarioRow = {
   userGrowth: string;
   arpu: string;
   churnRate: string;
-  farmerGrowth: string;
+  expansionRate: string;
+  grossMarginTarget: string;
   cac: string;
   updatedAt: string;
 };
@@ -26,7 +27,7 @@ const loadScenarioCompare = createServerFn({ method: "GET" })
       { eq, and, desc },
     ] = await Promise.all([
       import("@tanstack/react-start/server"),
-      import("@/lib/auth/requireAuth"),
+      import("@/lib/auth/server"),
       import("@/db/index"),
       import("@/db/schema"),
       import("drizzle-orm"),
@@ -64,7 +65,8 @@ const loadScenarioCompare = createServerFn({ method: "GET" })
         userGrowth: scenario.userGrowth,
         arpu: scenario.arpu,
         churnRate: scenario.churnRate,
-        farmerGrowth: scenario.farmerGrowth,
+        expansionRate: scenario.expansionRate ?? "0",
+        grossMarginTarget: scenario.grossMarginTarget ?? "0.7",
         cac: scenario.cac,
         updatedAt: scenario.updatedAt.toISOString(),
       })) satisfies ScenarioRow[],
@@ -157,8 +159,13 @@ function ScenarioComparePage() {
       format: formatPercent,
     },
     {
-      label: "Farmer growth",
-      key: "farmerGrowth" as const,
+      label: "Expansion rate",
+      key: "expansionRate" as const,
+      format: formatPercent,
+    },
+    {
+      label: "Gross margin",
+      key: "grossMarginTarget" as const,
       format: formatPercent,
     },
     {

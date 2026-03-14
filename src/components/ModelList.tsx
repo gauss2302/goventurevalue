@@ -1,11 +1,14 @@
 import { Link } from '@tanstack/react-router'
 import { Plus, FileText, Calendar } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export type Model = {
   id: number
   name: string
   companyName: string | null
   description: string | null
+  stage: 'idea' | 'early_growth' | 'scale' | null
+  latestArr: number | null
   createdAt: Date
   updatedAt: Date
 }
@@ -17,80 +20,109 @@ type ModelListProps = {
 export default function ModelList({ models }: ModelListProps) {
   if (models.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-[var(--card-radius)] border border-[var(--border-soft)] shadow-[var(--card-shadow)]">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-[rgba(79,70,186,0.12)]">
-          <FileText className="w-8 h-8 text-[var(--brand-primary)]" />
+      <div className="rounded-lg border border-[var(--border-soft)] bg-white py-8 text-center shadow-[var(--shadow-sm)]">
+        <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--brand-primary)]/10">
+          <FileText className="h-5 w-5 text-[var(--brand-primary)]" />
         </div>
-        <h3 className="text-xl font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
+        <h3
+          className="text-[14px] text-[var(--brand-ink)]"
+          style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+        >
           No financial models yet
         </h3>
-        <p className="text-[var(--brand-muted)] mb-6">
-          Create your first financial model to get started
+        <p className="mt-0.5 text-[12px] text-[var(--brand-muted)]">
+          Create your first model to get started
         </p>
-        <Link
-          to="/models/new"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-2xl transition-all shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)]"
+        <Button
+          size="sm"
+          className="mt-3 rounded-full bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white shadow-[0_4px_14px_rgba(27,118,252,0.25)] hover:bg-[#1565D8]"
+          asChild
         >
-          <Plus size={20} />
-          Create New Model
-        </Link>
+          <Link to="/models/new">
+            <Plus size={14} />
+            Create Model
+          </Link>
+        </Button>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-[var(--font-display)] text-[var(--brand-ink)]">
-            Your Financial Models
-          </h2>
-          <p className="text-sm text-[var(--brand-muted)]">
-            Track updates, scenarios, and latest revisions
-          </p>
-        </div>
-        <Link
-          to="/models/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white rounded-2xl transition-all shadow-[0_4px_14px_rgba(79,70,186,0.25)] hover:shadow-[0_6px_20px_rgba(79,70,186,0.3)]"
+    <section className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)]">
+      <div className="flex items-center justify-between px-4 py-3">
+        <h2
+          className="text-[14px] text-[var(--brand-ink)]"
+          style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
         >
-          <Plus size={18} />
-          New Model
-        </Link>
+          Financial Models
+        </h2>
+        <Button
+          size="sm"
+          className="h-6 rounded-full bg-[var(--brand-primary)] px-2.5 text-[11px] font-semibold text-white hover:bg-[#1565D8]"
+          asChild
+        >
+          <Link to="/models/new">
+            <Plus size={12} />
+            New
+          </Link>
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-px border-t border-[var(--border-soft)] bg-[var(--border-soft)] sm:grid-cols-2">
         {models.map((model) => (
           <Link
             key={model.id}
             to="/models/$modelId"
             params={{ modelId: model.id.toString() }}
-            className="group block p-6 bg-white border border-[var(--border-soft)] rounded-[var(--card-radius)] shadow-[var(--card-shadow)] hover:border-[rgba(79,70,186,0.35)] hover:shadow-[var(--card-shadow-hover)] transition-all duration-200"
+            className="group bg-white p-3 transition-colors hover:bg-[var(--surface)]"
           >
-            <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-2 group-hover:text-[var(--brand-primary)] transition-colors">
-              {model.name}
-            </h3>
+            <div className="flex items-start justify-between gap-2">
+              <h3
+                className="truncate text-[12px] font-semibold text-[var(--brand-ink)] group-hover:text-[var(--brand-primary)] flex-1 min-w-0"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {model.name}
+              </h3>
+              {model.stage != null && (
+                <span
+                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
+                  title={model.stage === "idea" ? "Idea / Pre-seed" : model.stage === "early_growth" ? "Early growth / Seed" : "Scale / Series A"}
+                >
+                  {model.stage === "idea" ? "Idea" : model.stage === "early_growth" ? "Seed" : "Scale"}
+                </span>
+              )}
+            </div>
             {model.companyName && (
-              <p className="text-sm text-[var(--brand-muted)] mb-2">
+              <p className="mt-0.5 truncate text-[12px] text-[var(--brand-muted)]">
                 {model.companyName}
               </p>
             )}
             {model.description && (
-              <p className="text-sm text-[rgba(112,122,137,0.8)] mb-4 line-clamp-2">
+              <p className="mt-1 line-clamp-1 text-[12px] text-[var(--brand-muted)]/70">
                 {model.description}
               </p>
             )}
-            <div className="flex items-center justify-between text-xs text-[var(--brand-muted)] mt-auto">
-              <span className="inline-flex items-center gap-2">
-                <Calendar size={14} />
-                Updated {new Date(model.updatedAt).toLocaleDateString()}
+            {(model.latestArr != null || model.stage != null) && (
+              <p className="mt-1 text-[11px] text-[var(--brand-muted)]">
+                {model.latestArr != null && (
+                  <span className="font-semibold text-[var(--brand-ink)]">
+                    ARR {new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(model.latestArr)}
+                  </span>
+                )}
+              </p>
+            )}
+            <div className="mt-1.5 flex items-center justify-between text-[10px] text-[var(--brand-muted)]">
+              <span className="inline-flex items-center gap-0.5">
+                <Calendar size={9} />
+                {new Date(model.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
               </span>
-              <span className="text-[var(--brand-primary)] font-medium">
+              <span className="font-semibold text-[var(--brand-primary)] opacity-0 transition-opacity group-hover:opacity-100">
                 Open
               </span>
             </div>
           </Link>
         ))}
       </div>
-    </div>
+    </section>
   )
 }

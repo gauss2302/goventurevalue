@@ -19,6 +19,7 @@ import { Route as PitchDecksNewRouteImport } from './routes/pitch-decks/new'
 import { Route as PitchDecksDeckIdRouteImport } from './routes/pitch-decks/$deckId'
 import { Route as ModelsNewRouteImport } from './routes/models/new'
 import { Route as ModelsModelIdRouteImport } from './routes/models/$modelId'
+import { Route as BillingSuccessRouteImport } from './routes/billing/success'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
@@ -76,6 +77,11 @@ const ModelsModelIdRoute = ModelsModelIdRouteImport.update({
   path: '/models/$modelId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BillingSuccessRoute = BillingSuccessRouteImport.update({
+  id: '/billing/success',
+  path: '/billing/success',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSignupRoute = AuthSignupRouteImport.update({
   id: '/auth/signup',
   path: '/auth/signup',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/billing/success': typeof BillingSuccessRoute
   '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
   '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/billing/success': typeof BillingSuccessRoute
   '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
   '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/billing/success': typeof BillingSuccessRoute
   '/models/$modelId': typeof ModelsModelIdRouteWithChildren
   '/models/new': typeof ModelsNewRoute
   '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
+    | '/billing/success'
     | '/models/$modelId'
     | '/models/new'
     | '/pitch-decks/$deckId'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
+    | '/billing/success'
     | '/models/$modelId'
     | '/models/new'
     | '/pitch-decks/$deckId'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
+    | '/billing/success'
     | '/models/$modelId'
     | '/models/new'
     | '/pitch-decks/$deckId'
@@ -227,6 +239,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSigninRoute: typeof AuthSigninRoute
   AuthSignupRoute: typeof AuthSignupRoute
+  BillingSuccessRoute: typeof BillingSuccessRoute
   ModelsModelIdRoute: typeof ModelsModelIdRouteWithChildren
   ModelsNewRoute: typeof ModelsNewRoute
   PitchDecksDeckIdRoute: typeof PitchDecksDeckIdRoute
@@ -309,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ModelsModelIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/billing/success': {
+      id: '/billing/success'
+      path: '/billing/success'
+      fullPath: '/billing/success'
+      preLoaderRoute: typeof BillingSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/signup': {
       id: '/auth/signup'
       path: '/auth/signup'
@@ -374,6 +394,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSigninRoute: AuthSigninRoute,
   AuthSignupRoute: AuthSignupRoute,
+  BillingSuccessRoute: BillingSuccessRoute,
   ModelsModelIdRoute: ModelsModelIdRouteWithChildren,
   ModelsNewRoute: ModelsNewRoute,
   PitchDecksDeckIdRoute: PitchDecksDeckIdRoute,

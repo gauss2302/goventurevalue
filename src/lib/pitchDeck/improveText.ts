@@ -37,9 +37,11 @@ export async function improvePitchDeckTextWithGemini(params: {
   context: ImproveTextContext;
   model?: string;
 }): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured");
+    throw new Error(
+      "GEMINI_API_KEY is not set. Add it to your .env file (see .env.example), then restart the dev server so it picks up the change.",
+    );
   }
 
   const model = normalizeModel(params.model ?? process.env.GEMINI_PITCH_MODEL ?? DEFAULT_MODEL);
@@ -66,14 +68,44 @@ export async function improvePitchDeckTextWithGemini(params: {
     },
   };
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const doRequest = () =>
+    fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  let response = await doRequest();
+  if (!response.ok && response.status === 429) {
+    const parseRetrySec = (respBody: string): number => {
+      try {
+        const data = JSON.parse(respBody) as { error?: { details?: Array<{ retryDelay?: string }> } };
+        const retryInfo = data?.error?.details?.find((d) => d.retryDelay);
+        if (retryInfo?.retryDelay) {
+          const s = parseFloat(retryInfo.retryDelay.replace("s", ""));
+          return Number.isFinite(s) ? Math.min(Math.ceil(s), 60) : 24;
+        }
+      } catch {
+        // ignore
+      }
+      return 24;
+    };
+    for (let retry = 0; retry < 2; retry++) {
+      const bodyText = await response.text();
+      const waitSec = parseRetrySec(bodyText);
+      await new Promise((r) => setTimeout(r, waitSec * 1000));
+      response = await doRequest();
+      if (response.ok || response.status !== 429) break;
+    }
+  }
 
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 429) {
+      throw new Error(
+        "Gemini rate limit exceeded (free tier quota). Please wait a few minutes and try again, or check https://ai.google.dev/gemini-api/docs/rate-limits.",
+      );
+    }
     throw new Error(`Gemini improve-text failed (${response.status}): ${text.slice(0, 300)}`);
   }
 

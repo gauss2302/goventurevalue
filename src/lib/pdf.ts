@@ -26,7 +26,8 @@ type ExportScenario = {
   userGrowth: string;
   arpu: string;
   churnRate: string;
-  farmerGrowth: string;
+  expansionRate?: string;
+  grossMarginTarget?: string;
   cac: string;
 };
 
@@ -110,7 +111,8 @@ const getScenarioParams = (scenario?: ExportScenario): ScenarioParams => ({
   userGrowth: toNumber(scenario?.userGrowth),
   arpu: toNumber(scenario?.arpu),
   churnRate: toNumber(scenario?.churnRate),
-  farmerGrowth: toNumber(scenario?.farmerGrowth),
+  expansionRate: toNumber(scenario?.expansionRate),
+  grossMarginTarget: toNumber(scenario?.grossMarginTarget),
   cac: toNumber(scenario?.cac),
 });
 
@@ -250,7 +252,8 @@ function buildAssumptionsTable(
     { label: "User growth", value: formatPercent(scenarioParams.userGrowth) },
     { label: "ARPU", value: formatNumber(scenarioParams.arpu, currency) },
     { label: "Churn rate", value: formatPercent(scenarioParams.churnRate) },
-    { label: "Farmer growth", value: formatPercent(scenarioParams.farmerGrowth) },
+    { label: "Expansion rate", value: formatPercent(scenarioParams.expansionRate) },
+    { label: "Gross margin", value: formatPercent(scenarioParams.grossMarginTarget) },
     { label: "CAC", value: formatNumber(scenarioParams.cac, currency) },
   ];
   return buildKeyValueTable("Scenario Assumptions", items);
@@ -262,7 +265,6 @@ function buildSettingsTable(
 ): PdfDocContent {
   const items: KeyValueItem[] = [
     { label: "Start users", value: settings.startUsers },
-    { label: "Start farmers", value: settings.startFarmers },
     { label: "Tax rate", value: formatPercent(settings.taxRate) },
     { label: "Discount rate", value: formatPercent(settings.discountRate) },
     { label: "Terminal growth", value: formatPercent(settings.terminalGrowth) },
@@ -287,9 +289,8 @@ function buildPnLTable(
   currency: string
 ): PdfDocContent {
   const columns: YearColumn[] = [
-    { key: "platformRevenue", label: "Platform revenue", values: projections.map((p) => p.platformRevenue), format: "currency" },
-    { key: "farmerRevShare", label: "Farmer rev share", values: projections.map((p) => p.farmerRevShare), format: "currency" },
-    { key: "b2bRevenue", label: "B2B revenue", values: projections.map((p) => p.b2bRevenue), format: "currency" },
+    { key: "subscriptionRevenue", label: "Subscription revenue", values: projections.map((p) => p.subscriptionRevenue), format: "currency" },
+    { key: "expansionRevenue", label: "Expansion revenue", values: projections.map((p) => p.expansionRevenue), format: "currency" },
     { key: "totalRevenue", label: "Total revenue", values: projections.map((p) => p.totalRevenue), format: "currency", isEmphasis: true },
     { key: "hostingCosts", label: "Hosting costs", values: projections.map((p) => p.hostingCosts), format: "currency" },
     { key: "paymentProcessing", label: "Payment processing", values: projections.map((p) => p.paymentProcessing), format: "currency" },

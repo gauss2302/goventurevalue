@@ -9,10 +9,10 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: 3500
+      PORT: 3000
       DATABASE_URL: ${DATABASE_URL_INTERNAL:-postgresql://postgres:postgres@postgres:5432/goventurevalue}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3500}
-      VITE_BETTER_AUTH_URL: ${VITE_BETTER_AUTH_URL:-http://localhost:3500}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      VITE_BETTER_AUTH_URL: ${VITE_BETTER_AUTH_URL:-http://localhost:3000}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
@@ -25,7 +25,7 @@ services:
       POLAR_EXPORTS_PRODUCT_ID: ${POLAR_EXPORTS_PRODUCT_ID:-}
       POLAR_SERVER: ${POLAR_SERVER:-sandbox}
     ports:
-      - "3500:3000"
+      - "3000:3000"
     healthcheck:
       test:
         [
@@ -45,7 +45,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: goventurevalue
     ports:
-      - "5499:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

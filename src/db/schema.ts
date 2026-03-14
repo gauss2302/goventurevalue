@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, decimal, boolean, pgEnum, index, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, serial, text, timestamp, integer, decimal, boolean, pgEnum, index, jsonb, date, uniqueIndex } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // Better Auth Schema - Required for authentication
@@ -128,6 +128,14 @@ export const billingSubscriptions = pgTable(
   ],
 )
 
+// Enums (must be defined before tables that use them)
+export const scenarioTypeEnum = pgEnum('scenario_type', ['conservative', 'base', 'optimistic'])
+export const stageEnum = pgEnum('startup_stage', ['idea', 'early_growth', 'scale'])
+export const businessModelTypeEnum = pgEnum('business_model_type', ['saas_subscription', 'marketplace', 'usage_based', 'ecommerce', 'other'])
+export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'gemini'])
+export const pitchDeckStatusEnum = pgEnum('pitch_deck_status', ['draft', 'generating', 'ready', 'failed'])
+export const pitchDeckDesignModeEnum = pgEnum('pitch_deck_design_mode', ['manual_template', 'ai_designed'])
+
 // Financial Models Schema
 export const financialModels = pgTable('financial_models', {
   id: serial().primaryKey(),
@@ -138,15 +146,15 @@ export const financialModels = pgTable('financial_models', {
   companyName: text('company_name'),
   description: text('description'),
   currency: text('currency').default('USD').notNull(),
+  businessModelType: businessModelTypeEnum('business_model_type'),
+  stage: stageEnum('stage'),
+  foundedAt: date('founded_at'),
+  industry: text('industry'),
+  lastRoundSize: decimal('last_round_size', { precision: 18, scale: 2 }),
+  lastRoundValuation: decimal('last_round_valuation', { precision: 18, scale: 2 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
-
-export const scenarioTypeEnum = pgEnum('scenario_type', ['conservative', 'base', 'optimistic'])
-export const stageEnum = pgEnum('startup_stage', ['idea', 'early_growth', 'scale'])
-export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'gemini'])
-export const pitchDeckStatusEnum = pgEnum('pitch_deck_status', ['draft', 'generating', 'ready', 'failed'])
-export const pitchDeckDesignModeEnum = pgEnum('pitch_deck_design_mode', ['manual_template', 'ai_designed'])
 
 export const modelScenarios = pgTable('model_scenarios', {
   id: serial().primaryKey(),
@@ -157,6 +165,11 @@ export const modelScenarios = pgTable('model_scenarios', {
   churnRate: decimal('churn_rate', { precision: 8, scale: 4 }).notNull(),
   farmerGrowth: decimal('farmer_growth', { precision: 8, scale: 4 }).notNull(),
   cac: decimal('cac', { precision: 10, scale: 2 }).notNull(), // Customer Acquisition Cost
+  revenueGrowthRate: decimal('revenue_growth_rate', { precision: 8, scale: 4 }),
+  grossMarginTarget: decimal('gross_margin_target', { precision: 8, scale: 4 }),
+  expansionRate: decimal('expansion_rate', { precision: 8, scale: 4 }),
+  takeRate: decimal('take_rate', { precision: 8, scale: 4 }),
+  gmvGrowth: decimal('gmv_growth', { precision: 8, scale: 4 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -220,9 +233,12 @@ export const modelProjections = pgTable('model_projections', {
 export const marketSizing = pgTable('market_sizing', {
   id: serial().primaryKey(),
   modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'cascade' }).notNull(),
-  tam: integer('tam').notNull(), // Total Available Market
-  sam: integer('sam').notNull(), // Serviceable Available Market
-  som: integer('som').array().notNull(), // Serviceable Obtainable Market (array for each year)
+  tam: integer('tam').notNull(),
+  tamDescription: text('tam_description').default(''),
+  sam: integer('sam').notNull(),
+  samDescription: text('sam_description').default(''),
+  som: integer('som').array().notNull(),
+  somDescription: text('som_description').default(''),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -247,6 +263,10 @@ export const modelSettings = pgTable('model_settings', {
   depreciationByYear: integer('depreciation_by_year').array().default([3750, 6250, 11250, 15000, 13750]).notNull(),
   // Years to project
   projectionYears: integer('projection_years').array().default([2025, 2026, 2027, 2028, 2029]).notNull(),
+  monthlyBurnRate: decimal('monthly_burn_rate', { precision: 18, scale: 2 }),
+  currentCash: decimal('current_cash', { precision: 18, scale: 2 }),
+  revenueMultiple: decimal('revenue_multiple', { precision: 8, scale: 2 }),
+  arrMultiple: decimal('arr_multiple', { precision: 8, scale: 2 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -285,6 +305,76 @@ export const modelMetrics = pgTable('model_metrics', {
   runwayMonths: decimal('runway_months', { precision: 10, scale: 2 }),
   grossMargin: decimal('gross_margin', { precision: 10, scale: 4 }),
   operatingMargin: decimal('operating_margin', { precision: 10, scale: 4 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Time-series traction data (investor-facing monthly metrics)
+export const modelMonthlyMetrics = pgTable(
+  'model_monthly_metrics',
+  {
+    id: serial().primaryKey(),
+    modelId: integer('model_id')
+      .notNull()
+      .references(() => financialModels.id, { onDelete: 'cascade' }),
+    month: date('month').notNull(), // first of month
+    mrr: decimal('mrr', { precision: 18, scale: 4 }),
+    newMrr: decimal('new_mrr', { precision: 18, scale: 4 }),
+    expansionMrr: decimal('expansion_mrr', { precision: 18, scale: 4 }),
+    contractionMrr: decimal('contraction_mrr', { precision: 18, scale: 4 }),
+    churnedMrr: decimal('churned_mrr', { precision: 18, scale: 4 }),
+    customers: integer('customers'),
+    newCustomers: integer('new_customers'),
+    churnedCustomers: integer('churned_customers'),
+    gmv: decimal('gmv', { precision: 18, scale: 4 }),
+    revenue: decimal('revenue', { precision: 18, scale: 4 }),
+    grossProfit: decimal('gross_profit', { precision: 18, scale: 4 }),
+    opex: decimal('opex', { precision: 18, scale: 4 }),
+    cashBalance: decimal('cash_balance', { precision: 18, scale: 4 }),
+    headcount: integer('headcount'),
+    marketingSpend: decimal('marketing_spend', { precision: 18, scale: 4 }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('model_monthly_metrics_model_month_idx').on(table.modelId, table.month),
+    index('model_monthly_metrics_model_id_idx').on(table.modelId),
+  ],
+)
+
+// Full cohort retention triangle
+export const modelCohorts = pgTable(
+  'model_cohorts',
+  {
+    id: serial().primaryKey(),
+    modelId: integer('model_id')
+      .notNull()
+      .references(() => financialModels.id, { onDelete: 'cascade' }),
+    cohortMonth: date('cohort_month').notNull(),
+    cohortSize: integer('cohort_size').notNull(),
+    retentionByMonth: jsonb('retention_by_month').$type<number[]>(),
+    revenueByMonth: jsonb('revenue_by_month').$type<number[]>(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('model_cohorts_model_cohort_month_idx').on(table.modelId, table.cohortMonth),
+    index('model_cohorts_model_id_idx').on(table.modelId),
+  ],
+)
+
+// Fundraising round inputs (minimal, optional)
+export const modelFundraising = pgTable('model_fundraising', {
+  id: serial().primaryKey(),
+  modelId: integer('model_id')
+    .notNull()
+    .references(() => financialModels.id, { onDelete: 'cascade' })
+    .unique(),
+  targetRaise: decimal('target_raise', { precision: 18, scale: 2 }),
+  preMoneyValuation: decimal('pre_money_valuation', { precision: 18, scale: 2 }),
+  useOfFunds: jsonb('use_of_funds').$type<Record<string, number>>(),
+  runwayTarget: integer('runway_target'),
+  plannedClose: date('planned_close'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -355,6 +445,10 @@ export const financialModelsRelations = relations(financialModels, ({ many, one 
   projections: many(modelProjections),
   marketSizing: many(marketSizing),
   settings: one(modelSettings),
+  metrics: many(modelMetrics),
+  monthlyMetrics: many(modelMonthlyMetrics),
+  cohorts: many(modelCohorts),
+  fundraising: one(modelFundraising),
   pitchDecks: many(pitchDecks),
 }))
 
@@ -389,6 +483,27 @@ export const modelSettingsRelations = relations(modelSettings, ({ one }) => ({
 export const modelMetricsRelations = relations(modelMetrics, ({ one }) => ({
   model: one(financialModels, {
     fields: [modelMetrics.modelId],
+    references: [financialModels.id],
+  }),
+}))
+
+export const modelMonthlyMetricsRelations = relations(modelMonthlyMetrics, ({ one }) => ({
+  model: one(financialModels, {
+    fields: [modelMonthlyMetrics.modelId],
+    references: [financialModels.id],
+  }),
+}))
+
+export const modelCohortsRelations = relations(modelCohorts, ({ one }) => ({
+  model: one(financialModels, {
+    fields: [modelCohorts.modelId],
+    references: [financialModels.id],
+  }),
+}))
+
+export const modelFundraisingRelations = relations(modelFundraising, ({ one }) => ({
+  model: one(financialModels, {
+    fields: [modelFundraising.modelId],
     references: [financialModels.id],
   }),
 }))

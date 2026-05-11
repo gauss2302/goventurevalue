@@ -4,7 +4,7 @@
 COMPOSE := docker compose
 COMPOSE_FILE := docker-compose.yml
 
-.PHONY: help up down build rebuild clean-rebuild stop logs ps shell shell-db clean
+.PHONY: help up down build rebuild recreate clean-rebuild restart stop logs ps shell shell-db clean
 
 help:
 	@echo "Docker targets for Havamind"
@@ -13,6 +13,9 @@ help:
 	@echo "  make down         - Stop and remove containers (keep volumes)"
 	@echo "  make build        - Build images (use cache)"
 	@echo "  make rebuild      - Clean rebuild: down, build --no-cache, up"
+	@echo "  make recreate     - Recreate containers from existing images (no build; compose/env/health only)"
+	@echo "                      (To ship new app code into the image, run \`make build\` then \`make recreate\`.)"
+	@echo "  make restart      - Restart running containers (fast; same as docker compose restart)"
 	@echo "  make clean-rebuild - Full reset: down -v, build --no-cache, up (wipes DB)"
 	@echo "  make stop         - Stop containers without removing"
 	@echo "  make logs         - Follow logs (all services)"
@@ -35,6 +38,13 @@ build:
 rebuild: down
 	$(COMPOSE) -f $(COMPOSE_FILE) build --no-cache
 	$(COMPOSE) -f $(COMPOSE_FILE) up -d
+
+# Recreate containers without rebuilding images. App code baked into the image only updates after `make build`.
+recreate:
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d --force-recreate
+
+restart:
+	$(COMPOSE) -f $(COMPOSE_FILE) restart
 
 clean-rebuild: down
 	$(COMPOSE) -f $(COMPOSE_FILE) down -v

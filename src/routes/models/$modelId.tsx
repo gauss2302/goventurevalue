@@ -54,6 +54,7 @@ type LoaderData = {
     companyName: string | null;
     description: string | null;
     currency: string;
+    stage: "idea" | "early_growth" | "scale" | null;
   };
   scenarios: Array<{
     scenarioType: "conservative" | "base" | "optimistic";
@@ -212,6 +213,7 @@ const loadModelDetail = createServerFn({ method: "GET" })
         companyName: model.companyName,
         description: model.description,
         currency: model.currency,
+        stage: model.stage ?? null,
       },
       scenarios: scenariosData.map((s) => ({
         scenarioType: s.scenarioType,
@@ -711,6 +713,21 @@ const updateMetrics = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+function normalizeMonthlyMetricMonth(raw: string): string {
+  const t = raw.trim();
+  if (!t) {
+    throw new Error("Each row must have a month selected.");
+  }
+  if (/^\d{4}-\d{2}$/.test(t)) {
+    return `${t}-01`;
+  }
+  const full = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (full) {
+    return `${full[1]}-${full[2]}-01`;
+  }
+  throw new Error("Invalid month format.");
+}
+
 const upsertMonthlyMetrics = createServerFn({ method: "POST" })
   .inputValidator(
     (input: { modelId: number; rows: Omit<MonthlyMetricRow, "id">[] }) => input
@@ -746,47 +763,50 @@ const upsertMonthlyMetrics = createServerFn({ method: "POST" })
       throw new Error("Model not found");
     }
 
-    for (const row of data.rows) {
-      const values = {
-        modelId: data.modelId,
-        month: row.month,
-        mrr: row.mrr != null ? String(row.mrr) : null,
-        newMrr: row.newMrr != null ? String(row.newMrr) : null,
-        expansionMrr: row.expansionMrr != null ? String(row.expansionMrr) : null,
-        contractionMrr: row.contractionMrr != null ? String(row.contractionMrr) : null,
-        churnedMrr: row.churnedMrr != null ? String(row.churnedMrr) : null,
-        customers: row.customers ?? null,
-        newCustomers: row.newCustomers ?? null,
-        churnedCustomers: row.churnedCustomers ?? null,
-        gmv: row.gmv != null ? String(row.gmv) : null,
-        revenue: row.revenue != null ? String(row.revenue) : null,
-        grossProfit: row.grossProfit != null ? String(row.grossProfit) : null,
-        opex: row.opex != null ? String(row.opex) : null,
-        cashBalance: row.cashBalance != null ? String(row.cashBalance) : null,
-        headcount: row.headcount ?? null,
-        marketingSpend: row.marketingSpend != null ? String(row.marketingSpend) : null,
-        updatedAt: new Date(),
-      };
-
-      const existing = await db.query.modelMonthlyMetrics.findFirst({
-        where: and(
-          eq(modelMonthlyMetrics.modelId, data.modelId),
-          eq(modelMonthlyMetrics.month, row.month)
-        ),
-      });
-
-      if (existing) {
-        await db
-          .update(modelMonthlyMetrics)
-          .set(values)
-          .where(eq(modelMonthlyMetrics.id, existing.id));
-      } else {
-        await db.insert(modelMonthlyMetrics).values({
-          ...values,
-          createdAt: new Date(),
-        });
-      }
+    const rowsNormalized = data.rows.map((row) => ({
+      ...row,
+      month: normalizeMonthlyMetricMonth(row.month),
+    }));
+    const monthKeys = rowsNormalized.map((r) => r.month);
+    if (new Set(monthKeys).size !== monthKeys.length) {
+      throw new Error("Duplicate months are not allowed.");
     }
+
+    const now = new Date();
+
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(modelMonthlyMetrics)
+        .where(eq(modelMonthlyMetrics.modelId, data.modelId));
+
+      if (rowsNormalized.length === 0) {
+        return;
+      }
+
+      await tx.insert(modelMonthlyMetrics).values(
+        rowsNormalized.map((row) => ({
+          modelId: data.modelId,
+          month: row.month,
+          mrr: row.mrr != null ? String(row.mrr) : null,
+          newMrr: row.newMrr != null ? String(row.newMrr) : null,
+          expansionMrr: row.expansionMrr != null ? String(row.expansionMrr) : null,
+          contractionMrr: row.contractionMrr != null ? String(row.contractionMrr) : null,
+          churnedMrr: row.churnedMrr != null ? String(row.churnedMrr) : null,
+          customers: row.customers ?? null,
+          newCustomers: row.newCustomers ?? null,
+          churnedCustomers: row.churnedCustomers ?? null,
+          gmv: row.gmv != null ? String(row.gmv) : null,
+          revenue: row.revenue != null ? String(row.revenue) : null,
+          grossProfit: row.grossProfit != null ? String(row.grossProfit) : null,
+          opex: row.opex != null ? String(row.opex) : null,
+          cashBalance: row.cashBalance != null ? String(row.cashBalance) : null,
+          headcount: row.headcount ?? null,
+          marketingSpend: row.marketingSpend != null ? String(row.marketingSpend) : null,
+          createdAt: now,
+          updatedAt: now,
+        }))
+      );
+    });
 
     return { success: true };
   });
@@ -1140,6 +1160,7 @@ function ModelDetail() {
         <div className="px-4 py-6">
           <FinancialModelEditor
             modelId={model.id}
+            modelStage={model.stage}
             initialScenarios={scenarios}
             initialSettings={settings}
             initialMarket={marketSizingData}

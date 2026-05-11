@@ -6,6 +6,10 @@ import { logger } from "@/lib/logger";
 import type { ScenarioType, UpdateScenarioDto, UpdateSettingsDto, MarketSizingDto, UpdateMetricsDto } from "@/lib/dto";
 import type { ModelSettings, MarketSizing, ScenarioParams, TractionSeed } from "@/lib/calculations";
 import { calculateProjections, DEFAULT_COST_STRUCTURE } from "@/lib/calculations";
+import {
+  resolveFundraisingMultiplesBases,
+  type StartupStage,
+} from "@/lib/traction-calculations";
 import { TOOLTIPS } from "@/lib/tooltips";
 import FinancialModel from "./FinancialModel";
 import { MonthlyMetricsTable, type MonthlyMetricRow } from "./MonthlyMetricsTable";
@@ -58,6 +62,8 @@ type FinancialModelEditorProps = {
   initialMonthlyMetrics?: MonthlyMetricRow[];
   initialCohorts?: CohortRow[];
   initialFundraising?: FundraisingData | null;
+  /** From financial_models.stage — drives default revenue/ARR multiples. */
+  modelStage?: StartupStage | null;
 };
 
 type EditorTab = "snapshot" | "traction" | "cohorts" | "scenarios" | "market" | "metrics" | "fundraising" | "settings" | "results";
@@ -116,6 +122,7 @@ export default function FinancialModelEditor({
   updateFundraisingFn,
   initialCohorts = [],
   initialFundraising = null,
+  modelStage = null,
 }: FinancialModelEditorProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<EditorTab>("snapshot");
@@ -131,7 +138,7 @@ export default function FinancialModelEditor({
       map.set(s.scenarioType, {
         userGrowth: normalizeRateInput(parseFloat(s.userGrowth), -0.95, 3),
         arpu: Number.isFinite(arpu) ? arpu : 0,
-        churnRate: normalizeRateInput(parseFloat(s.churnRate), 0.001, 0.95),
+        churnRate: normalizeRateInput(parseFloat(s.churnRate), 0, 0.95),
         cac: Number.isFinite(cac) ? cac : 0,
         expansionRate: normalizeRateInput(parseFloat(s.expansionRate ?? '0'), 0, 1),
         grossMarginTarget: normalizeRateInput(parseFloat(s.grossMarginTarget ?? '0.75'), 0, 0.99),
@@ -571,9 +578,9 @@ export default function FinancialModelEditor({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ScenarioField
-                  label="Customer Growth"
+                  label="Customer Growth (annual)"
                   tooltip={TOOLTIPS.userGrowth}
-                  unit="% per year"
+                  unit="fraction (0.25 = 25%)"
                   step={0.01}
                   min={0}
                   max={3}
@@ -592,7 +599,7 @@ export default function FinancialModelEditor({
                 <ScenarioField
                   label="Monthly Churn Rate"
                   tooltip={TOOLTIPS.churnRate}
-                  unit="% per month"
+                  unit="fraction (0.05 = 5%)"
                   step={0.001}
                   min={0}
                   max={0.95}
@@ -611,7 +618,7 @@ export default function FinancialModelEditor({
                 <ScenarioField
                   label="Expansion Rate"
                   tooltip={TOOLTIPS.expansionRate}
-                  unit="% of subscription revenue"
+                  unit="fraction of subscription revenue"
                   step={0.01}
                   min={0}
                   max={1}
@@ -620,8 +627,8 @@ export default function FinancialModelEditor({
                 />
                 <ScenarioField
                   label="Gross Margin Target"
-                  tooltip={TOOLTIPS.grossMargin}
-                  unit="%"
+                  tooltip="Long-run gross margin used for unit economics (LTV, payback). Distinct from the year-by-year computed margin in the P&L. Typical SaaS: 0.70–0.85."
+                  unit="fraction (0.75 = 75%)"
                   step={0.01}
                   min={0}
                   max={0.99}
@@ -655,17 +662,17 @@ export default function FinancialModelEditor({
                 }}
                 settings={settings}
                 projections={projections}
-                arr={
-                  (() => {
-                    const sorted = [...initialMonthlyMetrics].sort(
-                      (a, b) => new Date(b.month).getTime() - new Date(a.month).getTime()
-                    );
-                    const latest = sorted[0];
-                    if (latest?.mrr != null) return latest.mrr * 12;
-                    if (metrics?.mrr != null) return metrics.mrr * 12;
-                    return metrics?.arr ?? null;
-                  })()
-                }
+                {...(() => {
+                  const { arr, annualRevenueForMultiples } = resolveFundraisingMultiplesBases(
+                    initialMonthlyMetrics,
+                    metrics
+                  );
+                  return {
+                    arr,
+                    annualRevenueForMultiples,
+                    stage: modelStage ?? "early_growth",
+                  };
+                })()}
               />
             ) : (
               <>
@@ -881,31 +888,31 @@ export default function FinancialModelEditor({
                       placeholder="e.g. 8000"
                     />
                     <MetricInput
-                      label="Growth rate (%)"
+                      label="Growth rate"
                       value={metrics.growthRate}
                       onChange={(val) => updateMetricsField("growthRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.15 = 15%"
                     />
                     <MetricInput
-                      label="Activation rate (%)"
+                      label="Activation rate"
                       value={metrics.activationRate}
                       onChange={(val) => updateMetricsField("activationRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.25 = 25%"
                     />
                     <MetricInput
-                      label="Retention rate (%)"
+                      label="Retention rate"
                       value={metrics.retentionRate}
                       onChange={(val) => updateMetricsField("retentionRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.80 = 80%"
                     />
                     <MetricInput
-                      label="Churn rate (%)"
+                      label="Churn rate"
                       value={metrics.churnRate}
                       onChange={(val) => updateMetricsField("churnRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.05 = 5%"
                     />
                     <MetricDisplay
@@ -947,10 +954,10 @@ export default function FinancialModelEditor({
                       tooltip="Average Revenue Per User / Account"
                     />
                     <MetricInput
-                      label="Revenue growth rate (%)"
+                      label="Revenue growth rate"
                       value={metrics.revenueGrowthRate}
                       onChange={(val) => updateMetricsField("revenueGrowthRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.20 = 20%"
                     />
                     <MetricInput
@@ -1017,10 +1024,10 @@ export default function FinancialModelEditor({
                   </p>
                   <div className="space-y-3">
                     <MetricInput
-                      label="Conversion rate (%)"
+                      label="Conversion rate"
                       value={metrics.conversionRate}
                       onChange={(val) => updateMetricsField("conversionRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.03 = 3%"
                     />
                     <MetricInput
@@ -1036,10 +1043,10 @@ export default function FinancialModelEditor({
                       placeholder="e.g. 45"
                     />
                     <MetricInput
-                      label="Win rate (%)"
+                      label="Win rate"
                       value={metrics.winRate}
                       onChange={(val) => updateMetricsField("winRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.25 = 25%"
                     />
                   </div>
@@ -1054,10 +1061,10 @@ export default function FinancialModelEditor({
                   </p>
                   <div className="space-y-3">
                     <MetricInput
-                      label="Feature adoption rate (%)"
+                      label="Feature adoption rate"
                       value={metrics.featureAdoptionRate}
                       onChange={(val) => updateMetricsField("featureAdoptionRate", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.40 = 40%"
                     />
                     <MetricInput
@@ -1098,17 +1105,17 @@ export default function FinancialModelEditor({
                       placeholder="e.g. 18"
                     />
                     <MetricInput
-                      label="Gross margin (%)"
+                      label="Gross margin"
                       value={metrics.grossMargin}
                       onChange={(val) => updateMetricsField("grossMargin", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.70 = 70%"
                     />
                     <MetricInput
-                      label="Operating margin (%)"
+                      label="Operating margin"
                       value={metrics.operatingMargin}
                       onChange={(val) => updateMetricsField("operatingMargin", val)}
-                      unit="%"
+                      unit="fraction"
                       placeholder="0.10 = 10%"
                     />
                   </div>

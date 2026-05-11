@@ -6,6 +6,7 @@
 export type StartupStage = 'idea' | 'early_growth' | 'scale'
 
 export type MonthlyMetricRow = {
+  id?: number
   month: string // YYYY-MM-DD (first of month)
   mrr: number | null
   newMrr: number | null
@@ -111,8 +112,9 @@ export function computeDerivedMetrics(
     ? safeDiv(cashBalance, burnRate)
     : null
   const netNewArr = netNewMrr != null ? netNewMrr * 12 : null
+  // Burn Multiple = Net Burn / Net New ARR (Sacks). Both monthly: monthly burn / (NetNewMRR × 12).
   const burnMultiple = netNewArr != null && netNewArr > 0 && burnRate != null && burnRate > 0
-    ? safeDiv(burnRate, netNewMrr!)
+    ? safeDiv(burnRate, netNewArr)
     : null
   const salesEfficiency = marketingSpend > 0 && netNewArr != null
     ? safeDiv(netNewArr, marketingSpend)
@@ -157,6 +159,8 @@ export type MultiplesValuationResult = {
 
 /**
  * Valuation using revenue/ARR multiples. Uses stage defaults when multiples not provided.
+ * Revenue multiple applies to `annualRevenue` when set (e.g. trailing monthly revenue × 12);
+ * otherwise it uses the same basis as `arr` (annual recurring / revenue proxy).
  */
 export function calculateMultiplesValuation(
   arr: number,
@@ -164,6 +168,7 @@ export function calculateMultiplesValuation(
     arrMultiple?: number | null
     revenueMultiple?: number | null
     stage?: StartupStage
+    annualRevenue?: number | null
   } = {}
 ): MultiplesValuationResult {
   const stage = options.stage ?? 'early_growth'
@@ -175,9 +180,15 @@ export function calculateMultiplesValuation(
     ? options.revenueMultiple
     : arrMultipleUsed
 
+  const revenueBasis =
+    options.annualRevenue != null &&
+    Number.isFinite(options.annualRevenue) &&
+    options.annualRevenue > 0
+      ? options.annualRevenue
+      : arr
+
   const arrBasedValuation = arr * arrMultipleUsed
-  const annualRevenue = arr // ARR is annual
-  const revenueBasedValuation = annualRevenue * revenueMultipleUsed
+  const revenueBasedValuation = revenueBasis * revenueMultipleUsed
   const blendedValuation = (arrBasedValuation + revenueBasedValuation) / 2
 
   return {
@@ -187,6 +198,30 @@ export function calculateMultiplesValuation(
     arrMultipleUsed,
     revenueMultipleUsed,
   }
+}
+
+/**
+ * ARR proxy for fundraising multiples: latest traction MRR×12, else revenue×12, else Metrics MRR/ARR.
+ * When latest month has revenue, that ×12 is also returned for the revenue-multiple basis (can differ from ARR when both MRR and revenue are set).
+ */
+export function resolveFundraisingMultiplesBases(
+  monthlyMetrics: MonthlyMetricRow[],
+  metrics: { mrr: number | null; arr: number | null } | null
+): { arr: number | null; annualRevenueForMultiples: number | null } {
+  const sorted = [...monthlyMetrics].sort(
+    (a, b) => new Date(b.month).getTime() - new Date(a.month).getTime()
+  );
+  const latest = sorted[0];
+  let arr: number | null = null;
+  if (latest?.mrr != null) arr = latest.mrr * 12;
+  else if (latest?.revenue != null) arr = latest.revenue * 12;
+  else if (metrics?.mrr != null) arr = metrics.mrr * 12;
+  else if (metrics?.arr != null) arr = metrics.arr;
+
+  const annualRevenueForMultiples =
+    latest?.revenue != null ? latest.revenue * 12 : null;
+
+  return { arr, annualRevenueForMultiples };
 }
 
 export type CohortMetricsResult = {

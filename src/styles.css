@@ -44,8 +44,8 @@ code {
   --surface-muted-border: #E6E8EC;
   --border-soft: #E6E8EC;
 
-  /* Sidebar */
-  --sidebar-expanded-width: 14rem;
+  /* Sidebar (256px expanded matches dashboard / Figma shell) */
+  --sidebar-expanded-width: 16rem;
   --sidebar-collapsed-width: 4rem;
   --sidebar-width: var(--sidebar-expanded-width);
 

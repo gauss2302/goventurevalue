@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { PitchDeckSlideDto } from "@/lib/dto";
 import type { PitchDeckTemplate } from "@/lib/pitchDeck/templates";
@@ -41,39 +41,60 @@ function SlidePreviewComponent({
 
   const hasImage = Boolean(slide.imageUrl?.trim());
   const slideLayout = slide.layout ?? "default";
-  const layoutWithImage = hasImage && slideLayout !== "default";
+  const isFullBleed = slideLayout === "image-full";
+  const layoutWithImage = hasImage && slideLayout !== "default" && !isFullBleed;
   const imageScale = Math.min(3, Math.max(0.25, slide.imageScale ?? 1));
   const imagePanX = Math.min(1, Math.max(0, slide.imagePanX ?? 0.5));
   const imagePanY = Math.min(1, Math.max(0, slide.imagePanY ?? 0.5));
+  const [imageError, setImageError] = useState(false);
+
+  // Cover-fit semantics: image fills the panel (no letterboxing), object-position
+  // controls pan within the cover crop, transform: scale zooms further in.
+  const imageStyle = useMemo(
+    () => ({
+      width: "100%",
+      height: "100%",
+      objectFit: "cover" as const,
+      objectPosition: `${imagePanX * 100}% ${imagePanY * 100}%`,
+      transform: `scale(${imageScale})`,
+      transformOrigin: `${imagePanX * 100}% ${imagePanY * 100}%`,
+      transition: "transform 120ms ease-out",
+    }),
+    [imagePanX, imagePanY, imageScale]
+  );
+
+  const renderImage = (rounded: boolean) =>
+    imageError ? (
+      <div
+        className={`w-full h-full flex items-center justify-center ${rounded ? "rounded-lg" : ""}`}
+        style={{ backgroundColor: colors.speakerNotesBg, color: colors.subheading }}
+      >
+        <span className="text-[10px] opacity-70">Image unavailable</span>
+      </div>
+    ) : (
+      <img
+        src={slide.imageUrl}
+        alt=""
+        className={`select-none ${rounded ? "rounded-lg" : ""}`}
+        style={imageStyle}
+        onError={() => setImageError(true)}
+        draggable={false}
+      />
+    );
 
   const imageBlock = hasImage ? (
     <div
-      className="shrink-0 min-w-0 overflow-hidden flex items-center justify-center relative"
+      className="shrink-0 min-w-0 overflow-hidden relative"
       style={{
         contain: "paint",
-        backgroundColor: colors.background,
+        backgroundColor: colors.speakerNotesBg,
         ...(slideLayout === "image-left" || slideLayout === "image-right"
-          ? { width: "40%", minWidth: 60 }
+          ? { width: "42%", minWidth: 60 }
           : {}),
-        ...(slideLayout === "image-top" ? { height: "35%", minHeight: 40 } : {}),
-        ...(slideLayout === "image-full" ? { height: "40%", minHeight: 50 } : {}),
+        ...(slideLayout === "image-top" ? { height: "45%", minHeight: 50 } : {}),
       }}
     >
-      <div
-        className="absolute inset-0 flex items-center justify-center origin-center overflow-hidden"
-        style={{
-          transform: `scale(${imageScale}) translate(${(0.5 - imagePanX) * Math.max(0, (imageScale - 1) * 2) * 100}%, ${(0.5 - imagePanY) * Math.max(0, (imageScale - 1) * 2) * 100}%)`,
-        }}
-      >
-        <img
-          src={slide.imageUrl}
-          alt=""
-          className="max-w-full max-h-full object-contain"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
-        />
-      </div>
+      {renderImage(false)}
     </div>
   ) : null;
 
@@ -209,37 +230,48 @@ function SlidePreviewComponent({
 
   return (
     <div
-      className="flex flex-col rounded-2xl border shadow-[var(--card-shadow)] overflow-hidden"
+      className="flex flex-col rounded-2xl border shadow-[var(--card-shadow)] overflow-hidden relative"
       style={wrapperStyle}
       aria-label={`Slide ${slideIndex + 1} of ${totalSlides}`}
     >
+      {/* Full-bleed background image with darkening overlay for text readability */}
+      {hasImage && isFullBleed ? (
+        <div className="absolute inset-0 overflow-hidden" style={{ contain: "paint" }}>
+          {renderImage(false)}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(180deg, ${colors.background}cc 0%, ${colors.background}80 35%, ${colors.background}f2 100%)`,
+            }}
+          />
+        </div>
+      ) : null}
       {isCover && accentBar ? (
         <div
-          className="h-1.5 shrink-0"
+          className="h-1.5 shrink-0 relative"
           style={{ backgroundColor: colors.accent }}
         />
       ) : null}
-      {layoutWithImage ? (
-        <div
-          className={`flex-1 flex min-h-0 overflow-hidden ${
-            slideLayout === "image-left" || slideLayout === "image-right"
-              ? "flex-row"
-              : "flex-col"
-          }`}
-        >
-          {(slideLayout === "image-left" ||
-            slideLayout === "image-top" ||
-            slideLayout === "image-full") &&
-            imageBlock}
-          {contentBlock}
-          {slideLayout === "image-right" && imageBlock}
-        </div>
-      ) : (
-        contentBlock
-      )}
+      <div className="relative flex-1 flex flex-col min-h-0">
+        {layoutWithImage ? (
+          <div
+            className={`flex-1 flex min-h-0 overflow-hidden ${
+              slideLayout === "image-left" || slideLayout === "image-right"
+                ? "flex-row"
+                : "flex-col"
+            }`}
+          >
+            {(slideLayout === "image-left" || slideLayout === "image-top") && imageBlock}
+            {contentBlock}
+            {slideLayout === "image-right" && imageBlock}
+          </div>
+        ) : (
+          contentBlock
+        )}
+      </div>
       <div
-        className="px-4 py-2 text-[10px] border-t shrink-0"
-        style={{ color: colors.footer, borderColor: colors.border }}
+        className="px-4 py-2 text-[10px] border-t shrink-0 relative"
+        style={{ color: colors.footer, borderColor: colors.border, backgroundColor: isFullBleed ? `${colors.background}f2` : undefined }}
       >
         {startupName} • Slide {slideIndex + 1} / {totalSlides}
       </div>

@@ -175,26 +175,88 @@ export async function exportPitchDeckToPdf({
 
     const hasImage = Boolean(slide.imageUrl?.trim());
     const slideLayout: SlideLayoutId = slide.layout ?? "default";
+    const isFullBleed = slideLayout === "image-full";
     const layoutWithImage =
       hasImage &&
       slideLayout !== "default" &&
+      !isFullBleed &&
       imageDataUrls[index] != null;
 
     let contentLeft = 48;
     let contentWidth = width - 96;
     let contentTop = innerTop + 12;
 
+    // Helper: draws an image into a box using cover-fit semantics (fills the box,
+    // crops to fit aspect ratio), then applies user scale and pan. Matches web preview.
+    const drawCoverImage = (
+      dataUrl: string,
+      imgFormat: "JPEG" | "PNG",
+      dims: { w: number; h: number },
+      boxX: number,
+      boxY: number,
+      boxW: number,
+      boxH: number,
+    ) => {
+      const coverScale = Math.max(boxW / dims.w, boxH / dims.h);
+      const userScale = Math.min(3, Math.max(0.25, slide.imageScale ?? 1));
+      const drawW = dims.w * coverScale * userScale;
+      const drawH = dims.h * coverScale * userScale;
+      const panX = Math.min(1, Math.max(0, slide.imagePanX ?? 0.5));
+      const panY = Math.min(1, Math.max(0, slide.imagePanY ?? 0.5));
+      const drawX = boxX + panX * (boxW - drawW);
+      const drawY = boxY + panY * (boxH - drawH);
+
+      try {
+        doc.saveGraphicsState();
+        doc.rect(boxX, boxY, boxW, boxH, null);
+        doc.clip();
+        doc.addImage(dataUrl, imgFormat, drawX, drawY, drawW, drawH);
+        doc.restoreGraphicsState();
+      } catch {
+        // skip image if addImage fails
+      }
+    };
+
+    // Full-bleed: draw the image across the entire page first, then add a soft
+    // gradient overlay so heading/bullets stay readable.
+    if (isFullBleed && hasImage && imageDataUrls[index]) {
+      const dataUrl = imageDataUrls[index]!;
+      const imgFormat = getImageFormat(dataUrl);
+      const dims = imageDimensions[index];
+      if (dims && dims.w > 0 && dims.h > 0) {
+        drawCoverImage(dataUrl, imgFormat, dims, 0, 0, width, height);
+        // Top + bottom gradient overlay using the background color, opacity 0.65,
+        // so the user's chosen template tint shows through.
+        try {
+          doc.saveGraphicsState();
+          // jsPDF supports GState for opacity in many versions; fall back to two solid bands if not.
+          // @ts-ignore - GState may not be in older jsPDF type defs.
+          if (typeof (doc as any).setGState === "function" && typeof (doc as any).GState === "function") {
+            // @ts-ignore
+            doc.setGState(new (doc as any).GState({ opacity: 0.55 }));
+            doc.setFillColor(bgR, bgG, bgB);
+            doc.rect(0, 0, width, height * 0.18, "F");
+            doc.rect(0, height * 0.55, width, height * 0.45, "F");
+          } else {
+            // Solid band fallback if GState is unavailable.
+            doc.setFillColor(bgR, bgG, bgB);
+            doc.rect(0, height * 0.62, width, height * 0.38, "F");
+          }
+          doc.restoreGraphicsState();
+        } catch {
+          // ignore overlay errors
+        }
+      }
+    }
+
     if (layoutWithImage && imageDataUrls[index]) {
       const dataUrl = imageDataUrls[index]!;
       const imgFormat = getImageFormat(dataUrl);
-      const boxW = slideLayout === "image-left" || slideLayout === "image-right" ? innerW * 0.4 : innerW;
-      const boxH =
-        slideLayout === "image-top" || slideLayout === "image-full"
-          ? innerH * 0.35
-          : innerH * 0.88;
+      const boxW = slideLayout === "image-left" || slideLayout === "image-right" ? innerW * 0.42 : innerW;
+      const boxH = slideLayout === "image-top" ? innerH * 0.45 : innerH * 0.92;
       const boxX =
         slideLayout === "image-right"
-          ? margin + innerW * 0.6
+          ? margin + innerW * (1 - 0.42)
           : margin;
       const boxY =
         slideLayout === "image-left" || slideLayout === "image-right"
@@ -202,50 +264,18 @@ export async function exportPitchDeckToPdf({
           : innerTop;
 
       const dims = imageDimensions[index];
-      let drawX = boxX;
-      let drawY = boxY;
-      let drawW = boxW;
-      let drawH = boxH;
-      let shouldDraw = false;
-
       if (dims && dims.w > 0 && dims.h > 0) {
-        const fitScale = Math.min(boxW / dims.w, boxH / dims.h);
-        drawW = dims.w * fitScale;
-        drawH = dims.h * fitScale;
-        drawX = boxX + (boxW - drawW) / 2;
-        drawY = boxY + (boxH - drawH) / 2;
-
-        const userScale = Math.min(3, Math.max(0.25, slide.imageScale ?? 1));
-        drawW *= userScale;
-        drawH *= userScale;
-
-        const panX = Math.min(1, Math.max(0, slide.imagePanX ?? 0.5));
-        const panY = Math.min(1, Math.max(0, slide.imagePanY ?? 0.5));
-        drawX = boxX + panX * (boxW - drawW);
-        drawY = boxY + panY * (boxH - drawH);
-        shouldDraw = true;
-      }
-
-      if (shouldDraw) {
-        try {
-          doc.saveGraphicsState();
-          doc.rect(boxX, boxY, boxW, boxH, null);
-          doc.clip();
-          doc.addImage(dataUrl, imgFormat, drawX, drawY, drawW, drawH);
-          doc.restoreGraphicsState();
-        } catch {
-          // skip image if addImage fails
-        }
+        drawCoverImage(dataUrl, imgFormat, dims, boxX, boxY, boxW, boxH);
       }
 
       if (slideLayout === "image-left") {
-        contentLeft = margin + innerW * 0.4 + 12;
-        contentWidth = innerW * 0.6 - 24;
+        contentLeft = margin + innerW * 0.42 + 16;
+        contentWidth = innerW * (1 - 0.42) - 32;
       } else if (slideLayout === "image-right") {
-        contentLeft = margin + 12;
-        contentWidth = innerW * 0.6 - 24;
+        contentLeft = margin + 16;
+        contentWidth = innerW * (1 - 0.42) - 32;
       } else {
-        contentTop = innerTop + boxH + 8;
+        contentTop = innerTop + boxH + 12;
       }
     }
 
@@ -362,22 +392,32 @@ export async function exportPitchDeckToPdf({
       });
 
       if (slide.speakerNotes) {
-        doc.setDrawColor(notesBorderR, notesBorderG, notesBorderB);
-        doc.setFillColor(notesBgR, notesBgG, notesBgB);
-        const notesTop = Math.max(cursorY + 10, height - 170);
-        const notesHeight = height - notesTop - 36;
-        doc.roundedRect(left, notesTop, textWidth + 16, notesHeight, 8, 8, "FD");
+        const minNotesHeight = 60;
+        const footerReserve = 36;
+        const notesBottomLimit = height - footerReserve;
+        const desiredNotesTop = Math.max(cursorY + 10, height - 170);
+        // Clamp so the box never overflows the page or collapses to a sliver.
+        const notesTop = Math.min(desiredNotesTop, notesBottomLimit - minNotesHeight);
+        const notesHeight = notesBottomLimit - notesTop;
 
-        doc.setFont(fontFamily, "bold");
-        doc.setTextColor(accentR, accentG, accentB);
-        doc.setFontSize(11);
-        doc.text("Speaker Notes", left + 12, notesTop + 20);
+        if (notesHeight >= minNotesHeight) {
+          doc.setDrawColor(notesBorderR, notesBorderG, notesBorderB);
+          doc.setFillColor(notesBgR, notesBgG, notesBgB);
+          doc.roundedRect(left, notesTop, textWidth + 16, notesHeight, 8, 8, "FD");
 
-        doc.setFont(fontFamily, "normal");
-        doc.setTextColor(bulletR, bulletG, bulletB);
-        doc.setFontSize(10);
-        const noteLines = doc.splitTextToSize(slide.speakerNotes, textWidth);
-        doc.text(noteLines.slice(0, 10), left + 12, notesTop + 40);
+          doc.setFont(fontFamily, "bold");
+          doc.setTextColor(accentR, accentG, accentB);
+          doc.setFontSize(11);
+          doc.text("Speaker Notes", left + 12, notesTop + 20);
+
+          doc.setFont(fontFamily, "normal");
+          doc.setTextColor(bulletR, bulletG, bulletB);
+          doc.setFontSize(10);
+          const noteLines = doc.splitTextToSize(slide.speakerNotes, textWidth);
+          // Cap visible lines to what fits inside the notes box.
+          const maxLines = Math.max(1, Math.floor((notesHeight - 40) / 12));
+          doc.text(noteLines.slice(0, Math.min(maxLines, 10)), left + 12, notesTop + 40);
+        }
       }
     }
 

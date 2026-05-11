@@ -713,7 +713,7 @@ const appendPnLBlock = (
       values: projections.map((p) => p.grossMargin),
       format: percentValueFormat,
       formula: (row, c) =>
-        `${columnLetter(c.grossProfit)}${row}/${columnLetter(c.totalRevenue)}${row}*100`,
+        `IFERROR(${columnLetter(c.grossProfit)}${row}/${columnLetter(c.totalRevenue)}${row}*100,0)`,
     },
     {
       key: "personnel",
@@ -763,7 +763,7 @@ const appendPnLBlock = (
       values: projections.map((p) => p.ebitdaMargin),
       format: percentValueFormat,
       formula: (row, c) =>
-        `${columnLetter(c.ebitda)}${row}/${columnLetter(c.totalRevenue)}${row}*100`,
+        `IFERROR(${columnLetter(c.ebitda)}${row}/${columnLetter(c.totalRevenue)}${row}*100,0)`,
     },
     {
       key: "depreciation",

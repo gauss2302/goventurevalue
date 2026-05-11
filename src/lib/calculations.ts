@@ -4,7 +4,13 @@ export type ScenarioParams = {
   churnRate: number;
   cac: number;
   expansionRate: number;
+  /** Long-run gross margin used for LTV/payback unit economics. Distinct from the P&L computed margin. */
   grossMarginTarget: number;
+  /**
+   * Reserved for a future revenue-driven (rather than user-driven) growth mode.
+   * Currently not consumed by `calculateProjections` — user growth and expansion
+   * fully determine revenue.
+   */
   revenueGrowthRate: number;
 };
 
@@ -158,7 +164,8 @@ const toRatio = (numerator: number, denominator: number): number => {
 const normalizeScenario = (scenario: ScenarioParams): ScenarioParams => ({
   userGrowth: normalizeRate(scenario.userGrowth, { min: -0.95, max: 3 }),
   arpu: Math.max(0, toFiniteNumber(scenario.arpu, 0)),
-  churnRate: normalizeRate(scenario.churnRate, { min: 0.001, max: 0.95 }),
+  // Allow churn = 0 (perfect retention). LTV handles the divide-by-zero case.
+  churnRate: normalizeRate(scenario.churnRate, { min: 0, max: 0.95 }),
   cac: Math.max(0, toFiniteNumber(scenario.cac, 0)),
   expansionRate: normalizeRate(scenario.expansionRate, { min: 0, max: 1 }),
   grossMarginTarget: normalizeRate(scenario.grossMarginTarget, { min: 0, max: 0.99 }),
@@ -258,13 +265,18 @@ export function calculateProjections(
         : Math.round(effectiveStartUsers * Math.pow(1 + s.userGrowth, i)));
     const newUsers = Math.max(0, users - prevUsers);
 
-    const subscriptionRevenue = Math.round(mau * effectiveArpu * 12);
+    // Average active users across the year to avoid overstating revenue/costs
+    // when growth is high (end-of-year MAU × 12 months would inflate the result).
+    const avgUsers = Math.max(0, (prevUsers + users) / 2);
+    const avgMau = Math.max(0, avgUsers * (1 - effectiveChurn));
+
+    const subscriptionRevenue = Math.round(avgMau * effectiveArpu * 12);
     const expansionRevenue = Math.round(subscriptionRevenue * s.expansionRate);
     const totalRevenue = subscriptionRevenue + expansionRevenue;
 
-    const hostingCosts = Math.round(users * costs.hostingCostPerUser * 12);
+    const hostingCosts = Math.round(avgUsers * costs.hostingCostPerUser * 12);
     const paymentProcessing = Math.round(totalRevenue * costs.paymentProcessingRate);
-    const customerSupport = Math.round(users * costs.supportCostPerUser * 12);
+    const customerSupport = Math.round(avgUsers * costs.supportCostPerUser * 12);
     const cogs = hostingCosts + paymentProcessing + customerSupport;
     const grossProfit = totalRevenue - cogs;
     const grossMargin = Number(toPercent(grossProfit, totalRevenue).toFixed(1));
@@ -298,14 +310,20 @@ export function calculateProjections(
     const investingCF = -capex;
     const freeCashFlow = operatingCF + investingCF;
 
-    const grossMarginFraction = grossMargin / 100;
-    const ltv = effectiveChurn > 0
-      ? Math.round((effectiveArpu * grossMarginFraction) / effectiveChurn)
+    // Unit economics use the scenario's gross margin TARGET when set (> 0),
+    // otherwise fall back to the computed P&L margin. The target represents the
+    // long-run/at-scale margin investors care about; early-year computed margins
+    // can be artificially low while fixed costs amortize.
+    const computedGrossMarginFraction = grossMargin / 100;
+    const unitGrossMarginFraction =
+      s.grossMarginTarget > 0 ? s.grossMarginTarget : computedGrossMarginFraction;
+    const ltv = effectiveChurn > 0 && unitGrossMarginFraction > 0
+      ? Math.round((effectiveArpu * unitGrossMarginFraction) / effectiveChurn)
       : 0;
     const ltvCac = Number(toRatio(ltv, s.cac).toFixed(1));
     const paybackMonths =
-      effectiveArpu > 0 && grossMarginFraction > 0
-        ? Math.round(s.cac / (effectiveArpu * grossMarginFraction))
+      effectiveArpu > 0 && unitGrossMarginFraction > 0
+        ? Math.round(s.cac / (effectiveArpu * unitGrossMarginFraction))
         : 0;
     const revenuePerEmployee =
       employees > 0 ? Math.round(totalRevenue / employees) : 0;
@@ -405,27 +423,33 @@ export type VCValuationResult = {
   dilutionPercent: number;
 };
 
+const DEFAULT_VC_MOIC = 10;
+
+/**
+ * VC method (simplified): exit value = last-year revenue × exit multiple;
+ * post-money = exit value ÷ target MOIC (money-on-money multiple investors require on exit).
+ * `targetReturn` is that total multiple (e.g. 10 = 10×), not an annual rate.
+ */
 export function calculateVCValuation(
   projections: ProjectionData[],
   options: {
     exitMultiple?: number;
     targetReturn?: number;
     roundSize?: number;
+    /** Projection horizon in years; reserved for future time-weighted variants. */
     yearsToExit?: number;
   } = {}
 ): VCValuationResult {
   const exitMultiple = options.exitMultiple ?? 10;
-  const targetReturn = options.targetReturn ?? 10;
+  const targetReturn = options.targetReturn ?? DEFAULT_VC_MOIC;
   const roundSize = options.roundSize ?? 0;
-  const yearsToExit = options.yearsToExit ?? Math.max(projections.length, 1);
 
   const lastProjection = projections[projections.length - 1];
   const exitRevenue = lastProjection?.totalRevenue ?? 0;
   const expectedExitValue = exitRevenue * exitMultiple;
 
-  const impliedPostMoney = targetReturn > 0
-    ? expectedExitValue / Math.pow(targetReturn, 1)
-    : expectedExitValue / Math.pow(10, 1 / yearsToExit);
+  const moic = targetReturn > 0 ? targetReturn : DEFAULT_VC_MOIC;
+  const impliedPostMoney = expectedExitValue / moic;
 
   const impliedPreMoney = Math.max(0, impliedPostMoney - roundSize);
   const dilutionPercent = impliedPostMoney > 0
@@ -443,11 +467,13 @@ export function calculateVCValuation(
 
 export function calculateFundingNeed(
   projections: ProjectionData[],
-  safetyBuffer: number
+  safetyBuffer: number,
+  currentCash: number = 0
 ): number {
+  // Starting cash offsets early-year deficits before any external funding is needed.
   const cumulativeCash = projections.reduce(
     (acc, p, i) => {
-      const prev = i === 0 ? 0 : acc[i - 1];
+      const prev = i === 0 ? currentCash : acc[i - 1];
       acc.push(prev + p.freeCashFlow);
       return acc;
     },

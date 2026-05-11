@@ -11,6 +11,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:runtime": "node scripts/run-migrations.mjs",
     "db:auto": "pnpm db:generate && pnpm db:migrate",
     "db:migrate:auth": "tsx scripts/migrate-auth.ts",
     "db:fix-precision": "tsx scripts/fix-numeric-precision.ts",

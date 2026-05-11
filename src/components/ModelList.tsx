@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Plus, FileText, Calendar } from 'lucide-react'
+import { Plus, Activity, Calendar, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export type Model = {
@@ -20,104 +20,121 @@ type ModelListProps = {
 export default function ModelList({ models }: ModelListProps) {
   if (models.length === 0) {
     return (
-      <div className="rounded-lg border border-[var(--border-soft)] bg-white py-8 text-center shadow-[var(--shadow-sm)]">
-        <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--brand-primary)]/10">
-          <FileText className="h-5 w-5 text-[var(--brand-primary)]" />
+      <section className="rounded-xl border border-[#eeedf3] bg-[#f9fbff] px-6 py-10 text-center shadow-sm">
+        <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef2ff]">
+          <Activity className="h-6 w-6 text-[#4338ca]" strokeWidth={1.75} />
         </div>
         <h3
-          className="text-[14px] text-[var(--brand-ink)]"
-          style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+          className="text-sm font-bold text-[#0b1c30]"
+          style={{ fontFamily: "var(--font-display)" }}
         >
           No financial models yet
         </h3>
-        <p className="mt-0.5 text-[12px] text-[var(--brand-muted)]">
-          Create your first model to get started
+        <p className="mx-auto mt-1.5 max-w-md text-xs text-[#6b6a76]">
+          Build a model to run scenarios, see valuation ranges, and spin up investor-ready decks.
         </p>
-        <Button
-          size="sm"
-          className="mt-3 rounded-full bg-[var(--brand-primary)] px-4 text-xs font-semibold text-white shadow-[0_4px_14px_rgba(27,118,252,0.25)] hover:bg-[#1565D8]"
-          asChild
-        >
-          <Link to="/models/new">
-            <Plus size={14} />
-            Create Model
-          </Link>
-        </Button>
-      </div>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <Button
+            size="sm"
+            className="h-8 rounded-lg bg-[#4338ca] px-4 text-xs font-bold text-white shadow-md hover:bg-[#3730a3]"
+            asChild
+          >
+            <Link to="/models/new">
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+              Create model
+            </Link>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-lg border-[#d4d2e8] bg-white px-4 text-xs font-bold text-[#2a14b4] hover:bg-[#f8f7ff]"
+            asChild
+          >
+            <Link to="/academy">
+              <Upload className="h-3.5 w-3.5" strokeWidth={2} />
+              Import data
+            </Link>
+          </Button>
+        </div>
+      </section>
     )
   }
 
   return (
-    <section className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)]">
+    <section className="rounded-xl border border-[#eeedf3] bg-white shadow-sm">
       <div className="flex items-center justify-between px-4 py-3">
         <h2
-          className="text-[14px] text-[var(--brand-ink)]"
-          style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+          className="text-sm font-bold text-[#0b1c30]"
+          style={{ fontFamily: "var(--font-display)" }}
         >
           Financial Models
         </h2>
         <Button
           size="sm"
-          className="h-6 rounded-full bg-[var(--brand-primary)] px-2.5 text-[11px] font-semibold text-white hover:bg-[#1565D8]"
+          className="h-7 rounded-md bg-[var(--brand-primary)] px-2.5 text-[11px] font-semibold text-white hover:bg-[#1565D8]"
           asChild
         >
           <Link to="/models/new">
             <Plus size={12} />
-            New
+            New model
           </Link>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-px border-t border-[var(--border-soft)] bg-[var(--border-soft)] sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 border-t border-[#eeedf3] p-4 sm:grid-cols-2 lg:grid-cols-3">
         {models.map((model) => (
           <Link
             key={model.id}
             to="/models/$modelId"
             params={{ modelId: model.id.toString() }}
-            className="group bg-white p-3 transition-colors hover:bg-[var(--surface)]"
+            className="group flex flex-col rounded-lg border border-[#eeedf3] bg-[#fafbff] p-4 transition-shadow hover:shadow-md"
           >
-            <div className="flex items-start justify-between gap-2">
-              <h3
-                className="truncate text-[12px] font-semibold text-[var(--brand-ink)] group-hover:text-[var(--brand-primary)] flex-1 min-w-0"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {model.name}
-              </h3>
-              {model.stage != null && (
+            <div className="mb-2 flex items-center justify-between gap-2">
+              {model.stage != null ? (
                 <span
-                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
+                  className="rounded-full bg-[var(--brand-primary)]/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--brand-primary)]"
                   title={model.stage === "idea" ? "Idea / Pre-seed" : model.stage === "early_growth" ? "Early growth / Seed" : "Scale / Series A"}
                 >
                   {model.stage === "idea" ? "Idea" : model.stage === "early_growth" ? "Seed" : "Scale"}
                 </span>
+              ) : (
+                <span />
               )}
-            </div>
-            {model.companyName && (
-              <p className="mt-0.5 truncate text-[12px] text-[var(--brand-muted)]">
-                {model.companyName}
-              </p>
-            )}
-            {model.description && (
-              <p className="mt-1 line-clamp-1 text-[12px] text-[var(--brand-muted)]/70">
-                {model.description}
-              </p>
-            )}
-            {(model.latestArr != null || model.stage != null) && (
-              <p className="mt-1 text-[11px] text-[var(--brand-muted)]">
-                {model.latestArr != null && (
-                  <span className="font-semibold text-[var(--brand-ink)]">
-                    ARR {new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(model.latestArr)}
-                  </span>
-                )}
-              </p>
-            )}
-            <div className="mt-1.5 flex items-center justify-between text-[10px] text-[var(--brand-muted)]">
-              <span className="inline-flex items-center gap-0.5">
+              <span className="ml-auto flex items-center gap-1 text-[10px] text-[var(--brand-muted)]">
                 <Calendar size={9} />
                 {new Date(model.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
               </span>
-              <span className="font-semibold text-[var(--brand-primary)] opacity-0 transition-opacity group-hover:opacity-100">
-                Open
+            </div>
+
+            <h3
+              className="line-clamp-2 flex-1 text-xs font-bold text-[#0b1c30] group-hover:text-[var(--brand-primary)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {model.name}
+            </h3>
+
+            {model.companyName && (
+              <p className="mt-0.5 truncate text-[11px] text-[var(--brand-muted)]">
+                {model.companyName}
+              </p>
+            )}
+
+            {model.description && (
+              <p className="mt-1 line-clamp-2 text-[11px] text-[var(--brand-muted)]/70">
+                {model.description}
+              </p>
+            )}
+
+            <div className="mt-2.5 flex items-center justify-between">
+              {model.latestArr != null ? (
+                <span className="text-[11px] font-semibold text-[#0b1c30]">
+                  ARR {new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(model.latestArr)}
+                </span>
+              ) : (
+                <span />
+              )}
+              <span className="text-[11px] font-semibold text-[var(--brand-primary)] opacity-0 transition-opacity group-hover:opacity-100">
+                Open →
               </span>
             </div>
           </Link>

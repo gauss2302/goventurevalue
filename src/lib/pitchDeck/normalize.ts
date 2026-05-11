@@ -81,7 +81,9 @@ const normalizeSlide = (
     type,
     heading,
     subheading,
-    bullets: bullets.length > 0 ? bullets : ["Define the key message for this slide."],
+    // Don't inject a hardcoded English placeholder — leaks into non-English decks.
+    // Renderers should handle an empty bullets array gracefully.
+    bullets,
     speakerNotes,
     ...(keyMetrics.length > 0 ? { keyMetrics } : {}),
     ...(emphasisBulletIndex !== undefined ? { emphasisBulletIndex } : {}),
@@ -101,17 +103,23 @@ export const normalizePitchDeckSlides = (rawText: string): PitchDeckSlideDto[] =
   }
 
   const byType = new Map<PitchDeckSlideTypeDto, any>();
-  const byPosition = parsed.slides as any[];
+  // Positional fallback: only consume each untyped slide once across the deck
+  // to avoid the same slide being reused for multiple expected types.
+  const untypedQueue: any[] = [];
 
   parsed.slides.forEach((slide: any) => {
-    const type = typeof slide?.type === "string" ? (slide.type as PitchDeckSlideTypeDto) : null;
-    if (type && typeSet.has(type) && !byType.has(type)) {
-      byType.set(type, slide);
+    const rawType = typeof slide?.type === "string" ? slide.type : null;
+    if (rawType && typeSet.has(rawType as PitchDeckSlideTypeDto)) {
+      if (!byType.has(rawType as PitchDeckSlideTypeDto)) {
+        byType.set(rawType as PitchDeckSlideTypeDto, slide);
+      }
+    } else {
+      untypedQueue.push(slide);
     }
   });
 
   return DECK_SLIDE_ORDER.map((template, index) => {
-    const source = byType.get(template.type) ?? byPosition[index] ?? null;
+    const source = byType.get(template.type) ?? untypedQueue.shift() ?? null;
     return normalizeSlide(template.type, template.label, source, index);
   });
 };

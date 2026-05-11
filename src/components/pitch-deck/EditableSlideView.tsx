@@ -173,6 +173,11 @@ function EditableSlideViewComponent({
   const coverCentered = layout.cover.centered;
   const accentBar = layout.cover.accentBar ?? false;
   const bulletStyle = layout.content.bulletStyle;
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [slide.imageUrl]);
 
   const startEditing = useCallback((field: EditableField, value: string) => {
     setEditingField(field);
@@ -302,7 +307,8 @@ function EditableSlideViewComponent({
   const contentAlign = isCover && coverCentered ? "items-center justify-center text-center" : "";
   const hasImage = Boolean(slide.imageUrl?.trim());
   const slideLayout = slide.layout ?? "default";
-  const layoutWithImage = hasImage && slideLayout !== "default";
+  const isFullBleed = slideLayout === "image-full";
+  const layoutWithImage = hasImage && slideLayout !== "default" && !isFullBleed;
 
   const LAYOUT_OPTIONS: { value: SlideLayoutId; label: string }[] = [
     { value: "default", label: "Default" },
@@ -312,44 +318,60 @@ function EditableSlideViewComponent({
     { value: "image-full", label: "Image full" },
   ];
 
+  // Cover-fit semantics: image fills the panel, object-position handles pan within
+  // the cover crop, transform: scale zooms further in. Matches PDF export.
+  const imageVisualStyle = {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover" as const,
+    objectPosition: `${imagePanX * 100}% ${imagePanY * 100}%`,
+    transform: `scale(${imageScale})`,
+    transformOrigin: `${imagePanX * 100}% ${imagePanY * 100}%`,
+    transition: panning ? "none" : "transform 120ms ease-out",
+  };
+
+  const renderImageEl = (rounded: boolean) =>
+    imageError ? (
+      <div
+        className={`w-full h-full flex items-center justify-center ${rounded ? "rounded-lg" : ""}`}
+        style={{ backgroundColor: colors.speakerNotesBg, color: colors.subheading }}
+      >
+        <span className="text-xs opacity-70">Image unavailable</span>
+      </div>
+    ) : (
+      <img
+        ref={imageRef}
+        src={slide.imageUrl}
+        alt=""
+        className={`select-none pointer-events-none ${rounded ? "rounded-lg" : ""}`}
+        style={imageVisualStyle}
+        onError={() => setImageError(true)}
+        draggable={false}
+      />
+    );
+
   const imageBlock = hasImage ? (
     <div
       ref={imageContainerRef}
-      className="shrink-0 min-w-0 overflow-hidden flex items-center justify-center relative"
+      className="shrink-0 min-w-0 overflow-hidden relative"
       style={{
         contain: "paint",
-        backgroundColor: colors.background,
+        backgroundColor: colors.speakerNotesBg,
+        cursor: imageScale > 1 ? (panning ? "grabbing" : "grab") : "default",
+        touchAction: panning ? "none" : "auto",
         ...(slideLayout === "image-left" || slideLayout === "image-right"
-          ? { width: "40%", minWidth: 120 }
+          ? { width: "42%", minWidth: 120 }
           : {}),
-        ...(slideLayout === "image-top" ? { height: "35%", minHeight: 80 } : {}),
-        ...(slideLayout === "image-full" ? { height: "40%", minHeight: 100 } : {}),
+        ...(slideLayout === "image-top" ? { height: "45%", minHeight: 80 } : {}),
       }}
+      onPointerDown={handlePanPointerDown}
+      onPointerMove={handlePanPointerMove}
+      onPointerUp={handlePanPointerUp}
+      onPointerLeave={handlePanPointerUp}
     >
+      {renderImageEl(false)}
       <div
-        className="absolute inset-0 flex items-center justify-center origin-center overflow-hidden"
-        style={{
-          transform: `scale(${imageScale}) translate(${(0.5 - imagePanX) * Math.max(0, (imageScale - 1) * 2) * 100}%, ${(0.5 - imagePanY) * Math.max(0, (imageScale - 1) * 2) * 100}%)`,
-          touchAction: panning ? "none" : "auto",
-          cursor: imageScale > 1 ? (panning ? "grabbing" : "grab") : "default",
-        }}
-        onPointerDown={handlePanPointerDown}
-        onPointerMove={handlePanPointerMove}
-        onPointerUp={handlePanPointerUp}
-        onPointerLeave={handlePanPointerUp}
-      >
-        <img
-          ref={imageRef}
-          src={slide.imageUrl}
-          alt=""
-          className="max-w-full max-h-full object-contain select-none pointer-events-none"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
-        />
-      </div>
-      <div
-        className="absolute bottom-1 right-1 w-5 h-5 rounded border-2 border-white bg-black/40 cursor-se-resize flex items-center justify-center"
+        className="absolute bottom-1 right-1 w-5 h-5 rounded border-2 border-white bg-black/40 cursor-se-resize flex items-center justify-center z-10"
         style={{ touchAction: "none" }}
         onPointerDown={handleResizePointerDown}
         onPointerMove={handleResizePointerMove}
@@ -653,15 +675,52 @@ function EditableSlideViewComponent({
 
   return (
     <div
-      className="flex flex-col rounded-2xl border-2 border-[var(--border-soft)] shadow-[var(--card-shadow)] overflow-hidden"
+      className="flex flex-col rounded-2xl border-2 border-[var(--border-soft)] shadow-[var(--card-shadow)] overflow-hidden relative"
       style={wrapperStyle}
       aria-label={`Slide ${slideIndex + 1} of ${totalSlides} (editable)`}
       onPaste={handlePasteImage}
     >
-      {isCover && accentBar ? (
-        <div className="h-1.5 shrink-0" style={{ backgroundColor: colors.accent }} />
+      {/* Full-bleed background image with darkening overlay for text readability */}
+      {hasImage && isFullBleed ? (
+        <div
+          ref={imageContainerRef}
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            contain: "paint",
+            cursor: imageScale > 1 ? (panning ? "grabbing" : "grab") : "default",
+            touchAction: panning ? "none" : "auto",
+          }}
+          onPointerDown={handlePanPointerDown}
+          onPointerMove={handlePanPointerMove}
+          onPointerUp={handlePanPointerUp}
+          onPointerLeave={handlePanPointerUp}
+        >
+          {renderImageEl(false)}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `linear-gradient(180deg, ${colors.background}cc 0%, ${colors.background}80 35%, ${colors.background}f2 100%)`,
+            }}
+          />
+          <div
+            className="absolute bottom-2 right-2 w-6 h-6 rounded border-2 border-white bg-black/50 cursor-se-resize flex items-center justify-center z-20"
+            style={{ touchAction: "none" }}
+            onPointerDown={handleResizePointerDown}
+            onPointerMove={handleResizePointerMove}
+            onPointerUp={handleResizePointerUp}
+            onPointerLeave={handleResizePointerUp}
+            aria-label="Resize image"
+          >
+            <svg width="12" height="12" viewBox="0 0 10 10" className="text-white">
+              <path d="M10 10H6V6H10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            </svg>
+          </div>
+        </div>
       ) : null}
-      <div className="flex-1 p-2 flex flex-col min-h-0 min-w-0">
+      {isCover && accentBar ? (
+        <div className="h-1.5 shrink-0 relative z-10" style={{ backgroundColor: colors.accent }} />
+      ) : null}
+      <div className="relative z-10 flex-1 p-2 flex flex-col min-h-0 min-w-0">
         <div className="mb-2 px-2">
           <button
             type="button"
@@ -740,10 +799,7 @@ function EditableSlideViewComponent({
                 : "flex-col"
             }`}
           >
-            {(slideLayout === "image-left" ||
-              slideLayout === "image-top" ||
-              slideLayout === "image-full") &&
-              imageBlock}
+            {(slideLayout === "image-left" || slideLayout === "image-top") && imageBlock}
             {contentBlock}
             {slideLayout === "image-right" && imageBlock}
           </div>
@@ -752,8 +808,12 @@ function EditableSlideViewComponent({
         )}
       </div>
       <div
-        className="px-4 py-2 text-[10px] border-t shrink-0"
-        style={{ color: colors.footer, borderColor: colors.border }}
+        className="px-4 py-2 text-[10px] border-t shrink-0 relative z-10"
+        style={{
+          color: colors.footer,
+          borderColor: colors.border,
+          backgroundColor: isFullBleed ? `${colors.background}f2` : undefined,
+        }}
       >
         {startupName} • Slide {slideIndex + 1} / {totalSlides}
       </div>

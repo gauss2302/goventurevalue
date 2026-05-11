@@ -55,7 +55,7 @@ const cardVariants = {
 export function DashboardStats({ stats }: { stats: DashboardStat[] }) {
   const gridClass =
     stats.length === 3
-      ? "grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4"
+      ? "grid grid-cols-1 gap-3 sm:grid-cols-3"
       : "grid grid-cols-2 gap-3 lg:grid-cols-4";
   return (
     <motion.div
@@ -71,24 +71,23 @@ export function DashboardStats({ stats }: { stats: DashboardStat[] }) {
           <motion.div
             key={index}
             variants={cardVariants}
-            className="rounded-[var(--radius-sm)] border border-[var(--border-soft)] bg-white px-3 py-2.5 shadow-[var(--shadow-sm)] sm:px-2.5 sm:py-2"
+            className="rounded-xl border border-[var(--border-soft)] bg-white px-3 py-2.5 shadow-sm"
           >
-            <div className="mb-1.5 flex items-center justify-between sm:mb-1">
-              <div className={`flex h-7 w-7 items-center justify-center rounded-md sm:h-6 sm:w-6 sm:rounded ${tone.bg} ${tone.color}`}>
-                <Icon size={14} className="sm:hidden" />
-                <Icon size={12} className="hidden sm:block" />
+            <div className="mb-1.5 flex items-center justify-between">
+              <div className={`flex h-6 w-6 items-center justify-center rounded ${tone.bg} ${tone.color}`}>
+                <Icon size={12} />
               </div>
-              <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--brand-muted)] sm:text-[8px]">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--brand-muted)]">
                 {stat.helper}
               </span>
             </div>
             <p
-              className="text-base tabular-nums leading-tight text-[var(--brand-ink)] sm:text-sm"
+              className="text-base tabular-nums leading-tight text-[var(--brand-ink)]"
               style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
             >
               {stat.value}
             </p>
-            <p className="mt-0.5 text-[11px] leading-tight text-[var(--brand-muted)] sm:text-[9px]">{stat.label}</p>
+            <p className="mt-0.5 text-[11px] leading-tight text-[var(--brand-muted)]">{stat.label}</p>
           </motion.div>
         );
       })}

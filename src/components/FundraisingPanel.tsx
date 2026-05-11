@@ -22,6 +22,8 @@ type FundraisingPanelProps = {
   settings: ModelSettings;
   projections: ProjectionData[];
   arr: number | null;
+  /** Annual revenue basis for revenue multiple (e.g. latest month revenue × 12). Defaults to same as ARR when omitted. */
+  annualRevenueForMultiples?: number | null;
   stage?: StartupStage;
   currency?: string;
 };
@@ -48,6 +50,7 @@ export function FundraisingPanel({
   settings,
   projections,
   arr,
+  annualRevenueForMultiples,
   stage = "early_growth",
   currency: _currency = "USD",
 }: FundraisingPanelProps) {
@@ -120,8 +123,18 @@ export function FundraisingPanel({
         arrMultiple: settings.arrMultiple != null ? Number(settings.arrMultiple) : undefined,
         revenueMultiple: settings.revenueMultiple != null ? Number(settings.revenueMultiple) : undefined,
         stage,
+        annualRevenue:
+          annualRevenueForMultiples != null &&
+          Number.isFinite(annualRevenueForMultiples) &&
+          annualRevenueForMultiples > 0
+            ? annualRevenueForMultiples
+            : undefined,
       })
     : null;
+  const showRevenueBasisNote =
+    multiples != null &&
+    annualRevenueForMultiples != null &&
+    Math.abs(annualRevenueForMultiples - arrNum) > 1;
 
   const vcValuation = projections.length > 0
     ? calculateVCValuation(projections, {
@@ -324,6 +337,11 @@ export function FundraisingPanel({
                   <div className="rounded-xl border border-[var(--border-soft)] p-4">
                     <p className="text-sm text-[var(--brand-muted)] mb-1">ARR-based valuation ({multiples.arrMultipleUsed}x ARR)</p>
                     <p className="text-2xl font-bold text-[var(--brand-ink)]">{formatCompact(multiples.arrBasedValuation)}</p>
+                    {showRevenueBasisNote && (
+                      <p className="text-xs text-[var(--brand-muted)] mt-2">
+                        Revenue multiple uses trailing annual revenue (latest month revenue × 12); ARR multiple uses MRR × 12.
+                      </p>
+                    )}
                     <p className="text-xs text-[var(--brand-muted)] mt-1">Blended: {formatCompact(multiples.blendedValuation)}</p>
                   </div>
                 ) : (

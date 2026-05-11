@@ -1,11 +1,23 @@
+import { useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import {
+  Bell,
+  HelpCircle,
+  Layers,
+  Plus,
+  Presentation,
+  TrendingUp,
+  Users,
+  Check,
+  Circle,
+} from "lucide-react";
 import { Sidebar } from "../components/Sidebar";
+import { DashboardKpiCards } from "../components/DashboardKpiCards";
 import { DashboardStats } from "../components/DashboardStats";
-import { RecentActivity } from "../components/RecentActivity";
 import ModelList from "../components/ModelList";
 import type { Model } from "../components/ModelList";
 import { Button } from "@/components/ui/button";
@@ -35,12 +47,6 @@ type LoaderData = {
     lastModelUpdatedAt: string | null;
   };
   lastLoginAt: string | null;
-  activities: Array<{
-    id: number;
-    action: string;
-    target: string;
-    at: string;
-  }>;
   pitchDecks: PitchDeckSummary[];
 };
 
@@ -146,16 +152,6 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
       ? "pro"
       : "free";
 
-  const activities = models.slice(0, 4).map((model) => ({
-    id: model.id,
-    action:
-      model.updatedAt.getTime() === model.createdAt.getTime()
-        ? "Created model"
-        : "Updated model",
-    target: model.name,
-    at: (model.updatedAt || model.createdAt).toISOString(),
-  }));
-
   return {
     user: {
       name: session.user.name ?? null,
@@ -167,6 +163,8 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
       name: m.name,
       companyName: m.companyName,
       description: m.description,
+      stage: m.stage,
+      latestArr: null,
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
     })),
@@ -177,7 +175,6 @@ const loadDashboardData = createServerFn({ method: "GET" }).handler(async () => 
       lastModelUpdatedAt,
     },
     lastLoginAt,
-    activities,
     pitchDecks: decks.slice(0, 5).map((d) => ({
       id: d.id,
       title: d.title,
@@ -195,6 +192,9 @@ const dashboardQueryOptions = () => ({
 });
 
 export const Route = createFileRoute("/dashboard")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    billing: search.billing === "success" ? ("success" as const) : undefined,
+  }),
   loader: async ({ location, context }) => {
     await requireAuthForLoader(location);
     await context.queryClient.prefetchQuery(dashboardQueryOptions());
@@ -214,18 +214,27 @@ function Dashboard() {
   const { data, isPending, error } = useQuery(dashboardQueryOptions());
   const startBillingCheckoutFn = useServerFn(startBillingCheckout);
   const openBillingPortalFn = useServerFn(openBillingPortal);
+  const { billing } = Route.useSearch();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (billing === "success") {
+      toast.success("You're now on Pro! Your subscription is active.");
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  }, [billing, queryClient]);
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--page)]">
-        <div className="text-[13px] text-[var(--brand-muted)]">Loading dashboard...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f9ff]">
+        <div className="text-[13px] text-[#6b6a76]">Loading dashboard...</div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--page)]">
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f9ff]">
         <div className="text-[13px] text-red-600">
           Failed to load dashboard. Please refresh the page.
         </div>
@@ -233,14 +242,7 @@ function Dashboard() {
     );
   }
 
-  const {
-    models,
-    user,
-    stats,
-    lastLoginAt: _lastLoginAt,
-    activities,
-    pitchDecks,
-  } = data;
+  const { models, user, stats, pitchDecks } = data;
   const initials =
     user.name
       ?.split(" ")
@@ -249,48 +251,18 @@ function Dashboard() {
       .slice(0, 2)
       .toUpperCase() ||
     user.email?.slice(0, 2).toUpperCase() ||
-    "GV";
+    "HM";
 
   const numberFormat = new Intl.NumberFormat();
-  const formatDateShort = (value: string | null) => {
-    if (!value) return "\u2014";
-    const date = new Date(value);
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const scenariosDisplay =
+    stats.scenariosCount < 10
+      ? String(stats.scenariosCount).padStart(2, "0")
+      : numberFormat.format(stats.scenariosCount);
 
-  const statsData = [
-    {
-      label: "Models",
-      value: numberFormat.format(stats.modelsCount),
-      helper: "Financial",
-      tone: "primary" as const,
-    },
-    {
-      label: "Scenarios",
-      value: numberFormat.format(stats.scenariosCount),
-      helper: "Active",
-      tone: "secondary" as const,
-    },
-    {
-      label: "Starting Users",
-      value: numberFormat.format(stats.totalStartingUsers),
-      helper: "Cohorts",
-      tone: "ice" as const,
-    },
-    {
-      label: "Last Update",
-      value: formatDateShort(stats.lastModelUpdatedAt),
-      helper: "Recent",
-      tone: "accent" as const,
-    },
-  ];
-
-  const formatCompact = (value: number) =>
-    new Intl.NumberFormat(undefined, { notation: "compact" }).format(value);
-  const planLabel = user.plan === "pro" ? "Pro" : "Free";
+  const cohortValue =
+    stats.totalStartingUsers > 0
+      ? numberFormat.format(stats.totalStartingUsers)
+      : numberFormat.format(stats.modelsCount);
 
   const handleStartCheckout = async () => {
     try {
@@ -320,12 +292,135 @@ function Dashboard() {
     }
   };
 
+  const hasModels = models.length > 0;
+  const hasDeck = pitchDecks.length > 0;
+  const previewDeck = pitchDecks[0];
+
+  const miniStats = [
+    {
+      label: "Financial Models",
+      value: String(stats.modelsCount),
+      helper: "Total",
+      tone: "primary" as const,
+    },
+    {
+      label: "Active Scenarios",
+      value: String(stats.scenariosCount),
+      helper: "Across models",
+      tone: "secondary" as const,
+    },
+    {
+      label: "Starting Users",
+      value: stats.totalStartingUsers > 0 ? numberFormat.format(stats.totalStartingUsers) : "—",
+      helper: "Cohorts",
+      tone: "ice" as const,
+    },
+    {
+      label: "Last updated",
+      value: stats.lastModelUpdatedAt
+        ? new Date(stats.lastModelUpdatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+        : "—",
+      helper: "Activity",
+      tone: "accent" as const,
+    },
+  ];
+
+  const kpiItems = [
+    {
+      label: "Total Valuation",
+      value: "\u2014",
+      badge: "Add traction",
+      badgeClassName: "bg-[#ecfdf3] text-[#15803d]",
+      icon: TrendingUp,
+      iconWrapClassName: "bg-[#eef2ff]",
+      iconClassName: "text-[#4338ca]",
+    },
+    {
+      label: "Active Scenarios",
+      value: scenariosDisplay,
+      badge: "Across models",
+      badgeClassName: "bg-[#eef2ff] text-[#4338ca]",
+      icon: Layers,
+      iconWrapClassName: "bg-[#f5f3ff]",
+      iconClassName: "text-[#5b21b6]",
+    },
+    {
+      label: "Customer Cohorts",
+      value: cohortValue,
+      badge: stats.modelsCount > 0 ? "In workspace" : "Get started",
+      badgeClassName: "bg-[#fff7ed] text-[#c2410c]",
+      icon: Users,
+      iconWrapClassName: "bg-[#ecfeff]",
+      iconClassName: "text-[#0e7490]",
+    },
+  ];
+
+  const setupHref = hasModels ? "/pitch-decks/new" : "/models/new";
+
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-[var(--brand-ink)]">
+    <div className="min-h-screen bg-[#f8f9ff] text-[#0b1c30]">
       <Sidebar />
 
       <main className="relative transition-[margin] duration-300 md:ml-[var(--sidebar-width)]">
-        <div className="relative mx-auto max-w-[1200px] px-3 py-4 lg:px-4">
+        <header className="sticky top-0 z-20 border-b border-[#eeedf3] bg-[#f8f9ff]/90 px-3 py-2 backdrop-blur-md lg:px-8">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h1
+              className="pt-10 text-base font-bold text-[#0b1c30] md:pt-0"
+              style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
+            >
+              Havamind Dashboard
+            </h1>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-[#eeedf3] bg-white text-[#464554] shadow-sm transition-colors hover:bg-[#f9fafb]"
+                aria-label="Notifications"
+              >
+                <Bell className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-[#eeedf3] bg-white text-[#464554] shadow-sm transition-colors hover:bg-[#f9fafb]"
+                aria-label="Help"
+              >
+                <HelpCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
+              {user.plan === "pro" ? (
+                <button
+                  type="button"
+                  onClick={handleOpenPortal}
+                  className="rounded-md border border-[#e0dffd] bg-[#ecebfa] px-2.5 py-1 text-xs font-bold text-[#2a14b4] transition-opacity hover:opacity-90"
+                >
+                  Manage plan
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartCheckout}
+                  className="rounded-md border border-[#e0dffd] bg-[#ecebfa] px-2.5 py-1 text-xs font-bold text-[#2a14b4] transition-opacity hover:opacity-90"
+                >
+                  Upgrade
+                </button>
+              )}
+              <div className="flex items-center gap-1.5 border-l border-[#eeedf3] pl-1.5">
+                <div className="text-right leading-tight">
+                  <p className="text-xs font-semibold text-[#0b1c30]">
+                    {user.name || "Founder"}
+                  </p>
+                  <p className="text-[11px] text-[#6b6a76]">Founder</p>
+                </div>
+                <div
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ecebfa] text-xs font-bold text-[#2a14b4]"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {initials}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="mx-auto max-w-[1200px] space-y-5 px-3 py-5 lg:px-8">
           <motion.div
             initial="hidden"
             animate="visible"
@@ -333,234 +428,160 @@ function Dashboard() {
               hidden: { opacity: 0 },
               visible: {
                 opacity: 1,
-                transition: { staggerChildren: 0.04, delayChildren: 0.03 },
+                transition: { staggerChildren: 0.05, delayChildren: 0.02 },
               },
             }}
-            className="relative space-y-4"
+            className="space-y-5"
           >
-            {/* ── Application header: title + controls ── */}
-            <motion.header
-              variants={{
-                hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
-              }}
-              className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <h1
-                className="text-base font-bold text-[var(--brand-ink)]"
-                style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
-              >
-                Dashboard
-              </h1>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md border border-[var(--border-soft)] bg-white px-2.5 py-1.5 text-[11px] text-[var(--brand-muted)]">
-                  {formatDateShort(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())} – {formatDateShort(new Date().toISOString())}
-                </span>
-                <Button variant="outline" size="sm" className="h-7 rounded-md px-2.5 text-[11px]">
-                  Export
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-7 shrink-0 rounded-full bg-[var(--brand-primary)] px-2.5 text-[11px] font-semibold text-white shadow-[0_4px_14px_rgba(27,118,252,0.25)] hover:bg-[#1565D8]"
-                  asChild
-                >
-                  <Link to="/models/new">+ New model</Link>
-                </Button>
-              </div>
-            </motion.header>
-
-            {/* ── Row 1: 3 KPI cards ── */}
             <motion.div
               variants={{
                 hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
               }}
             >
-              <DashboardStats stats={statsData.slice(0, 3)} />
+              <DashboardKpiCards items={kpiItems} />
             </motion.div>
 
-            {/* ── Row 2: 2/3 + 1/3 — Pitch Decks (left), Profile / Subscriber (right) ── */}
             <motion.div
-              className="grid gap-4 lg:grid-cols-3"
               variants={{
                 hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
               }}
             >
-              <section className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)] lg:col-span-2">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <h2
-                    className="text-[14px] text-[var(--brand-ink)]"
-                    style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
-                  >
-                    Pitch Decks
-                  </h2>
-                  <Button
-                    size="sm"
-                    className="h-6 rounded-full bg-[var(--brand-primary)] px-2.5 text-[11px] font-semibold text-white hover:bg-[#1565D8]"
-                    asChild
-                  >
-                    <Link to={"/pitch-decks/new" as any}>New deck</Link>
-                  </Button>
-                </div>
-                <div className="border-t border-[var(--border-soft)] px-4 py-3">
-                  {pitchDecks.length === 0 ? (
-                    <p className="text-[13px] text-[var(--brand-muted)]">
-                      No pitch decks yet.{" "}
-                      <Link to={"/pitch-decks/new" as any} className="font-semibold text-[var(--brand-primary)] hover:underline">
-                        Create your first deck
-                      </Link>
+              <DashboardStats stats={miniStats} />
+            </motion.div>
+
+            <motion.div
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
+              }}
+              className="grid gap-4 lg:grid-cols-2"
+            >
+              <section className="rounded-xl border border-[#eeedf3] bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h2
+                      className="text-sm font-bold text-[#0b1c30]"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      Pitch Decks
+                    </h2>
+                    <p className="mt-0.5 text-xs text-[#6b6a76]">
+                      AI-generated slides from your models
                     </p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {pitchDecks.map((deck) => (
-                        <Link
-                          key={deck.id}
-                          to={"/pitch-decks/$deckId" as any}
-                          params={{ deckId: String(deck.id) } as any}
-                          className="flex items-center justify-between rounded-md px-2.5 py-1.5 transition-colors hover:bg-[var(--surface)]"
+                  </div>
+                  <Link
+                    to="/pitch-decks"
+                    className="text-xs font-bold text-[#4338ca] hover:underline"
+                  >
+                    View all
+                  </Link>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Link
+                    to="/pitch-decks/new"
+                    className="flex min-h-[100px] flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-[#d4d2e8] bg-[#f8f7ff] p-4 text-center transition-colors hover:border-[#4338ca]/40 hover:bg-[#f3f0ff]"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#4338ca] text-white shadow-md">
+                      <Plus className="h-5 w-5" strokeWidth={2.5} />
+                    </div>
+                    <span className="text-xs font-bold text-[#2a14b4]">Create New Deck</span>
+                  </Link>
+                  {previewDeck ? (
+                    <Link
+                      to="/pitch-decks/$deckId"
+                      params={{ deckId: String(previewDeck.id) }}
+                      className="group flex min-h-[100px] flex-col overflow-hidden rounded-lg border border-[#eeedf3] bg-[#fafbff] shadow-sm transition-shadow hover:shadow-md"
+                    >
+                      <div className="relative h-16 w-full bg-gradient-to-br from-[#4338ca]/20 via-[#a78bfa]/25 to-[#36c9f9]/20">
+                        <Presentation className="absolute bottom-2 right-2 h-6 w-6 text-[#4338ca]/40" />
+                      </div>
+                      <div className="flex flex-1 flex-col justify-center p-3">
+                        <p className="line-clamp-2 text-xs font-semibold text-[#0b1c30] group-hover:text-[#4338ca]">
+                          {previewDeck.title}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-[#6b6a76]">
+                          {previewDeck.startupName}
+                        </p>
+                        <span
+                          className={`mt-1.5 w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClassName[previewDeck.status] ?? statusClassName.draft}`}
                         >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-medium text-[var(--brand-ink)]">
-                              {deck.title}
-                            </p>
-                            <p className="truncate text-[11px] text-[var(--brand-muted)]">
-                              {deck.startupName}
-                            </p>
-                          </div>
-                          <div className="ml-3 flex shrink-0 items-center gap-2">
-                            <span
-                              className={`rounded-full px-2 py-px text-[10px] font-medium ${statusClassName[deck.status] ?? statusClassName.draft}`}
-                            >
-                              {deck.status}
-                            </span>
-                            <span className="text-[11px] tabular-nums text-[var(--brand-muted)]">
-                              {new Date(deck.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                            </span>
-                          </div>
-                        </Link>
-                      ))}
-                      <Link
-                        to={"/pitch-decks" as any}
-                        className="mt-2 inline-block text-xs font-semibold text-[var(--brand-primary)] hover:underline"
-                      >
-                        View all decks
-                      </Link>
+                          {previewDeck.status}
+                        </span>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="flex min-h-[100px] flex-col justify-center rounded-lg border border-[#eeedf3] bg-gradient-to-br from-[#f8f9ff] to-[#eef2ff] p-4 text-center">
+                      <Presentation className="mx-auto mb-1.5 h-8 w-8 text-[#4338ca]/35" />
+                      <p className="text-xs font-medium text-[#464554]">No decks yet</p>
+                      <p className="mt-0.5 text-[11px] text-[#6b6a76]">
+                        Create a deck to see a preview here
+                      </p>
                     </div>
                   )}
                 </div>
               </section>
 
-              <div className="rounded-lg border border-[var(--border-soft)] bg-white p-3 shadow-[var(--shadow-sm)]">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-[var(--brand-primary)]"
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      background: "linear-gradient(135deg, rgba(27,118,252,0.12), rgba(54,201,249,0.12))",
-                    }}
-                  >
-                    {initials}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="truncate text-[12px] font-semibold text-[var(--brand-ink)]"
-                      style={{ fontFamily: "var(--font-display)" }}
-                    >
-                      {user.name || "Founder"}
-                    </p>
-                    <p className="truncate text-[10px] text-[var(--brand-muted)]">
-                      {user.email || "No email set"}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-[var(--brand-primary)]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--brand-primary)]">
-                    {planLabel}
-                  </span>
-                </div>
-                <div className="mt-2.5 grid grid-cols-3 gap-1.5 rounded-md bg-[var(--surface)] p-2 text-center">
-                  <div>
-                    <p className="text-xs font-semibold tabular-nums text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
-                      {numberFormat.format(stats.modelsCount)}
-                    </p>
-                    <p className="text-[9px] text-[var(--brand-muted)]">Models</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold tabular-nums text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
-                      {numberFormat.format(stats.scenariosCount)}
-                    </p>
-                    <p className="text-[9px] text-[var(--brand-muted)]">Scenarios</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold tabular-nums text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
-                      {formatCompact(stats.totalStartingUsers)}
-                    </p>
-                    <p className="text-[9px] text-[var(--brand-muted)]">Users</p>
-                  </div>
-                </div>
-                <div className="mt-2.5 flex gap-1.5">
+              <section className="flex flex-col rounded-xl bg-[#2a14b4] p-4 text-white shadow-lg">
+                <h2
+                  className="text-sm font-bold"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Next steps
+                </h2>
+                <p className="mt-0.5 text-xs text-white/80">
+                  Finish setup to unlock valuations and decks
+                </p>
+                <ul className="mt-4 space-y-3">
+                  <li className="flex items-start gap-2.5">
+                    {hasModels ? (
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" strokeWidth={2.5} />
+                    ) : (
+                      <Circle className="mt-0.5 h-4 w-4 shrink-0 text-white/40" strokeWidth={2} />
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold">Create a financial model</p>
+                      <p className="text-[11px] text-white/70">Capture traction and scenarios</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    {hasDeck ? (
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" strokeWidth={2.5} />
+                    ) : (
+                      <Circle className="mt-0.5 h-4 w-4 shrink-0 text-white/40" strokeWidth={2} />
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold">Generate a pitch deck</p>
+                      <p className="text-[11px] text-white/70">Export-ready narrative and slides</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Circle className="mt-0.5 h-4 w-4 shrink-0 text-white/40" strokeWidth={2} />
+                    <div>
+                      <p className="text-xs font-semibold">Tune benchmark assumptions</p>
+                      <p className="text-[11px] text-white/70">Align multiples with your stage</p>
+                    </div>
+                  </li>
+                </ul>
+                <div className="mt-auto pt-5">
                   <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 flex-1 rounded-md bg-[var(--brand-primary)] text-[11px] font-semibold text-white hover:bg-[#1565D8]"
-                    onClick={handleStartCheckout}
+                    asChild
+                    className="h-9 w-full rounded-lg border-0 bg-white text-xs font-bold text-[#2a14b4] shadow-md hover:bg-white/95"
                   >
-                    {user.plan === "pro" ? "Change plan" : "Upgrade"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 flex-1 rounded-md text-[11px]"
-                    onClick={handleOpenPortal}
-                  >
-                    Billing
+                    <Link to={setupHref}>Continue setup</Link>
                   </Button>
                 </div>
-              </div>
+              </section>
             </motion.div>
 
-            {/* ── Row 3: 1/2 + 1/2 — Distribution / Next steps (left), Model list (right) ── */}
-            <motion.div
-              className="grid gap-4 lg:grid-cols-2"
-              variants={{
-                hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
-              }}
-            >
-              <div className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)]">
-                <div className="px-3 py-2.5">
-                  <h3
-                    className="text-[12px] font-semibold text-[var(--brand-ink)]"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Next steps
-                  </h3>
-                </div>
-                <div className="space-y-px border-t border-[var(--border-soft)]">
-                  <div className="flex items-center justify-between px-3 py-2 transition-colors hover:bg-[var(--surface)]">
-                    <span className="truncate text-[12px] text-[var(--brand-muted)]">Upload your logo</span>
-                    <span className="ml-2 shrink-0 text-[10px] font-semibold text-[var(--brand-primary)]">Add</span>
-                  </div>
-                  <div className="flex items-center justify-between px-3 py-2 transition-colors hover:bg-[var(--surface)]">
-                    <span className="truncate text-[12px] text-[var(--brand-muted)]">Set default currency</span>
-                    <span className="ml-2 shrink-0 text-[10px] font-semibold text-[var(--brand-primary)]">Update</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="lg:min-w-0">
-                <ModelList models={models} />
-              </div>
-            </motion.div>
-
-            {/* ── Recent activity (full width below row 3) ── */}
             <motion.div
               variants={{
                 hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
               }}
             >
-              <RecentActivity activities={activities} />
+              <ModelList models={models} />
             </motion.div>
           </motion.div>
         </div>

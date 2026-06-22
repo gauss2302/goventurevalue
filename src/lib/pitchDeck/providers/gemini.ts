@@ -238,7 +238,6 @@ export const geminiPitchDeckProvider: PitchDeckProvider = {
 
         // Retry on 429 (quota exceeded) with delay from response or default
         if (isGenerateAttemptError(result) && isQuotaExhaustedError(result.status)) {
-          let last429Body = result.body;
           for (let retry = 0; retry < MAX_QUOTA_RETRIES; retry++) {
             const waitSeconds = parseRetryDelaySeconds(result.body) ?? 24;
             await sleep(waitSeconds * 1000);
@@ -250,7 +249,6 @@ export const geminiPitchDeckProvider: PitchDeckProvider = {
               userPrompt,
             });
             if (isGenerateAttemptError(result) && isQuotaExhaustedError(result.status)) {
-              last429Body = result.body;
               continue;
             }
             break;

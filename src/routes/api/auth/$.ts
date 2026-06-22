@@ -7,8 +7,6 @@ export const Route = createFileRoute("/api/auth/$")({
     handlers: {
       GET: async ({ request }: { request: Request }) => {
         try {
-          const url = new URL(request.url);
-          logger.info("[Better Auth] GET request to:", url.pathname);
           const response = await auth.handler(request);
           return response;
         } catch (error) {
@@ -22,10 +20,7 @@ export const Route = createFileRoute("/api/auth/$")({
             return error;
           }
           return new Response(
-            JSON.stringify({
-              error: "Authentication error",
-              message: error instanceof Error ? error.message : String(error),
-            }),
+            JSON.stringify({ error: "Authentication error" }),
             {
               status: 500,
               headers: { "Content-Type": "application/json" },
@@ -35,25 +30,7 @@ export const Route = createFileRoute("/api/auth/$")({
       },
       POST: async ({ request }: { request: Request }) => {
         try {
-          const url = new URL(request.url);
-          logger.info("[Better Auth] POST request to:", url.pathname);
-
-          // Clone request to read body for debugging (Better Auth will handle the original)
-          const clonedRequest = request.clone();
-          try {
-            const body = await clonedRequest.text();
-            if (body) {
-              logger.debug(
-                "[Better Auth] Request body:",
-                body.substring(0, 200)
-              );
-            }
-          } catch (e) {
-            // Ignore body reading errors
-          }
-
           const response = await auth.handler(request);
-          logger.info("[Better Auth] Response status:", response.status);
           return response;
         } catch (error) {
           logger.error("[Better Auth] POST error:", error);
@@ -66,10 +43,7 @@ export const Route = createFileRoute("/api/auth/$")({
             return error;
           }
           return new Response(
-            JSON.stringify({
-              error: "Authentication error",
-              message: error instanceof Error ? error.message : String(error),
-            }),
+            JSON.stringify({ error: "Authentication error" }),
             {
               status: 500,
               headers: { "Content-Type": "application/json" },

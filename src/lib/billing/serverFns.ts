@@ -21,6 +21,15 @@ export const sanitizeReturnPath = (value: string | null | undefined): string => 
 };
 
 export const getRequestOrigin = (headers: Headers): string => {
+  const configuredOrigin =
+    process.env.BETTER_AUTH_URL || process.env.VITE_BETTER_AUTH_URL;
+
+  // In production, prefer the configured origin over request headers so a
+  // forged Host / X-Forwarded-Host can't shape outgoing redirect URLs.
+  if (process.env.NODE_ENV === "production" && configuredOrigin) {
+    return normalizeBaseUrl(configuredOrigin);
+  }
+
   const forwardedProto = headers
     .get("x-forwarded-proto")
     ?.split(",")[0]
@@ -32,12 +41,12 @@ export const getRequestOrigin = (headers: Headers): string => {
   const host = forwardedHost || headers.get("host")?.trim();
 
   if (host) {
-    const proto = forwardedProto || "http";
+    const defaultProto =
+      process.env.NODE_ENV === "production" ? "https" : "http";
+    const proto = forwardedProto || defaultProto;
     return `${proto}://${host}`;
   }
 
-  const configuredOrigin =
-    process.env.BETTER_AUTH_URL || process.env.VITE_BETTER_AUTH_URL;
   if (configuredOrigin) {
     return normalizeBaseUrl(configuredOrigin);
   }

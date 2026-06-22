@@ -465,7 +465,17 @@ const createPitchDeckFullAi = createServerFn({ method: "POST" })
 const searchUnsplash = createServerFn({ method: "GET" })
   .inputValidator((data: { query: string }) => data)
   .handler(async ({ data }) => {
-    const { searchUnsplashPhotos } = await import("@/lib/pitchDeck/unsplash");
+    const [
+      { getRequestHeaders },
+      { requireAuthFromHeaders },
+      { searchUnsplashPhotos },
+    ] = await Promise.all([
+      import("@tanstack/react-start/server"),
+      import("@/lib/auth/server"),
+      import("@/lib/pitchDeck/unsplash"),
+    ]);
+    const headers = getRequestHeaders();
+    await requireAuthFromHeaders(headers);
     return searchUnsplashPhotos(data.query, 12);
   });
 

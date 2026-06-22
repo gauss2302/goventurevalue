@@ -31,6 +31,16 @@ import { aiStyleToTemplate } from "@/lib/pitchDeck/aiStyleAdapter";
 import type { ModelContextSummary } from "@/lib/pitchDeck/types";
 import { assertExportAccess } from "@/lib/billing/serverFns";
 
+const SAFE_IMAGE_URL_RE =
+  /^(?:https?:\/\/|data:image\/(?:png|jpe?g|gif|webp|svg\+xml);)/i;
+
+const sanitizeImageUrl = (raw: string | undefined | null): string | undefined => {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  return SAFE_IMAGE_URL_RE.test(trimmed) ? trimmed : undefined;
+};
+
 const toSlides = (value: unknown): PitchDeckSlideDto[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -46,10 +56,7 @@ const toSlides = (value: unknown): PitchDeckSlideDto[] => {
         candidate.emphasisBulletIndex >= 0
           ? candidate.emphasisBulletIndex
           : undefined;
-      const imageUrl =
-        typeof candidate.imageUrl === "string" && candidate.imageUrl.trim()
-          ? candidate.imageUrl.trim()
-          : undefined;
+      const imageUrl = sanitizeImageUrl(candidate.imageUrl);
       const layout =
         candidate.layout === "image-left" ||
         candidate.layout === "image-right" ||

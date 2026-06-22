@@ -114,6 +114,7 @@ const getScenarioParams = (scenario?: ExportScenario): ScenarioParams => ({
   expansionRate: toNumber(scenario?.expansionRate),
   grossMarginTarget: toNumber(scenario?.grossMarginTarget),
   cac: toNumber(scenario?.cac),
+  revenueGrowthRate: 0,
 });
 
 const resolveScenarioParams = (

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
       if (location == null) return null;
       const session = await getSessionForLoader();
       if (session?.user) {
-        throw redirect({ to: "/dashboard" });
+        throw redirect({ to: "/dashboard", search: { billing: undefined } });
       }
       return null;
     } catch (error) {

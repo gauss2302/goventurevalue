@@ -97,11 +97,13 @@ function NavRow({
   return (
     <Link
       to={to}
+      data-slot="sidebar-nav-item"
+      data-active={active ? "" : undefined}
       title={collapsed ? label : hint}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex min-h-10 items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-[var(--text-subheadline)] font-medium leading-none transition-colors duration-200",
+        "group relative flex min-h-9 items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-1.5 text-[var(--text-subheadline)] font-medium leading-none transition-colors duration-200",
         collapsed && "justify-center px-0",
         active
           ? "text-[var(--sidebar-active-fg)]"
@@ -151,11 +153,12 @@ function SidebarBody({
       <div className={cn("shrink-0 pt-4", collapsed ? "px-2" : "px-4")}>
         <Link
           to="/models/new"
+          data-slot="sidebar-new-model"
           onClick={onNavigate}
           title="Create a new model"
           className={cn(
-            "flex h-10 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--brand-primary)] text-[var(--text-subheadline)] font-semibold text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_32%,transparent)] transition-all duration-200 hover:bg-[var(--brand-primary-hover)] active:scale-[0.98]",
-            collapsed ? "w-10" : "w-full"
+            "flex h-9 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--brand-primary)] text-[var(--text-subheadline)] font-semibold text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_32%,transparent)] transition-all duration-200 hover:bg-[var(--brand-primary-hover)] active:scale-[0.98]",
+            collapsed ? "w-9" : "w-full"
           )}
         >
           <Plus className="size-4" strokeWidth={2.5} aria-hidden />
@@ -213,7 +216,7 @@ function SidebarBody({
             onClick={onSignOut}
             title="Sign out"
             className={cn(
-              "flex min-h-10 items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left text-[var(--text-subheadline)] font-medium leading-none text-[var(--brand-muted)] transition-colors duration-200 hover:bg-[var(--sidebar-hover-bg)] hover:text-[var(--brand-ink)]",
+              "flex min-h-9 items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-1.5 text-left text-[var(--text-subheadline)] font-medium leading-none text-[var(--brand-muted)] transition-colors duration-200 hover:bg-[var(--sidebar-hover-bg)] hover:text-[var(--brand-ink)]",
               collapsed && "justify-center px-0"
             )}
           >
@@ -296,6 +299,7 @@ export function Sidebar() {
       {/* Desktop fixed aside */}
       <aside
         aria-label="Sidebar"
+        data-slot="sidebar"
         className={cn(
           shellClass,
           "fixed left-0 top-0 z-40 hidden w-[var(--sidebar-width)] transition-[width] duration-300 [transition-timing-function:var(--ease-out-quint)] md:flex"

@@ -249,16 +249,12 @@ code {
   --color-border-soft: var(--border-soft);
 
   --color-border: var(--border);
-  --spacing-1: var(--space-1);
-  --spacing-2: var(--space-2);
-  --spacing-3: var(--space-3);
-  --spacing-4: var(--space-4);
-  --spacing-5: var(--space-5);
-  --spacing-6: var(--space-6);
-  --spacing-7: var(--space-7);
-  --spacing-8: var(--space-8);
-  --spacing-9: var(--space-9);
-  --spacing-10: var(--space-10);
+  /*
+   * NOTE: Do NOT map --spacing-1..10 here. In Tailwind v4 those keys override
+   * the numeric spacing scale, so `h-10` would become 128px instead of 40px and
+   * inflate the entire UI. Custom spacing is consumed via arbitrary values
+   * (e.g. `p-[var(--space-5)]`), which read the `:root` tokens directly.
+   */
   --text-display: var(--text-display);
   --text-headline: var(--text-headline);
   --text-title1: var(--text-title1);
@@ -455,4 +451,15 @@ code {
     min-height: 44px;
     min-width: 44px;
   }
+}
+
+/* Hide native number input spinners (up/down arrows) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

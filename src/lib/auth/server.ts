@@ -19,6 +19,13 @@ if (!baseURL) {
 
 const secret = requireEnv('BETTER_AUTH_SECRET')
 
+// In dev, the app is served from localhost on a Vite-assigned port, which won't
+// match the production `baseURL`. Trust localhost (any port) only in dev so the
+// origin check passes without weakening production security.
+const devTrustedOrigins = import.meta.env?.DEV
+  ? ['http://localhost:*', 'http://127.0.0.1:*']
+  : []
+
 const polarAccessToken = getOptionalEnv('POLAR_ACCESS_TOKEN')
 const polarProductId = getOptionalEnv('POLAR_EXPORTS_PRODUCT_ID')
 const polarSuccessUrl =
@@ -55,6 +62,7 @@ const polarPlugin =
 export const auth = betterAuth({
   baseURL,
   secret,
+  trustedOrigins: [baseURL, ...devTrustedOrigins],
   database: drizzleAdapter(db, {
     provider: 'sqlite',
     schema,

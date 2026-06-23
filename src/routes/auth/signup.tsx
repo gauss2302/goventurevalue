@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth/client";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export const Route = createFileRoute("/auth/signup")({
   component: SignUp,
@@ -205,9 +206,8 @@ function SignUp() {
               >
                 Password
               </label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11 rounded-[var(--radius-md)] border-[var(--border-soft)] bg-[var(--surface)] px-4 text-sm focus-visible:ring-[var(--brand-primary)]"
@@ -226,9 +226,8 @@ function SignUp() {
               >
                 Confirm password
               </label>
-              <Input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="h-11 rounded-[var(--radius-md)] border-[var(--border-soft)] bg-[var(--surface)] px-4 text-sm focus-visible:ring-[var(--brand-primary)]"

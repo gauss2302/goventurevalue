@@ -774,16 +774,15 @@ const upsertMonthlyMetrics = createServerFn({ method: "POST" })
 
     const now = new Date();
 
-    await db.transaction(async (tx) => {
-      await tx
-        .delete(modelMonthlyMetrics)
-        .where(eq(modelMonthlyMetrics.modelId, data.modelId));
+    const deleteExisting = db
+      .delete(modelMonthlyMetrics)
+      .where(eq(modelMonthlyMetrics.modelId, data.modelId));
 
-      if (rowsNormalized.length === 0) {
-        return;
-      }
-
-      await tx.insert(modelMonthlyMetrics).values(
+    if (rowsNormalized.length === 0) {
+      // D1 does not support SQL BEGIN/COMMIT; use batch for atomic writes.
+      await db.batch([deleteExisting]);
+    } else {
+      const insertRows = db.insert(modelMonthlyMetrics).values(
         rowsNormalized.map((row) => ({
           modelId: data.modelId,
           month: row.month,
@@ -806,7 +805,9 @@ const upsertMonthlyMetrics = createServerFn({ method: "POST" })
           updatedAt: now,
         }))
       );
-    });
+
+      await db.batch([deleteExisting, insertRows]);
+    }
 
     return { success: true };
   });

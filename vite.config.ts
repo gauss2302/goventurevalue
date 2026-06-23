@@ -11,6 +11,10 @@ const isTest = process.env.VITEST === "true";
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(() => ({
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
   plugins: [
     ...(isTest
       ? []

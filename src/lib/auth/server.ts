@@ -6,21 +6,7 @@ import { Polar } from '@polar-sh/sdk'
 
 import { db } from '@/db/index'
 import * as schema from '@/db/schema'
-
-const getOptionalEnv = (key: string) => {
-  const value = process.env[key]
-  if (!value) return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
-}
-
-const requireEnv = (key: string) => {
-  const value = getOptionalEnv(key)
-  if (!value) {
-    throw new Error(`[Auth] Missing required environment variable: ${key}`)
-  }
-  return value
-}
+import { getOptionalEnv, requireEnv } from '@/lib/env'
 
 const baseURL =
   getOptionalEnv('BETTER_AUTH_URL') ?? getOptionalEnv('VITE_BETTER_AUTH_URL')
@@ -70,13 +56,13 @@ export const auth = betterAuth({
   baseURL,
   secret,
   database: drizzleAdapter(db, {
-    provider: 'pg',
+    provider: 'sqlite',
     schema,
   }),
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      clientId: requireEnv('GOOGLE_CLIENT_ID'),
+      clientSecret: requireEnv('GOOGLE_CLIENT_SECRET'),
     },
   },
   emailAndPassword: {

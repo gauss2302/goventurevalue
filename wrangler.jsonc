@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "goventurevalue",
+  "compatibility_date": "2026-06-22",
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+  "main": "@tanstack/react-start/server-entry",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "goventurevalue-db",
+      "database_id": "fd876630-bed7-4265-a5cd-2f8d00deae6b",
+      "migrations_dir": "drizzle",
+      "migrations_pattern": "drizzle/*.sql"
+    }
+  ],
+  "vars": {
+    "BETTER_AUTH_URL": "https://goventurevalue.devshilov.workers.dev",
+    "VITE_BETTER_AUTH_URL": "https://goventurevalue.devshilov.workers.dev",
+    "POLAR_SERVER": "sandbox",
+    "POLAR_SUCCESS_URL": "https://goventurevalue.devshilov.workers.dev/billing/success"
+  },
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET"
+    ]
+  }
+}

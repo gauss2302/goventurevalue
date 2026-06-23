@@ -1,0 +1,26 @@
+# Better Auth (local only — keep localhost for `pnpm dev`)
+BETTER_AUTH_URL=http://localhost:8787
+VITE_BETTER_AUTH_URL=http://localhost:8787
+BETTER_AUTH_SECRET=your-secret-key-here-change-in-production
+
+# Google OAuth
+GOOGLE_CLIENT_ID=change_me
+GOOGLE_CLIENT_SECRET=change_me
+
+# Pitch Deck AI Providers
+OPENAI_API_KEY=
+OPENAI_PITCH_MODEL=gpt-4.1-mini
+GEMINI_API_KEY=
+GEMINI_PITCH_MODEL=gemini-2.0-flash
+GEMINI_API_VERSION=v1
+GEMINI_MODEL_FALLBACKS=gemini-2.5-flash,gemini-2.0-flash
+
+# Polar Billing
+POLAR_ACCESS_TOKEN=
+POLAR_WEBHOOK_SECRET=
+POLAR_SUCCESS_URL=http://localhost:8787/billing/success
+POLAR_EXPORTS_PRODUCT_ID=
+POLAR_CHECKOUT_SLUG=exports
+
+# Unsplash (optional)
+UNSPLASH_ACCESS_KEY=

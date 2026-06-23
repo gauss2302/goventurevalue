@@ -1,10 +1,14 @@
 node_modules
+.pnpm-store
+pnpm-store
 .DS_Store
 dist
 dist-ssr
 *.local
 count.txt
 .env
+.dev.vars
+worker-configuration.d.ts
 .nitro
 .tanstack
 .wrangler

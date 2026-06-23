@@ -5,27 +5,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
-  Bell,
-  HelpCircle,
+  FileSpreadsheet,
   Layers,
-  Plus,
-  Presentation,
-  TrendingUp,
   Users,
-  Check,
-  Circle,
+  Clock,
+  Presentation,
+  Plus,
   ArrowRight,
+  ArrowUpRight,
+  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
-import { DashboardKpiCards } from "../components/DashboardKpiCards";
-import type { DashboardKpiItem } from "../components/DashboardKpiCards";
-import { DashboardStats } from "../components/DashboardStats";
 import ModelList from "../components/ModelList";
 import type { Model } from "../components/ModelList";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { SubTitle, Muted } from "@/components/ui/typography";
+import { SubTitle } from "@/components/ui/typography";
 import { AppShell, DashboardHeader, PageContainer, LoadingState, ErrorState } from "@/components/layout";
+import { cn } from "@/lib/utils";
 import { usePageMotion } from "@/lib/motion";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 import { openBillingPortal, startBillingCheckout } from "@/lib/billing/serverFns";
@@ -219,6 +217,79 @@ const statusBadgeVariant: Record<
   failed: "destructive",
 };
 
+type StatTone = "primary" | "secondary" | "info" | "accent";
+type StatRoute = "/models" | "/pitch-decks" | "/assumptions";
+
+const statToneWrap: Record<StatTone, string> = {
+  primary:
+    "bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary-hover)]",
+  secondary:
+    "bg-[color-mix(in_srgb,var(--brand-secondary)_14%,transparent)] text-[var(--brand-secondary)]",
+  info: "bg-[color-mix(in_srgb,var(--info)_12%,transparent)] text-[var(--info)]",
+  accent:
+    "bg-[color-mix(in_srgb,var(--brand-accent)_16%,transparent)] text-[#92610a] dark:text-[var(--brand-accent)]",
+};
+
+function StatTile({
+  icon: Icon,
+  value,
+  label,
+  helper,
+  tone,
+  to,
+}: {
+  icon: LucideIcon;
+  value: string;
+  label: string;
+  helper: string;
+  tone: StatTone;
+  to?: StatRoute;
+}) {
+  const body = (
+    <>
+      <div className="mb-[var(--space-2)] flex items-center justify-between">
+        <span className={cn("flex size-8 items-center justify-center rounded-lg", statToneWrap[tone])}>
+          <Icon size={15} strokeWidth={1.85} aria-hidden />
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-muted)]">
+          {helper}
+        </span>
+      </div>
+      <p className="font-display text-[var(--text-title2)] font-bold leading-none tracking-[-0.01em] text-[var(--brand-ink)] tabular-nums">
+        {value}
+      </p>
+      <p className="mt-1 flex items-center gap-1 text-[var(--text-caption1)] leading-tight text-[var(--brand-muted)]">
+        {label}
+        {to ? (
+          <ArrowUpRight
+            size={11}
+            className="opacity-0 transition-opacity group-hover:opacity-100"
+            aria-hidden
+          />
+        ) : null}
+      </p>
+    </>
+  );
+
+  const baseClass =
+    "rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] px-[var(--space-4)] py-[var(--space-3)] shadow-[var(--card-shadow)] transition-all duration-300 [transition-timing-function:var(--ease-out-quint)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)]";
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className={cn(
+          baseClass,
+          "group block hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,var(--border-soft))]"
+        )}
+      >
+        {body}
+      </Link>
+    );
+  }
+  return <div className={cn(baseClass, "group")}>{body}</div>;
+}
+
 function Dashboard() {
   const { data, isPending, error } = useQuery(dashboardQueryOptions());
   const startBillingCheckoutFn = useServerFn(startBillingCheckout);
@@ -254,7 +325,7 @@ function Dashboard() {
     );
   }
 
-  const { models, user, stats, pitchDecks } = data;
+  const { models, user, stats, pitchDecks, lastLoginAt } = data;
   const initials =
     user.name
       ?.split(" ")
@@ -266,15 +337,10 @@ function Dashboard() {
     "HM";
 
   const numberFormat = new Intl.NumberFormat();
-  const scenariosDisplay =
-    stats.scenariosCount < 10
-      ? String(stats.scenariosCount).padStart(2, "0")
-      : numberFormat.format(stats.scenariosCount);
-
-  const cohortValue =
-    stats.totalStartingUsers > 0
-      ? numberFormat.format(stats.totalStartingUsers)
-      : numberFormat.format(stats.modelsCount);
+  const formatShortDate = (iso: string | null) =>
+    iso
+      ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+      : "—";
 
   const handleStartCheckout = async () => {
     try {
@@ -304,64 +370,49 @@ function Dashboard() {
     }
   };
 
-  const hasModels = models.length > 0;
-  const hasDeck = pitchDecks.length > 0;
-  const previewDeck = pitchDecks[0];
-
-  const miniStats = [
+  const statTiles: Array<{
+    icon: LucideIcon;
+    value: string;
+    label: string;
+    helper: string;
+    tone: StatTone;
+    to?: StatRoute;
+  }> = [
     {
-      label: "Financial Models",
+      icon: FileSpreadsheet,
       value: String(stats.modelsCount),
+      label: "Financial models",
       helper: "Total",
-      tone: "primary" as const,
-    },
-    {
-      label: "Active Scenarios",
-      value: String(stats.scenariosCount),
-      helper: "Across models",
-      tone: "secondary" as const,
-    },
-    {
-      label: "Starting Users",
-      value: stats.totalStartingUsers > 0 ? numberFormat.format(stats.totalStartingUsers) : "—",
-      helper: "Cohorts",
-      tone: "ice" as const,
-    },
-    {
-      label: "Last updated",
-      value: stats.lastModelUpdatedAt
-        ? new Date(stats.lastModelUpdatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-        : "—",
-      helper: "Activity",
-      tone: "accent" as const,
-    },
-  ];
-
-  const kpiItems: DashboardKpiItem[] = [
-    {
-      label: "Total Valuation",
-      value: "\u2014",
-      badge: "Add traction",
       tone: "primary",
-      icon: TrendingUp,
+      to: "/models",
     },
     {
-      label: "Active Scenarios",
-      value: scenariosDisplay,
-      badge: "Across models",
-      tone: "accent",
       icon: Layers,
+      value: String(stats.scenariosCount),
+      label: "Active scenarios",
+      helper: "All models",
+      tone: "secondary",
+      to: "/models",
     },
     {
-      label: "Customer Cohorts",
-      value: cohortValue,
-      badge: stats.modelsCount > 0 ? "In workspace" : "Get started",
-      tone: "info",
       icon: Users,
+      value:
+        stats.totalStartingUsers > 0
+          ? numberFormat.format(stats.totalStartingUsers)
+          : "—",
+      label: "Starting users",
+      helper: "Cohorts",
+      tone: "info",
+      to: "/assumptions",
+    },
+    {
+      icon: Clock,
+      value: formatShortDate(stats.lastModelUpdatedAt),
+      label: "Last updated",
+      helper: "Activity",
+      tone: "accent",
     },
   ];
-
-  const setupHref = hasModels ? "/pitch-decks/new" : "/models/new";
 
   return (
     <AppShell>
@@ -370,21 +421,11 @@ function Dashboard() {
         subtitle={`Welcome back, ${user.name?.split(" ")[0] || "Founder"}`}
         actions={
           <>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-9 rounded-[var(--radius-md)]"
-              aria-label="Notifications"
-            >
-              <Bell className="size-4" strokeWidth={1.85} />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="hidden size-9 rounded-[var(--radius-md)] sm:flex"
-              aria-label="Help"
-            >
-              <HelpCircle className="size-4" strokeWidth={1.85} />
+            <Button variant="brand" size="sm" asChild>
+              <Link to="/models/new">
+                <Plus className="size-4" strokeWidth={2.5} />
+                <span className="hidden sm:inline">New model</span>
+              </Link>
             </Button>
             {user.plan === "pro" ? (
               <Button variant="ghost-brand" size="sm" onClick={handleOpenPortal}>
@@ -417,118 +458,136 @@ function Dashboard() {
           initial="hidden"
           animate="visible"
           variants={container}
-          className="space-y-[var(--space-5)]"
+          className="space-y-[var(--space-4)]"
         >
-          <motion.div variants={item}>
-            <DashboardKpiCards items={kpiItems} />
+          <motion.div
+            variants={item}
+            className="grid grid-cols-2 gap-[var(--space-3)] lg:grid-cols-4"
+          >
+            {statTiles.map((tile) => (
+              <StatTile key={tile.label} {...tile} />
+            ))}
           </motion.div>
 
-          <motion.div variants={item}>
-            <DashboardStats stats={miniStats} />
-          </motion.div>
+          <motion.div
+            variants={item}
+            className="grid gap-[var(--space-4)] lg:grid-cols-3"
+          >
+            <div className="lg:col-span-2">
+              <ModelList models={models} />
+            </div>
 
-          <motion.div variants={item} className="grid gap-[var(--space-4)] lg:grid-cols-2">
-            <section className="rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-[var(--space-5)] shadow-[var(--card-shadow)]">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <SubTitle>Pitch Decks</SubTitle>
-                  <Muted className="mt-1 text-[var(--text-caption1)]">
-                    AI-generated slides from your models
-                  </Muted>
+            <div className="space-y-[var(--space-4)]">
+              <section className="rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-[var(--space-4)] shadow-[var(--card-shadow)]">
+                <div className="flex items-center justify-between gap-2">
+                  <SubTitle className="text-[length:var(--text-subheadline)]">
+                    Pitch decks
+                  </SubTitle>
+                  <Button variant="ghost-brand" size="sm" asChild>
+                    <Link to="/pitch-decks/new">
+                      <Plus className="size-4" strokeWidth={2.5} />
+                      New
+                    </Link>
+                  </Button>
                 </div>
-                <Link
-                  to="/pitch-decks"
-                  className="flex items-center gap-1 text-[var(--text-caption1)] font-semibold text-[var(--brand-primary-hover)] hover:underline"
-                >
-                  View all <ArrowRight size={12} aria-hidden />
-                </Link>
-              </div>
-              <div className="mt-[var(--space-4)] grid gap-[var(--space-3)] sm:grid-cols-2">
-                <Link
-                  to="/pitch-decks/new"
-                  className="flex min-h-[112px] flex-col items-center justify-center gap-2 rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--border-soft)] bg-[var(--page)] p-[var(--space-4)] text-center transition-colors hover:border-[color-mix(in_srgb,var(--brand-primary)_45%,var(--border-soft))] hover:bg-[var(--brand-primary-muted)]"
-                >
-                  <div className="flex size-10 items-center justify-center rounded-full bg-[var(--brand-primary)] text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_32%,transparent)]">
-                    <Plus className="size-5" strokeWidth={2.5} />
-                  </div>
-                  <span className="text-[var(--text-caption1)] font-bold text-[var(--brand-primary-hover)]">
-                    Create New Deck
-                  </span>
-                </Link>
-                {previewDeck ? (
-                  <Link
-                    to="/pitch-decks/$deckId"
-                    params={{ deckId: String(previewDeck.id) }}
-                    className="group flex min-h-[112px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--page)] shadow-[var(--card-shadow)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)]"
-                  >
-                    <div className="relative h-16 w-full bg-mesh-accent">
-                      <Presentation className="absolute bottom-2 right-2 size-6 text-[var(--brand-primary)]/50" />
-                    </div>
-                    <div className="flex flex-1 flex-col justify-center p-[var(--space-3)]">
-                      <p className="line-clamp-2 text-[var(--text-caption1)] font-semibold text-[var(--brand-ink)] transition-colors group-hover:text-[var(--brand-primary-hover)]">
-                        {previewDeck.title}
-                      </p>
-                      <p className="mt-0.5 truncate text-[var(--text-caption2)] text-[var(--brand-muted)]">
-                        {previewDeck.startupName}
-                      </p>
-                      <Badge
-                        variant={statusBadgeVariant[previewDeck.status] ?? "secondary"}
-                        className="mt-1.5 capitalize"
-                      >
-                        {previewDeck.status}
-                      </Badge>
-                    </div>
-                  </Link>
+
+                {pitchDecks.length > 0 ? (
+                  <>
+                    <ul className="mt-[var(--space-3)] space-y-1">
+                      {pitchDecks.map((deck) => (
+                        <li key={deck.id}>
+                          <Link
+                            to="/pitch-decks/$deckId"
+                            params={{ deckId: String(deck.id) }}
+                            className="group flex items-center gap-[var(--space-3)] rounded-[var(--radius-md)] border border-transparent px-[var(--space-2)] py-[var(--space-2)] transition-colors hover:border-[var(--border-soft)] hover:bg-[var(--page)]"
+                          >
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] text-[var(--brand-primary-hover)]">
+                              <Presentation size={16} strokeWidth={1.85} aria-hidden />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[var(--text-caption1)] font-semibold text-[var(--brand-ink)] transition-colors group-hover:text-[var(--brand-primary-hover)]">
+                                {deck.title}
+                              </span>
+                              <span className="block truncate text-[var(--text-caption2)] text-[var(--brand-muted)]">
+                                {deck.startupName} · {formatShortDate(deck.updatedAt)}
+                              </span>
+                            </span>
+                            <Badge
+                              variant={statusBadgeVariant[deck.status] ?? "secondary"}
+                              className="shrink-0 capitalize"
+                            >
+                              {deck.status}
+                            </Badge>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to="/pitch-decks"
+                      className="mt-[var(--space-3)] flex items-center justify-center gap-1 text-[var(--text-caption1)] font-semibold text-[var(--brand-primary-hover)] hover:underline"
+                    >
+                      View all decks <ArrowRight size={12} aria-hidden />
+                    </Link>
+                  </>
                 ) : (
-                  <div className="flex min-h-[112px] flex-col justify-center rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--page)] p-[var(--space-4)] text-center">
-                    <Presentation className="mx-auto mb-1.5 size-8 text-[var(--brand-primary)]/35" />
-                    <p className="text-[var(--text-caption1)] font-medium text-[var(--brand-ink)]">No decks yet</p>
-                    <p className="mt-0.5 text-[var(--text-caption2)] text-[var(--brand-muted)]">
-                      Create a deck to see a preview here
+                  <div className="mt-[var(--space-3)] rounded-[var(--radius-lg)] border border-dashed border-[var(--border-soft)] bg-[var(--page)] px-[var(--space-4)] py-[var(--space-5)] text-center">
+                    <Presentation
+                      className="mx-auto mb-1.5 size-7 text-[color-mix(in_srgb,var(--brand-primary)_45%,transparent)]"
+                      aria-hidden
+                    />
+                    <p className="text-[var(--text-caption1)] font-medium text-[var(--brand-ink)]">
+                      No decks yet
                     </p>
+                    <p className="mt-0.5 text-[var(--text-caption2)] text-[var(--brand-muted)]">
+                      Generate an investor-ready deck from a model.
+                    </p>
+                    <Button variant="brand" size="sm" className="mt-[var(--space-3)]" asChild>
+                      <Link to="/pitch-decks/new">
+                        <Plus className="size-4" strokeWidth={2.5} />
+                        Create deck
+                      </Link>
+                    </Button>
                   </div>
                 )}
-              </div>
-            </section>
+              </section>
 
-            <section className="relative flex flex-col overflow-hidden rounded-[var(--card-radius)] bg-[var(--brand-ink)] p-[var(--space-5)] text-white shadow-[var(--shadow-lg)]">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--brand-primary)_55%,transparent),transparent_70%)]"
-              />
-              <SubTitle className="relative text-white">Next steps</SubTitle>
-              <p className="relative mt-1 text-[var(--text-caption1)] text-white/75">
-                Finish setup to unlock valuations and decks
-              </p>
-              <ul className="relative mt-[var(--space-4)] space-y-[var(--space-3)]">
-                {[
-                  { done: hasModels, title: "Create a financial model", hint: "Capture traction and scenarios" },
-                  { done: hasDeck, title: "Generate a pitch deck", hint: "Export-ready narrative and slides" },
-                  { done: false, title: "Tune benchmark assumptions", hint: "Align multiples with your stage" },
-                ].map((step) => (
-                  <li key={step.title} className="flex items-start gap-2.5">
-                    {step.done ? (
-                      <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary)]" strokeWidth={2.5} />
-                    ) : (
-                      <Circle className="mt-0.5 size-4 shrink-0 text-white/40" strokeWidth={2} />
-                    )}
-                    <div>
-                      <p className="text-[var(--text-caption1)] font-semibold">{step.title}</p>
-                      <p className="text-[var(--text-caption2)] text-white/65">{step.hint}</p>
+              <section className="rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-[var(--space-4)] shadow-[var(--card-shadow)]">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-accent)_16%,transparent)] text-[#92610a] dark:text-[var(--brand-accent)]">
+                      <Sparkles size={15} strokeWidth={1.9} aria-hidden />
+                    </span>
+                    <div className="leading-tight">
+                      <p className="text-[var(--text-caption1)] font-semibold text-[var(--brand-ink)]">
+                        {user.plan === "pro" ? "Pro plan" : "Free plan"}
+                      </p>
+                      <p className="text-[var(--text-caption2)] text-[var(--brand-muted)]">
+                        Last login {formatShortDate(lastLoginAt)}
+                      </p>
                     </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="relative mt-auto pt-[var(--space-5)]">
-                <Button variant="accent" className="w-full" asChild>
-                  <Link to={setupHref}>Continue setup</Link>
+                  </div>
+                  <Badge
+                    variant={user.plan === "pro" ? "success" : "secondary"}
+                    className="capitalize"
+                  >
+                    {user.plan}
+                  </Badge>
+                </div>
+                <p className="mt-[var(--space-3)] text-[var(--text-caption1)] text-[var(--brand-muted)]">
+                  {user.plan === "pro"
+                    ? "Unlimited models, scenarios, and deck exports."
+                    : "Upgrade to unlock unlimited models and deck exports."}
+                </p>
+                <Button
+                  variant={user.plan === "pro" ? "outline" : "accent"}
+                  size="sm"
+                  className="mt-[var(--space-3)] w-full"
+                  onClick={user.plan === "pro" ? handleOpenPortal : handleStartCheckout}
+                >
+                  {user.plan === "pro" ? "Manage plan" : "Upgrade to Pro"}
                 </Button>
-              </div>
-            </section>
-          </motion.div>
-
-          <motion.div variants={item}>
-            <ModelList models={models} />
+              </section>
+            </div>
           </motion.div>
         </motion.div>
       </PageContainer>

@@ -172,7 +172,7 @@ export function CohortTable({
             type="button"
             onClick={handleSave}
             disabled={savingState || rows.length === 0}
-            className="px-4 py-2 text-sm font-medium rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[#3F38A4] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {savingState ? "Saving..." : "Save"}
           </button>
@@ -180,7 +180,7 @@ export function CohortTable({
       </div>
 
       {/* Retention triangle input table */}
-      <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)] bg-white">
+      <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)] bg-[var(--surface)]">
         <table className="w-full text-sm">
           <thead className="bg-[var(--page)] border-b border-[var(--border-soft)]">
             <tr>
@@ -204,7 +204,7 @@ export function CohortTable({
           <tbody className="divide-y divide-[var(--surface-muted-border)]">
             {rows.map((row, index) => (
               <tr key={row.cohortMonth + index} className="hover:bg-[var(--page)]">
-                <td className="px-3 py-2 font-medium text-[var(--brand-ink)] sticky left-0 bg-white whitespace-nowrap">
+                <td className="px-3 py-2 font-medium text-[var(--brand-ink)] sticky left-0 bg-[var(--surface)] whitespace-nowrap">
                   <input
                     type="date"
                     value={row.cohortMonth}
@@ -250,7 +250,7 @@ export function CohortTable({
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
-                    className="text-[var(--brand-muted)] hover:text-red-600 text-xs"
+                    className="text-[var(--brand-muted)] hover:text-[var(--destructive)] text-xs"
                     aria-label="Remove cohort"
                   >
                     Remove
@@ -264,7 +264,7 @@ export function CohortTable({
 
       {/* Heatmap */}
       {rows.length > 0 && (
-        <div className="rounded-xl border border-[var(--border-soft)] bg-white p-4">
+        <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] p-4">
           <h4 className="text-sm font-semibold text-[var(--brand-ink)] mb-3">
             Retention heatmap
           </h4>
@@ -320,7 +320,7 @@ export function CohortTable({
       {/* Summary from calculateCohortMetrics */}
       {cohortMetrics && rows.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-[var(--border-soft)] p-4 bg-white">
+          <div className="rounded-xl border border-[var(--border-soft)] p-4 bg-[var(--surface)]">
             <p className="text-xs text-[var(--brand-muted)] uppercase tracking-wide flex items-center gap-1">
               Avg retention (by month)
               <span className="cursor-help" title={TOOLTIPS.grossRetention}>
@@ -337,7 +337,7 @@ export function CohortTable({
               M12: {Math.round((cohortMetrics.averageRetention[12] ?? 0) * 100)}%
             </p>
           </div>
-          <div className="rounded-xl border border-[var(--border-soft)] p-4 bg-white">
+          <div className="rounded-xl border border-[var(--border-soft)] p-4 bg-[var(--surface)]">
             <p className="text-xs text-[var(--brand-muted)] uppercase tracking-wide flex items-center gap-1">
               Weighted NRR
               <span className="cursor-help" title={TOOLTIPS.nrr}>
@@ -348,7 +348,7 @@ export function CohortTable({
               {Math.round(cohortMetrics.weightedNRR * 100)}%
             </p>
           </div>
-          <div className="rounded-xl border border-[var(--border-soft)] p-4 bg-white">
+          <div className="rounded-xl border border-[var(--border-soft)] p-4 bg-[var(--surface)]">
             <p className="text-xs text-[var(--brand-muted)] uppercase tracking-wide flex items-center gap-1">
               Median payback (month)
               <span className="cursor-help" title={TOOLTIPS.paybackMonths}>

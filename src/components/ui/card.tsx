@@ -4,12 +4,14 @@ import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { interactive?: boolean }
+>(({ className, interactive = false, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] text-card-foreground shadow-[var(--card-shadow)]",
+      "rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] text-card-foreground shadow-[var(--card-shadow)] transition-all duration-300 [transition-timing-function:var(--ease-out-quint)]",
+      interactive &&
+        "hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,var(--border-soft))] hover:shadow-[var(--card-shadow-hover)]",
       className
     )}
     {...props}
@@ -36,7 +38,7 @@ const CardTitle = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "text-[var(--text-title3)] font-semibold leading-[1.3] tracking-tight font-[var(--font-display)]",
+      "font-display text-[var(--text-title3)] font-semibold leading-[1.3] tracking-tight",
       className
     )}
     {...props}

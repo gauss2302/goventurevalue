@@ -126,8 +126,8 @@ function SignUp() {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--page)] px-4 py-10 sm:px-6 sm:py-12">
       <div className="pointer-events-none absolute inset-0 bg-dot-pattern opacity-[0.03]" />
-      <div className="pointer-events-none absolute -top-32 left-[10%] h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.08),transparent_70%)] blur-3xl" />
-      <div className="pointer-events-none absolute bottom-[10%] right-[5%] h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(132,232,244,0.08),transparent_70%)] blur-3xl" />
+      <div className="pointer-events-none absolute -top-32 left-[10%] h-80 w-80 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--brand-primary)_14%,transparent),transparent_70%)] blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[10%] right-[5%] h-64 w-64 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--brand-accent)_12%,transparent),transparent_70%)] blur-3xl" />
 
       <motion.div
         className="relative w-full max-w-[420px]"
@@ -135,22 +135,18 @@ function SignUp() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
       >
-        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white p-6 shadow-[var(--shadow-lg)] sm:p-8">
+        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-lg)] sm:p-8">
           <div className="mb-8 text-center">
             <Link to="/" className="mb-6 inline-flex">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--brand-ink)] shadow-[var(--shadow-md)]">
-                <div className="grid grid-cols-2 gap-[3px]">
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-ink)]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                </div>
-              </div>
+              <span
+                className="flex size-12 items-center justify-center rounded-2xl bg-[var(--brand-primary)] text-lg font-extrabold text-white shadow-[0_8px_20px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)]"
+                style={{ fontFamily: "var(--font-display)" }}
+                aria-hidden
+              >
+                H
+              </span>
             </Link>
-            <h1
-              className="text-2xl text-[var(--brand-ink)]"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 700, letterSpacing: "-0.02em" }}
-            >
+            <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-[var(--brand-ink)]">
               Get started
             </h1>
             <p className="mt-2 text-sm text-[var(--brand-muted)]">
@@ -161,7 +157,7 @@ function SignUp() {
           {error && (
             <div
               role="alert"
-              className="mb-6 rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              className="mb-6 rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-4 py-3 text-sm text-[var(--destructive)]"
             >
               {error}
             </div>
@@ -244,7 +240,7 @@ function SignUp() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="mt-2 h-11 w-full rounded-[var(--radius-md)] bg-[var(--brand-primary)] text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(79,70,186,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#3d36a3] hover:shadow-[0_12px_32px_rgba(79,70,186,0.4)] active:scale-[0.97]"
+              className="mt-2 h-11 w-full rounded-[var(--radius-md)] bg-[var(--brand-primary)] text-[15px] font-semibold text-white shadow-[0_8px_24px_color-mix(in_srgb,var(--brand-primary)_30%,transparent)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--brand-primary-hover)] hover:shadow-[0_12px_32px_color-mix(in_srgb,var(--brand-primary)_40%,transparent)] active:scale-[0.97]"
               aria-busy={isLoading}
             >
               {isLoading ? (
@@ -269,7 +265,7 @@ function SignUp() {
               <div className="w-full border-t border-[var(--border-soft)]" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-4 text-[var(--brand-muted)]">
+              <span className="bg-[var(--surface)] px-4 text-[var(--brand-muted)]">
                 or sign up with
               </span>
             </div>
@@ -279,7 +275,7 @@ function SignUp() {
             type="button"
             onClick={handleGoogleSignUp}
             disabled={isGoogleLoading}
-            className="flex h-11 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-soft)] bg-white text-sm font-medium text-[var(--brand-ink)] shadow-[var(--shadow-sm)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-11 w-full items-center justify-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-soft)] bg-[var(--surface)] text-sm font-medium text-[var(--brand-ink)] shadow-[var(--shadow-sm)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -294,7 +290,7 @@ function SignUp() {
             Already have an account?{" "}
             <Link
               to="/auth/signin"
-              className="font-semibold text-[var(--brand-primary)] transition-colors hover:text-[#3d36a3]"
+              className="font-semibold text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-primary-hover)]"
             >
               Sign in
             </Link>

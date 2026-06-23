@@ -1,72 +1,72 @@
-import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+
+export type KpiTone = "primary" | "accent" | "info";
 
 export type DashboardKpiItem = {
   label: string;
   value: string;
   badge: string;
-  badgeClassName: string;
+  tone: KpiTone;
   icon: LucideIcon;
-  iconWrapClassName: string;
-  iconClassName: string;
 };
 
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.06, delayChildren: 0.04 },
+const toneStyles: Record<
+  KpiTone,
+  { iconWrap: string; badge: "brand" | "accent" | "info" }
+> = {
+  primary: {
+    iconWrap:
+      "bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary-hover)]",
+    badge: "brand",
   },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.35, ease: [0.25, 1, 0.5, 1] as const },
+  accent: {
+    iconWrap:
+      "bg-[color-mix(in_srgb,var(--brand-accent)_16%,transparent)] text-[#92610a] dark:text-[var(--brand-accent)]",
+    badge: "accent",
+  },
+  info: {
+    iconWrap:
+      "bg-[color-mix(in_srgb,var(--brand-secondary)_14%,transparent)] text-[var(--brand-secondary)]",
+    badge: "info",
   },
 };
 
 export function DashboardKpiCards({ items }: { items: DashboardKpiItem[] }) {
   return (
-    <motion.div
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {items.map((item, index) => {
+    <div className="grid grid-cols-1 gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((item) => {
         const Icon = item.icon;
+        const tone = toneStyles[item.tone];
         return (
-          <motion.div
-            key={index}
-            variants={cardVariants}
-            className="flex flex-col gap-2.5 rounded-xl border border-[#eeedf3] bg-white p-4 shadow-sm"
+          <div
+            key={item.label}
+            className="group flex flex-col gap-[var(--space-4)] rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-[var(--space-5)] shadow-[var(--card-shadow)] transition-all duration-300 [transition-timing-function:var(--ease-out-quint)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)]"
           >
             <div className="flex items-center justify-between gap-2">
               <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${item.iconWrapClassName}`}
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105",
+                  tone.iconWrap
+                )}
               >
-                <Icon className={`h-4 w-4 ${item.iconClassName}`} strokeWidth={1.75} />
+                <Icon className="size-5" strokeWidth={1.85} aria-hidden />
               </div>
-              <span
-                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${item.badgeClassName}`}
-              >
-                {item.badge}
-              </span>
+              <Badge variant={tone.badge}>{item.badge}</Badge>
             </div>
             <div>
-              <p
-                className="text-xl font-bold leading-none tracking-tight text-[#0b1c30]"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
+              <p className="font-display text-[var(--text-title1)] font-bold leading-none tracking-[-0.02em] text-[var(--brand-ink)] tabular-nums">
                 {item.value}
               </p>
-              <p className="mt-1 text-xs text-[#6b6a76]">{item.label}</p>
+              <p className="mt-[var(--space-2)] text-[var(--text-subheadline)] text-[var(--brand-muted)]">
+                {item.label}
+              </p>
             </div>
-          </motion.div>
+          </div>
         );
       })}
-    </motion.div>
+    </div>
   );
 }

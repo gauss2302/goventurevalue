@@ -203,14 +203,14 @@ export function MonthlyMetricsTable({
             type="button"
             onClick={handleSave}
             disabled={savingState}
-            className="px-4 py-2 text-sm font-medium rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[#3F38A4] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {savingState ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)] bg-white">
+      <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)] bg-[var(--surface)]">
         <table className="w-full text-sm">
           <thead className="bg-[var(--page)] border-b border-[var(--border-soft)]">
             <tr>
@@ -239,7 +239,7 @@ export function MonthlyMetricsTable({
           <tbody className="divide-y divide-[var(--surface-muted-border)]">
             {rows.map((row, index) => (
               <tr key={row.id ?? `row-${index}-${row.month}`} className="hover:bg-[var(--page)]">
-                <td className="px-3 py-2 sticky left-0 bg-white z-[1]">
+                <td className="px-3 py-2 sticky left-0 bg-[var(--surface)] z-[1]">
                   <input
                     type="month"
                     value={monthInputValue(row.month)}
@@ -276,7 +276,7 @@ export function MonthlyMetricsTable({
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
-                    className="text-[var(--brand-muted)] hover:text-red-600 text-xs"
+                    className="text-[var(--brand-muted)] hover:text-[var(--destructive)] text-xs"
                     aria-label="Remove row"
                   >
                     Remove

@@ -1,7 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Sidebar } from "@/components/Sidebar";
+import { motion } from "framer-motion";
+import { Presentation } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { SubTitle } from "@/components/ui/typography";
+import { AppShell, PageContainer, PageHeader, EmptyState, LoadingState, ErrorState } from "@/components/layout";
+import { usePageMotion } from "@/lib/motion";
 import type { PresentationStatus } from "@/lib/dto";
 
 const loadPitchDecks = createServerFn({ method: "GET" }).handler(async () => {
@@ -54,11 +60,14 @@ const pitchDecksQueryOptions = () => ({
   staleTime: 60 * 1000,
 });
 
-const statusClassName: Record<PresentationStatus, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  generating: "bg-blue-100 text-blue-700",
-  ready: "bg-green-100 text-green-700",
-  failed: "bg-red-100 text-red-700",
+const statusBadgeVariant: Record<
+  PresentationStatus,
+  "secondary" | "info" | "success" | "destructive"
+> = {
+  draft: "secondary",
+  generating: "info",
+  ready: "success",
+  failed: "destructive",
 };
 
 export const Route = createFileRoute("/pitch-decks/")({
@@ -73,89 +82,92 @@ export const Route = createFileRoute("/pitch-decks/")({
 
 function PitchDecksPage() {
   const { data: decks, isPending, error } = useQuery(pitchDecksQueryOptions());
+  const { container, item } = usePageMotion();
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-[var(--brand-muted)]">Loading pitch decks...</div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <LoadingState message="Loading your pitch decks…" />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   if (error || !decks) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-red-600">
-          Failed to load pitch decks. Please refresh the page.
-        </div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <ErrorState message="We couldn't load your pitch decks. Please refresh the page." />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
-      <Sidebar />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="relative px-6 py-10 lg:px-10 max-w-[1200px] mx-auto space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">Studio</p>
-              <h1 className="text-3xl font-[var(--font-display)]">Pitch Decks</h1>
-              <p className="text-sm text-[var(--brand-muted)] mt-1">
-                Generate and manage investor-ready pitch decks.
-              </p>
-            </div>
-            <Link
-              to={"/pitch-decks/new" as any}
-              className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold"
-            >
-              New Pitch Deck
-            </Link>
-          </div>
+    <AppShell>
+      <PageContainer>
+        <div className="space-y-[var(--space-6)]">
+          <PageHeader
+            eyebrow="Studio"
+            title="Pitch Decks"
+            description="Generate and manage investor-ready pitch decks."
+            actions={
+              <Button variant="brand" asChild>
+                <Link to={"/pitch-decks/new" as any}>New Pitch Deck</Link>
+              </Button>
+            }
+          />
 
           {decks.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[var(--border-soft)] p-12 text-center shadow-[var(--card-shadow)]">
-              <div className="max-w-sm mx-auto">
-                <h2 className="text-xl font-[var(--font-display)] text-[var(--brand-ink)]">No pitch decks yet</h2>
-                <p className="text-sm text-[var(--brand-muted)] mt-2 leading-relaxed">
-                  Create your first investor-ready deck with AI in a few minutes. Add your brief, pick a style, and get a full 10-slide presentation you can edit and export.
-                </p>
-                <Link
-                  to={"/pitch-decks/new" as any}
-                  className="inline-flex items-center justify-center mt-6 px-5 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold hover:opacity-95 transition-opacity focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-2"
-                >
-                  Create your first deck
-                </Link>
-              </div>
-            </div>
+            <EmptyState
+              icon={Presentation}
+              title="No pitch decks yet"
+              description="Create your first investor-ready deck with AI in a few minutes. Add your brief, pick a style, and get a full 10-slide presentation you can edit and export."
+              action={
+                <Button variant="brand" asChild>
+                  <Link to={"/pitch-decks/new" as any}>Create your first deck</Link>
+                </Button>
+              }
+            />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <motion.div
+              className="grid gap-[var(--space-4)] md:grid-cols-2 xl:grid-cols-3"
+              variants={container}
+              initial="hidden"
+              animate="visible"
+            >
               {decks.map((deck) => (
-                <Link
-                  key={deck.id}
-                  to={"/pitch-decks/$deckId" as any}
-                  params={{ deckId: String(deck.id) } as any}
-                  className="bg-white rounded-2xl border border-[var(--border-soft)] p-5 shadow-[var(--card-shadow)] hover:border-[var(--brand-primary)]/30 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs px-2 py-1 rounded-full ${statusClassName[deck.status] || statusClassName.draft}`}>
-                      {deck.status}
-                    </span>
-                    <span className="text-xs text-[var(--brand-muted)] uppercase">{deck.provider}</span>
-                  </div>
-                  <h3 className="mt-3 text-lg font-[var(--font-display)] text-[var(--brand-ink)] line-clamp-2">
-                    {deck.title}
-                  </h3>
-                  <p className="text-sm text-[var(--brand-muted)] mt-1">{deck.startupName}</p>
-                  <p className="text-xs text-[var(--brand-muted)] mt-4">
-                    Updated {new Date(deck.updatedAt).toLocaleString()}
-                  </p>
-                </Link>
+                <motion.div key={deck.id} variants={item}>
+                  <Link
+                    to={"/pitch-decks/$deckId" as any}
+                    params={{ deckId: String(deck.id) } as any}
+                    className="group block h-full rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-[var(--space-5)] shadow-[var(--card-shadow)] transition-all duration-300 [transition-timing-function:var(--ease-out-quint)] hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,var(--border-soft))] hover:shadow-[var(--card-shadow-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Badge variant={statusBadgeVariant[deck.status] ?? "secondary"} className="capitalize">
+                        {deck.status}
+                      </Badge>
+                      <span className="text-[var(--text-caption2)] uppercase tracking-[0.1em] text-[var(--brand-muted)]">
+                        {deck.provider}
+                      </span>
+                    </div>
+                    <SubTitle className="mt-[var(--space-3)] line-clamp-2 transition-colors group-hover:text-[var(--brand-primary-hover)]">
+                      {deck.title}
+                    </SubTitle>
+                    <p className="mt-1 text-[var(--text-subheadline)] text-[var(--brand-muted)]">
+                      {deck.startupName}
+                    </p>
+                    <p className="mt-[var(--space-4)] text-[var(--text-caption1)] text-[var(--brand-muted)]">
+                      Updated {new Date(deck.updatedAt).toLocaleString()}
+                    </p>
+                  </Link>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
-      </main>
-    </div>
+      </PageContainer>
+    </AppShell>
   );
 }

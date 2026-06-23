@@ -57,16 +57,19 @@ function AuthCallback() {
   }, [session, isPending, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center px-4">
-      <div className="text-center max-w-md w-full">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--page)] px-4">
+      <div className="pointer-events-none absolute inset-0 bg-dot-pattern opacity-[0.03]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--brand-primary)_14%,transparent),transparent_70%)] blur-3xl" />
+      <div className="relative w-full max-w-md text-center">
         {error ? (
           <>
-            <div className="mb-4">
+            <div className="mb-4 inline-flex size-16 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--destructive)_12%,transparent)] text-[var(--destructive)]">
               <svg
-                className="w-16 h-16 text-red-500 mx-auto"
+                className="size-8"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden
               >
                 <path
                   strokeLinecap="round"
@@ -76,15 +79,15 @@ function AuthCallback() {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Authentication Error</h2>
-            <p className="text-slate-300 mb-4">{error}</p>
-            <p className="text-slate-400 text-sm">Redirecting to sign in...</p>
+            <h2 className="font-display mb-2 text-2xl font-bold text-[var(--brand-ink)]">Authentication Error</h2>
+            <p className="mb-4 text-[var(--brand-muted)]">{error}</p>
+            <p className="text-sm text-[var(--brand-muted)]">Redirecting to sign in…</p>
           </>
         ) : (
           <>
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-            <h2 className="text-2xl font-bold text-white mb-2">Completing authentication...</h2>
-            <p className="text-slate-300">Please wait while we sign you in.</p>
+            <div className="mx-auto mb-4 size-12 animate-spin rounded-full border-2 border-[var(--brand-primary)] border-t-transparent" />
+            <h2 className="font-display mb-2 text-2xl font-bold text-[var(--brand-ink)]">Completing authentication…</h2>
+            <p className="text-[var(--brand-muted)]">Please wait while we sign you in.</p>
           </>
         )}
       </div>

@@ -285,7 +285,7 @@ function EditableSlideViewComponent({
         }}
         disabled={isImproving || improvingField !== null}
         title="Improve with AI"
-        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-[var(--brand-primary)] opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-1 hover:bg-[rgba(79,70,186,0.12)] disabled:opacity-50 transition-opacity duration-150"
+        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-[var(--brand-primary)] opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-1 hover:bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] disabled:opacity-50 transition-opacity duration-150"
         aria-label="Improve with AI"
       >
         {improvingField === field ? (
@@ -396,7 +396,7 @@ function EditableSlideViewComponent({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="w-full font-bold leading-tight mb-2 bg-white/80 rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
+            className="w-full font-bold leading-tight mb-2 bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
             style={{
               color: colors.heading,
               fontSize: isCover ? "clamp(1.25rem, 3vw, 1.75rem)" : "clamp(1rem, 2vw, 1.5rem)",
@@ -447,7 +447,7 @@ function EditableSlideViewComponent({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="w-full text-sm mb-4 bg-white/80 rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
+            className="w-full text-sm mb-4 bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
             style={{ color: colors.subheading, minHeight: "2rem" }}
             rows={2}
             placeholder="Add subheading…"
@@ -550,7 +550,7 @@ function EditableSlideViewComponent({
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
-                    className="flex-1 min-w-0 text-sm bg-white/80 rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
+                    className="flex-1 min-w-0 text-sm bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
                     style={{ color: colors.bullets, minHeight: "2rem" }}
                     rows={2}
                   />
@@ -560,7 +560,7 @@ function EditableSlideViewComponent({
                       onRemoveBullet(i);
                       setEditingField(null);
                     }}
-                    className="shrink-0 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
+                    className="shrink-0 px-2 py-1 text-xs text-[var(--destructive)] hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] rounded"
                   >
                     Remove
                   </button>
@@ -639,7 +639,7 @@ function EditableSlideViewComponent({
                 onChange={(e) => setEditValue(e.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
-                className="w-full text-xs bg-white/80 rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
+                className="w-full text-xs bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] rounded-lg px-2 py-1 border border-[var(--brand-primary)]/40 resize-none"
                 style={{ color: colors.bullets, minHeight: "4rem" }}
                 rows={4}
                 placeholder="Add speaker notes…"
@@ -762,7 +762,7 @@ function EditableSlideViewComponent({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-soft)] text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.06)] transition-colors"
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-soft)] text-[var(--brand-primary-hover)] hover:bg-[color-mix(in_srgb,var(--brand-primary)_6%,transparent)] transition-colors"
                 >
                   Choose image…
                 </button>
@@ -770,7 +770,7 @@ function EditableSlideViewComponent({
                 <select
                   value={slideLayout}
                   onChange={(e) => onUpdate({ layout: e.target.value as SlideLayoutId })}
-                  className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-soft)] bg-white"
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface)]"
                 >
                   {LAYOUT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -782,7 +782,7 @@ function EditableSlideViewComponent({
                   <button
                     type="button"
                     onClick={() => onUpdate({ imageUrl: undefined, layout: "default" })}
-                    className="text-xs px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                    className="text-xs px-2.5 py-1.5 rounded-lg text-[var(--destructive)] hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] transition-colors"
                   >
                     Clear image
                   </button>

@@ -1,14 +1,15 @@
 # Havamind Design System
 
-*Human Interface Guidelines for Havamind — Professional, Exciting, Built for Founders (18–25).*
+*Human Interface Guidelines for Havamind — Editorial Capital: confident, warm, data-forward finance for founders.*
 
 ---
 
 ## Brand Attributes
 
-- **Personality:** Professional for founders
-- **Primary emotion:** Excitement
-- **Target audience:** 18–25
+- **Aesthetic:** Editorial Capital — editorial finance that is confident, warm, and data-forward, avoiding the generic purple-gradient SaaS look.
+- **Personality:** Professional and trustworthy for founders.
+- **Primary emotion:** Confident momentum.
+- **Target audience:** Early-stage founders preparing investor-ready material.
 
 ---
 
@@ -16,18 +17,32 @@
 
 ## 1.1 Color System
 
-### Primary palette (6 colors)
+### Primary palette (Editorial Capital)
 
-| Name | Hex | RGB | HSL | On white (contrast) | On dark #1c1e2f (contrast) | Use |
-|------|-----|-----|-----|---------------------|----------------------------|-----|
-| **Primary** | `#4f46ba` | 79, 70, 186 | 244°, 45%, 50% | 4.6:1 (AA large) | 5.2:1 (AA) | Primary actions, links, key UI |
-| **Secondary** | `#f9896b` | 249, 137, 107 | 12°, 92%, 70% | 2.8:1 (fail body) | 6.8:1 (AA) | Secondary actions, highlights |
-| **Accent** | `#fdbc64` | 253, 188, 100 | 36°, 98%, 69% | 2.2:1 (fail body) | 8.1:1 (AAA) | CTAs, badges, emphasis |
-| **Ice** | `#84e8f4` | 132, 232, 244 | 186°, 82%, 74% | 1.8:1 (fail) | 9.2:1 (AAA) | Decorative, charts, light BG only |
-| **Ink** | `#1c1e2f` | 28, 30, 47 | 234°, 25%, 15% | 14.2:1 (AAA) | — | Primary text on light |
-| **Muted** | `#707a89` | 112, 122, 137 | 216°, 10%, 49% | 4.6:1 (AA) | 4.5:1 (AA) | Secondary text, captions |
+Runtime source of truth: `src/styles.css` (`:root`). Machine-readable catalog: `docs/tokens.json`.
 
-**Accessibility:** Use Primary, Ink, and Muted for text on white. Use Secondary, Accent, and Ice for text on Ink/dark backgrounds or as large non-text elements.
+| Name | Hex | CSS variable | Use |
+|------|-----|--------------|-----|
+| **Primary (teal)** | `#0d9488` | `--brand-primary` | Primary actions, links, active nav, focus rings |
+| **Primary hover** | `#0f766e` | `--brand-primary-hover` | Hover/pressed state for primary surfaces |
+| **Primary muted** | `#cffafe` | `--brand-primary-muted` | Tints for active nav, badges, icon medallions |
+| **Secondary (coral)** | `#e85d4c` | `--brand-secondary` | Secondary actions, supporting chart series |
+| **Accent (amber)** | `#f59e0b` | `--brand-accent` | CTAs, KPI highlights, "pro" badges |
+| **Ink** | `#0c1222` | `--brand-ink` | Primary text on light; deep navy-black |
+| **Muted** | `#5f5b52` | `--brand-muted` | Secondary text, captions, placeholders |
+
+### Surfaces & atmosphere
+
+| Name | Hex | CSS variable | Use |
+|------|-----|--------------|-----|
+| **Page** | `#f8f6f1` | `--page` | Warm paper page background |
+| **Surface** | `#ffffff` | `--surface` | Cards, sheets, raised surfaces |
+| **Surface muted** | `#f1efe8` | `--surface-muted` | Inset/secondary surfaces, table headers |
+| **Border soft** | `#e7e3d8` | `--border-soft` | Hairline borders, dividers |
+
+Depth comes from a subtle grain overlay (`.grain-overlay`) and radial mesh accents (`.bg-mesh-accent`), plus soft shadows — not flat white.
+
+**Accessibility:** Use Primary, Ink, and Muted for text on paper/white. Use Accent and Secondary as large non-text elements or on dark surfaces; pair amber backgrounds with a dark ink foreground for AA contrast.
 
 ### Semantic colors
 
@@ -40,23 +55,18 @@
 
 Semantic foregrounds: white on Success/Error in both themes; black or dark on Warning/Info in light, white in dark when needed for contrast.
 
-### Dark mode equivalents
+### Dark mode
 
-- **Primary:** `#7c6ee8` (lighter tint on dark BG). Contrast on `#1c1e2f`: ~5.5:1 (AA).
-- **Secondary:** `#fc9d82`. Contrast on dark: ~5.8:1.
-- **Accent:** `#fdd088`. Contrast on dark: ~8.5:1.
-- **Ice:** `#9eecf2`. Contrast on dark: ~10:1.
-- **Ink:** Use as dark surface; text use `#fafafa` (foreground).
-- **Muted:** `#9ca3af` in dark. Contrast on dark BG: ~4.5:1.
+Dark mode is implemented via the `.dark` class (tokens in `src/styles.css`). Key shifts: page/ink invert to deep navy `#0c1222` surfaces with warm paper text `#f8f6f1`; primary lightens to teal `#2dd4bf`; semantic colors lighten for contrast (success `#2dd4bf`, warning `#fbbf24`, error `#f87171`).
 
 ### Color usage rules
 
-- **Primary:** One primary action per screen; primary buttons; active nav; links.
-- **Secondary:** Secondary buttons; complementary highlights; supporting visuals.
-- **Accent:** Urgency, CTAs, badges, “new” or “pro” labels.
-- **Ice:** Charts, illustrations, hero accents; never body text on white.
+- **Primary:** One primary action per screen; primary buttons; active nav; links; focus rings.
+- **Secondary:** Secondary buttons; complementary highlights; supporting chart series.
+- **Accent:** Urgency, CTAs, KPI highlights, “new” or “pro” labels.
 - **Ink:** Body and heading text on light backgrounds.
 - **Muted:** Captions, placeholders, disabled text, metadata.
+- **Charts/data:** Use the `--chart-1`…`--chart-5` ramp for series; sequential heatmaps (e.g. cohort retention) may use a dedicated scale and are exempt from the brand-token rule.
 - **Semantic:** Success = confirmations/saved state; Warning = caution/optional; Error = validation/destructive; Info = tips/neutral status.
 
 ---
@@ -65,33 +75,28 @@ Semantic foregrounds: white on Success/Error in both themes; black or dark on Wa
 
 ### Font families
 
-- **Display / Headlines:** Sora (weights 400–800). Use for hero, H1–H3.
-- **Body / UI:** Manrope (weights 300–800). Use for body, labels, buttons, UI.
-- **Script (decorative only):** Caveat (500–700). Use sparingly for quotes or marketing flair, never for body or critical UI.
+- **Display / Headlines:** Syne (weights 400–800), `var(--font-display)`. Geometric, memorable headlines. Apply via the `font-display` utility or the typography primitives in `src/components/ui/typography.tsx` — never the broken `font-[var(--font-display)]` arbitrary utility.
+- **Body / UI:** Figtree (weights 300–800), `var(--font-sans)`. Friendly and legible at data density. This is the default body font.
 
-### Type scale (9 levels)
+### Type scale
 
-Sizes are given for **desktop (1440)** / **tablet (768)** / **mobile (375)**. Line-height and letter-spacing are shared unless noted.
+Sizes are exposed as CSS variables (`--text-display`, `--text-title1`, …) and consumed via the typography primitives (`DisplayHeading`, `PageTitle`, `SectionTitle`, `SubTitle`, `Eyebrow`, `Lead`, `Muted`). Prefer these primitives over arbitrary Tailwind sizes.
 
-| Level | Desktop | Tablet | Mobile | Line height | Letter spacing | Weight | Font |
-|-------|---------|--------|--------|-------------|----------------|--------|------|
-| Display | 56px | 48px | 40px | 1.1 | -0.02em | 700 | Sora |
-| Headline | 40px | 36px | 32px | 1.15 | -0.015em | 600–700 | Sora |
-| Title 1 | 32px | 28px | 26px | 1.2 | -0.01em | 600 | Sora |
-| Title 2 | 24px | 22px | 20px | 1.25 | 0 | 600 | Sora |
-| Title 3 | 20px | 18px | 18px | 1.3 | 0 | 600 | Manrope/Sora |
-| Body | 16px | 16px | 16px | 1.5 | 0 | 400 | Manrope |
-| Callout | 15px | 15px | 15px | 1.45 | 0 | 500 | Manrope |
-| Subheadline | 14px | 14px | 14px | 1.4 | 0 | 500 | Manrope |
-| Footnote | 13px | 13px | 13px | 1.35 | 0 | 400 | Manrope |
-| Caption 1 | 12px | 12px | 12px | 1.3 | 0.01em | 400 | Manrope |
-| Caption 2 | 11px | 11px | 11px | 1.25 | 0.02em | 400 | Manrope |
+| Level | Font | Typical use |
+|-------|------|-------------|
+| Display | Syne 700–800 | Hero / marketing headlines |
+| Title 1 | Syne 700 | Page titles (`PageTitle`) |
+| Title 2 | Syne 600–700 | Section titles (`SectionTitle`) |
+| Title 3 | Syne 600 | Card titles (`CardTitle`, `SubTitle`) |
+| Body | Figtree 400 | Default body copy |
+| Callout / Subheadline | Figtree 500 | Labels, list rows, dense UI |
+| Footnote / Caption | Figtree 400 | Metadata, captions, eyebrows |
 
 ### Font pairing strategy
 
-- **Headlines (Display → Title 3):** Sora for clarity and excitement.
-- **Body and UI (Body → Caption):** Manrope for readability and warmth.
-- **Consistency:** One Sora weight per section (e.g. 700 for Display, 600 for Headline); one Manrope weight per component (e.g. 500 for labels, 400 for body).
+- **Headlines:** Syne for confident, editorial headlines (700–800 for Display, 600–700 for titles).
+- **Body and UI:** Figtree for readability and warmth across body, labels, and buttons.
+- **Consistency:** One Syne weight per heading level; one Figtree weight per component (e.g. 500 for labels, 400 for body).
 
 ### Accessibility
 
@@ -171,11 +176,11 @@ Base unit: **8px**. Scale: 4, 8, 12, 16, 24, 32, 48, 64, 96, 128.
 
 ### Sidebar
 
-- **Anatomy:** Container, logo/brand, nav list, footer slot (optional).
-- **Specs:** Width expanded 288px (18rem), collapsed 80px (5rem). Item height 40px, padding 12px 16px. Active: background `--surface-muted`, left border 3px `--brand-primary`.
-- **States:** Expanded, collapsed; item default/hover/active.
-- **Usage:** App-level navigation when 5+ destinations.
-- **A11y:** `aria-label="Sidebar"`, `nav`, focus trap when open on mobile.
+- **Anatomy:** Container, brand mark ("H" in Syne), nav list, footer slot (optional).
+- **Specs:** Width expanded 16rem (`--sidebar-expanded-width`), collapsed 4.5rem (`--sidebar-collapsed-width`); the live width is published as `--sidebar-width` so the shell offset stays in sync. Item min-height 40px. Active: animated sliding pill on `--sidebar-active-bg` with `--sidebar-active-fg` text.
+- **States:** Expanded, collapsed (persisted to `localStorage`); item default/hover/active.
+- **Usage:** App-level navigation; rendered through `AppShell`. On mobile it becomes a shadcn `Sheet` drawer with a hamburger trigger.
+- **A11y:** `aria-label`, `nav`, `aria-current` on active item; Sheet provides focus trap and `SheetTitle` on mobile; respects reduced motion for the active-pill animation.
 
 ### Breadcrumbs
 
@@ -448,16 +453,18 @@ Base unit: **8px**. Scale: 4, 8, 12, 16, 24, 32, 48, 64, 96, 128.
 6. **Do** provide focus rings for keyboard users. **Don't** remove outline without a visible focus style.
 7. **Do** use empty states with explanation and action. **Don't** leave blank areas with no guidance.
 8. **Do** use loading skeletons for content-heavy areas. **Don't** use spinners for full-page load only.
-9. **Do** use Sora for headlines and Manrope for body. **Don't** mix many weights in one block.
-10. **Do** test contrast (AA minimum for text). **Don't** use Ice or light accent on white for body text.
+9. **Do** use Syne for headlines and Figtree for body. **Don't** mix many weights in one block, and never use the broken `font-[var(--font-display)]` utility — use the `font-display` class or typography primitives.
+10. **Do** test contrast (AA minimum for text). **Don't** use light amber/accent on paper for body text; pair amber surfaces with dark ink.
 
 ## 4.3 Implementation guide for developers
 
-- **Tokens:** Use CSS variables from `src/styles.css` (e.g. `var(--brand-primary)`, `var(--space-4)`). Theme tokens are in `@theme inline` for Tailwind (e.g. `bg-background`, `text-muted-foreground`).
-- **Adding components:** Prefer shadcn/ui: `pnpm dlx shadcn@latest add <component>`. Place in `src/components/ui/`; extend with brand variants (e.g. `variant="brand"` on Button) via `cva`.
-- **Extending the system:** Add new tokens under `:root` and `.dark`, then to `@theme inline` if Tailwind should expose them. Document new components in this doc (anatomy, states, a11y, specs).
-- **Accessibility:** Every interactive component must be keyboard-focusable, have visible focus, and use ARIA as specified in component sections. Run axe or similar in CI.
+- **Tokens:** Use CSS variables from `src/styles.css` (e.g. `var(--brand-primary)`, `var(--space-4)`). Theme tokens are in `@theme inline` for Tailwind (e.g. `bg-background`, `text-muted-foreground`). Avoid hardcoded hex in route/component classNames — the only exceptions are chart/data colors and third-party brand logos.
+- **Layout:** Authenticated pages are composed from `src/components/layout/` — `AppShell` (sidebar + offset), `PageContainer` (max-width, padding, grain/mesh), `PageHeader` (eyebrow + title + description + actions), plus `EmptyState`, `LoadingState`, and `ErrorState`. The dashboard uses the sticky `DashboardHeader`.
+- **Typography & motion:** Use the primitives in `src/components/ui/typography.tsx` and the shared variants in `src/lib/motion.ts` (`pageVariants`, `staggerContainer`, `fadeUpItem`) via `useReducedMotionSafe`/`usePageMotion`.
+- **Adding components:** Prefer shadcn/ui: `pnpm dlx shadcn@latest add <component>`. Place in `src/components/ui/`; extend with brand variants (e.g. `variant="brand"`/`variant="accent"` on Button, status variants on Badge) via `cva`.
+- **Extending the system:** Add new tokens under `:root` and `.dark`, then to `@theme inline` if Tailwind should expose them. Keep `docs/tokens.json` in sync, and document new components in this doc (anatomy, states, a11y, specs).
+- **Accessibility:** Every interactive component must be keyboard-focusable, have visible focus, and use ARIA as specified in component sections. Reduced motion is honored globally and via `useReducedMotionSafe`; coarse-pointer touch targets are enforced to 44×44px in `src/styles.css`.
 
 ---
 
-*Havamind Design System v1.0 — Human Interface Guidelines.*
+*Havamind Design System v2.0 — Editorial Capital.*

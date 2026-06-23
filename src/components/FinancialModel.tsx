@@ -75,7 +75,7 @@ export default function FinancialModel({
   return (
     <div className="bg-[var(--page)] min-h-screen">
       {/* Scenario & Tab Navigation */}
-      <div className="bg-white border-b border-[var(--border-soft)] sticky top-0 z-10">
+      <div className="bg-[var(--surface)] border-b border-[var(--border-soft)] sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Scenario Selector */}
           <div className="py-3 flex items-center justify-between border-b border-[var(--surface-muted-border)]">
@@ -112,7 +112,7 @@ export default function FinancialModel({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)] border border-[rgba(79,70,186,0.2)]"
+                    ? "bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary)] border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)]"
                     : "text-[var(--brand-muted)] hover:bg-[var(--surface-muted)]"
                 }`}
               >
@@ -158,7 +158,7 @@ export default function FinancialModel({
             </div>
 
             {/* Assumptions */}
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-5">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-5">
               <h3 className="font-semibold text-[var(--brand-ink)] mb-4">
                 Key Assumptions ({scenario.toUpperCase()} CASE)
               </h3>
@@ -197,7 +197,7 @@ export default function FinancialModel({
             </div>
 
             {/* P&L Summary Table */}
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] overflow-hidden">
               <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 5-Year P&L Summary
               </div>
@@ -219,7 +219,7 @@ export default function FinancialModel({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--surface-muted-border)]">
-                    <tr className="bg-[rgba(79,70,186,0.12)]">
+                    <tr className="bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]">
                       <td className="px-5 py-3 font-medium text-[var(--brand-primary)]">
                         Total Revenue
                       </td>
@@ -246,7 +246,7 @@ export default function FinancialModel({
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono font-medium ${
-                            p.ebitda >= 0 ? "text-[var(--brand-primary)]" : "text-red-600"
+                            p.ebitda >= 0 ? "text-[var(--brand-primary)]" : "text-[var(--destructive)]"
                           }`}
                         >
                           {p.ebitda >= 0
@@ -263,7 +263,7 @@ export default function FinancialModel({
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono text-sm ${
-                            p.ebitdaMargin >= 0 ? "text-[var(--brand-primary)]" : "text-red-600"
+                            p.ebitdaMargin >= 0 ? "text-[var(--brand-primary)]" : "text-[var(--destructive)]"
                           }`}
                         >
                           {p.ebitdaMargin}%
@@ -276,7 +276,7 @@ export default function FinancialModel({
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono font-semibold ${
-                            p.netIncome >= 0 ? "text-green-400" : "text-red-400"
+                            p.netIncome >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"
                           }`}
                         >
                           {p.netIncome >= 0
@@ -319,7 +319,7 @@ export default function FinancialModel({
               />
             </div>
 
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] overflow-hidden">
               <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 Market Penetration Trajectory
               </div>
@@ -349,7 +349,7 @@ export default function FinancialModel({
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-[rgba(79,70,186,0.12)]">
+                    <tr className="bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]">
                       <td className="px-5 py-3 font-medium text-[var(--brand-primary)]">
                         Projected Revenue
                       </td>
@@ -387,7 +387,7 @@ export default function FinancialModel({
 
         {/* P&L Statement */}
         {activeTab === "pnl" && (
-          <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] overflow-hidden">
             <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
               Profit & Loss Statement (USD)
             </div>
@@ -480,13 +480,13 @@ export default function FinancialModel({
                   />
 
                   {/* EBITDA */}
-                  <tr className="bg-[#1E2133] text-white">
+                  <tr className="bg-[var(--brand-ink)] text-white">
                     <td className="px-5 py-3 font-semibold">EBITDA</td>
                     {projections.map((p, i) => (
                       <td
                         key={i}
                         className={`text-right px-4 py-3 font-mono font-semibold ${
-                          p.ebitda >= 0 ? "text-green-400" : "text-red-400"
+                          p.ebitda >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"
                         }`}
                       >
                         {p.ebitda >= 0
@@ -515,7 +515,7 @@ export default function FinancialModel({
                       <td
                         key={i}
                         className={`text-right px-4 py-3 font-mono font-bold ${
-                          p.netIncome >= 0 ? "text-green-400" : "text-red-400"
+                          p.netIncome >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"
                         }`}
                       >
                         {p.netIncome >= 0
@@ -533,7 +533,7 @@ export default function FinancialModel({
         {/* Cash Flow */}
         {activeTab === "cashflow" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] overflow-hidden">
               <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 Cash Flow Statement (USD)
               </div>
@@ -588,13 +588,13 @@ export default function FinancialModel({
                       negative
                     />
 
-                    <tr className="bg-[#1E2133] text-white">
+                    <tr className="bg-[var(--brand-ink)] text-white">
                       <td className="px-5 py-3 font-bold">FREE CASH FLOW</td>
                       {projections.map((p, i) => (
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono font-bold ${
-                            p.freeCashFlow >= 0 ? "text-green-400" : "text-red-400"
+                            p.freeCashFlow >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"
                           }`}
                         >
                           {p.freeCashFlow >= 0
@@ -603,13 +603,13 @@ export default function FinancialModel({
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-[#2B2E44] text-white">
+                    <tr className="bg-[color-mix(in_srgb,var(--brand-ink)_82%,white)] text-white">
                       <td className="px-5 py-3">Cumulative Cash</td>
                       {cumulativeCash.map((c, i) => (
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono ${
-                            c >= 0 ? "text-green-400" : "text-red-400"
+                            c >= 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"
                           }`}
                         >
                           {c >= 0 ? fmt(c) : `(${fmt(Math.abs(c))})`}
@@ -622,14 +622,14 @@ export default function FinancialModel({
             </div>
 
             {/* Funding Box */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-              <h4 className="font-semibold text-blue-900 mb-4">
+            <div className="bg-[color-mix(in_srgb,var(--brand-primary)_8%,transparent)] border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] rounded-xl p-5">
+              <h4 className="font-semibold text-[var(--brand-primary-hover)] mb-4">
                 Funding Requirement
               </h4>
               <div className="flex flex-wrap items-center gap-6">
                 <div>
                   <span className="text-[var(--brand-muted)]">Max cash deficit:</span>
-                  <span className="font-bold text-red-600 ml-2">
+                  <span className="font-bold text-[var(--destructive)] ml-2">
                     {fmt(Math.abs(maxNegative))}
                   </span>
                 </div>
@@ -639,9 +639,9 @@ export default function FinancialModel({
                     {fmt(settings.safetyBuffer)}
                   </span>
                 </div>
-                <div className="bg-blue-600 text-white px-5 py-3 rounded-lg">
+                <div className="bg-[var(--brand-primary)] text-white px-5 py-3 rounded-lg">
                   <span className="font-bold text-xl">{fmt(fundingNeed)}</span>
-                  <span className="text-blue-200 ml-2 text-sm">Seed Round</span>
+                  <span className="text-[color-mix(in_srgb,white_75%,var(--brand-primary))] ml-2 text-sm">Seed Round</span>
                 </div>
               </div>
             </div>
@@ -678,7 +678,7 @@ export default function FinancialModel({
               />
             </div>
 
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] overflow-hidden">
               <div className="bg-[var(--brand-ink)] text-white px-5 py-3 font-semibold">
                 DCF Calculation
               </div>
@@ -697,7 +697,7 @@ export default function FinancialModel({
                           {y}
                         </th>
                       ))}
-                      <th className="text-right px-4 py-3 font-medium text-[var(--brand-primary)] bg-[rgba(79,70,186,0.12)]">
+                      <th className="text-right px-4 py-3 font-medium text-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]">
                         Terminal
                       </th>
                     </tr>
@@ -709,7 +709,7 @@ export default function FinancialModel({
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono ${
-                            p.freeCashFlow >= 0 ? "" : "text-red-600"
+                            p.freeCashFlow >= 0 ? "" : "text-[var(--destructive)]"
                           }`}
                         >
                           {p.freeCashFlow >= 0
@@ -717,7 +717,7 @@ export default function FinancialModel({
                             : `(${fmt(Math.abs(p.freeCashFlow))})`}
                         </td>
                       ))}
-                      <td className="text-right px-4 py-3 font-mono bg-[rgba(79,70,186,0.12)]">
+                      <td className="text-right px-4 py-3 font-mono bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]">
                         {fmt(dcf.terminalValue)}
                       </td>
                     </tr>
@@ -730,14 +730,14 @@ export default function FinancialModel({
                           ).toFixed(3)}
                         </td>
                       ))}
-                      <td className="text-right px-4 py-3 font-mono bg-[rgba(79,70,186,0.12)]">
+                      <td className="text-right px-4 py-3 font-mono bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]">
                         {(
                           1 /
                           Math.pow(1 + settings.discountRate, projections.length)
                         ).toFixed(3)}
                       </td>
                     </tr>
-                    <tr className="bg-[rgba(79,70,186,0.12)]">
+                    <tr className="bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]">
                       <td className="px-5 py-3 font-semibold text-[var(--brand-primary)]">
                         Present Value
                       </td>
@@ -745,7 +745,7 @@ export default function FinancialModel({
                         <td
                           key={i}
                           className={`text-right px-4 py-3 font-mono font-semibold ${
-                            pv >= 0 ? "text-[var(--brand-primary)]" : "text-red-600"
+                            pv >= 0 ? "text-[var(--brand-primary)]" : "text-[var(--destructive)]"
                           }`}
                         >
                           {pv >= 0 ? fmt(pv) : `(${fmt(Math.abs(pv))})`}
@@ -864,10 +864,10 @@ function MetricCard({
 }) {
   const colors = {
     emerald: "bg-[var(--brand-primary)]",
-    blue: "bg-blue-600",
-    amber: "bg-amber-600",
-    green: "bg-green-600",
-    red: "bg-red-600",
+    blue: "bg-[var(--brand-primary-hover)]",
+    amber: "bg-[var(--brand-accent)]",
+    green: "bg-[var(--success)]",
+    red: "bg-[var(--destructive)]",
   };
   return (
     <div className={`${colors[color]} text-white rounded-xl p-5`}>
@@ -918,7 +918,7 @@ function MarketCard({
   };
   return (
     <div
-      className={`bg-white rounded-xl border border-[var(--border-soft)] border-l-4 ${colors[color]} p-5`}
+      className={`bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] border-l-4 ${colors[color]} p-5`}
     >
       <p className="text-sm text-[var(--brand-muted)]">{subtitle}</p>
       <p className="text-xs font-medium text-[var(--brand-muted)] mb-2">{title}</p>
@@ -943,7 +943,7 @@ function ValuationCard({
 }) {
   return (
     <div
-      className={`rounded-xl p-5 ${highlight ? "bg-[var(--brand-primary)] text-white" : "bg-white border border-[var(--border-soft)]"}`}
+      className={`rounded-xl p-5 ${highlight ? "bg-[var(--brand-primary)] text-white" : "bg-[var(--surface)] border border-[var(--border-soft)]"}`}
     >
       <p className={`text-sm flex items-center gap-1 ${highlight ? "opacity-80" : "text-[var(--brand-muted)]"}`}>
         {title}
@@ -975,12 +975,12 @@ function KPICard({
   items: Array<{ label: string; value: string; highlight?: boolean; tooltip?: string }>;
 }) {
   const colors = {
-    purple: "bg-purple-600",
-    blue: "bg-blue-600",
+    purple: "bg-[var(--brand-primary-hover)]",
+    blue: "bg-[var(--brand-accent)]",
     emerald: "bg-[var(--brand-primary)]",
   };
   return (
-    <div className="bg-white rounded-xl border border-[var(--border-soft)] overflow-hidden">
+    <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] overflow-hidden">
       <div className={`${colors[color]} text-white px-5 py-3 font-semibold`}>
         {title}
       </div>
@@ -1018,11 +1018,11 @@ function SectionHeader({
   color: "emerald" | "red" | "orange" | "blue" | "purple";
 }) {
   const colors = {
-    emerald: "bg-[rgba(79,70,186,0.18)] text-[var(--brand-primary)]",
-    red: "bg-red-100 text-red-800",
-    orange: "bg-orange-100 text-orange-800",
-    blue: "bg-blue-100 text-blue-800",
-    purple: "bg-purple-100 text-purple-800",
+    emerald: "bg-[color-mix(in_srgb,var(--brand-primary)_18%,transparent)] text-[var(--brand-primary)]",
+    red: "bg-[color-mix(in_srgb,var(--destructive)_15%,transparent)] text-[var(--destructive)]",
+    orange: "bg-[color-mix(in_srgb,var(--brand-accent)_18%,transparent)] text-[var(--brand-accent)]",
+    blue: "bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)] text-[var(--brand-primary-hover)]",
+    purple: "bg-[color-mix(in_srgb,var(--brand-secondary)_15%,transparent)] text-[var(--brand-secondary)]",
   };
   return (
     <tr className={colors[color]}>
@@ -1052,7 +1052,7 @@ function DataRow({
       {data.map((d, i) => (
         <td
           key={i}
-          className={`text-right px-4 py-2.5 font-mono ${negative ? "text-red-600" : ""}`}
+          className={`text-right px-4 py-2.5 font-mono ${negative ? "text-[var(--destructive)]" : ""}`}
         >
           {d}
         </td>
@@ -1070,8 +1070,8 @@ function TotalRow({
   data: string[];
   color?: "emerald" | "blue";
 }) {
-  const bgColor = color === "emerald" ? "bg-[rgba(79,70,186,0.12)]" : color === "blue" ? "bg-blue-50" : "bg-[var(--page)]";
-  const textColor = color === "emerald" ? "text-[var(--brand-primary)]" : color === "blue" ? "text-blue-800" : "text-[var(--brand-ink)]";
+  const bgColor = color === "emerald" ? "bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]" : color === "blue" ? "bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]" : "bg-[var(--page)]";
+  const textColor = color === "emerald" ? "text-[var(--brand-primary)]" : color === "blue" ? "text-[var(--brand-accent)]" : "text-[var(--brand-ink)]";
   return (
     <tr className={`${bgColor} border-b-2 border-[var(--border-soft)]`}>
       <td className={`px-5 py-3 font-semibold ${textColor}`}>{label}</td>

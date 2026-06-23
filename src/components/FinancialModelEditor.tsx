@@ -430,7 +430,7 @@ export default function FinancialModelEditor({
   return (
     <div className="min-h-screen bg-[var(--page)]">
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-[var(--border-soft)] sticky top-0 z-20">
+      <div className="bg-[var(--surface)] border-b border-[var(--border-soft)] sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex gap-1 py-3 overflow-x-auto">
             {tabs.map((tab) => (
@@ -439,7 +439,7 @@ export default function FinancialModelEditor({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? "bg-[rgba(79,70,186,0.12)] text-[var(--brand-primary)] border border-[rgba(79,70,186,0.2)]"
+                    ? "bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary)] border border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)]"
                     : "text-[var(--brand-muted)] hover:bg-[var(--surface-muted)]"
                 }`}
               >
@@ -455,7 +455,7 @@ export default function FinancialModelEditor({
         {/* Snapshot Tab */}
         {activeTab === "snapshot" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <InvestorSnapshot
                 monthlyMetrics={initialMonthlyMetrics}
                 legacyMetrics={metrics ? {
@@ -474,7 +474,7 @@ export default function FinancialModelEditor({
         {/* Traction Tab */}
         {activeTab === "traction" && upsertMonthlyMetricsFn && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <MonthlyMetricsTable
                 modelId={modelId}
                 rows={initialMonthlyMetrics}
@@ -511,7 +511,7 @@ export default function FinancialModelEditor({
         {/* Cohorts Tab */}
         {activeTab === "cohorts" && upsertCohortsFn && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <CohortTable
                 modelId={modelId}
                 rows={initialCohorts}
@@ -535,7 +535,7 @@ export default function FinancialModelEditor({
         {/* Scenarios Tab */}
         {activeTab === "scenarios" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
                 Scenario parameters
               </h2>
@@ -544,7 +544,7 @@ export default function FinancialModelEditor({
               </p>
 
               {tractionSeed && (
-                <div className="mb-6 rounded-xl bg-[rgba(79,70,186,0.06)] border border-[rgba(79,70,186,0.15)] p-4">
+                <div className="mb-6 rounded-xl bg-[color-mix(in_srgb,var(--brand-primary)_6%,transparent)] border border-[color-mix(in_srgb,var(--brand-primary)_15%,transparent)] p-4">
                   <p className="text-sm text-[var(--brand-primary)] font-medium">
                     Projections seeded from your traction data
                   </p>
@@ -641,7 +641,7 @@ export default function FinancialModelEditor({
                 <button
                   onClick={() => handleSaveScenario(activeScenarioTab)}
                   disabled={savingScenario}
-                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingScenario ? "Saving..." : "Save scenario"}
                 </button>
@@ -652,7 +652,7 @@ export default function FinancialModelEditor({
 
         {/* Fundraising Tab */}
         {activeTab === "fundraising" && (
-          <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
             {updateFundraisingFn ? (
               <FundraisingPanel
                 fundraising={initialFundraising ?? null}
@@ -688,7 +688,7 @@ export default function FinancialModelEditor({
         {/* Settings Tab */}
         {activeTab === "settings" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
                 Model settings
               </h2>
@@ -770,7 +770,7 @@ export default function FinancialModelEditor({
                 <button
                   onClick={handleSaveSettings}
                   disabled={savingSettings}
-                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingSettings ? "Saving..." : "Save settings"}
                 </button>
@@ -782,7 +782,7 @@ export default function FinancialModelEditor({
         {/* Market Tab */}
         {activeTab === "market" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
                 Market sizing
               </h2>
@@ -841,7 +841,7 @@ export default function FinancialModelEditor({
               </div>
 
               <div className="mt-6">
-                <button onClick={handleSaveMarket} disabled={savingMarket} className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={handleSaveMarket} disabled={savingMarket} className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {savingMarket ? "Saving..." : "Save market sizing"}
                 </button>
               </div>
@@ -852,7 +852,7 @@ export default function FinancialModelEditor({
         {/* Metrics Tab */}
         {activeTab === "metrics" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <h2 className="text-2xl font-bold text-[var(--brand-ink)] mb-2">
                 Product & business metrics
               </h2>
@@ -1126,7 +1126,7 @@ export default function FinancialModelEditor({
                 <button
                   onClick={handleSaveMetrics}
                   disabled={savingMetrics}
-                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingMetrics ? "Saving..." : "Save metrics"}
                 </button>

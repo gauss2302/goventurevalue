@@ -2,7 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
 import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell, PageContainer, PageHeader, LoadingState, ErrorState } from "@/components/layout";
 import { StyleQuestionnaireModal } from "@/components/pitch-deck";
 import type {
   CreatePitchDeckDto,
@@ -645,27 +645,26 @@ function NewPitchDeckPage() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-[var(--brand-muted)]">
-          Loading pitch deck setup...
-        </div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <LoadingState message="Loading pitch deck setup…" />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   if (loadError || !models) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-red-600">
-          Failed to load models for pitch deck. Please refresh the page.
-        </div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <ErrorState message="We couldn't load your models for the pitch deck. Please refresh the page." />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
-      <Sidebar />
+    <AppShell>
       <StyleQuestionnaireModal
         open={fullAiModalOpen}
         onOpenChange={setFullAiModalOpen}
@@ -676,32 +675,26 @@ function NewPitchDeckPage() {
         onSearchUnsplash={handleSearchUnsplash}
         suggestedQueries={suggestedQueries}
       />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="relative px-6 py-10 lg:px-10 max-w-[1200px] mx-auto">
-          <div className="pointer-events-none absolute -top-20 right-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.12),transparent_70%)]" />
+      <PageContainer>
+        <PageHeader
+          eyebrow="Pitch Decks"
+          title="Generate New Pitch Deck"
+          description="Create a structured investor deck with AI. You can optionally attach one of your financial models to enrich the financial narrative."
+          className="mb-[var(--space-7)]"
+        />
 
-          <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">Pitch Decks</p>
-            <h1 className="text-3xl font-[var(--font-display)] text-[var(--brand-ink)] mt-2">
-              Generate New Pitch Deck
-            </h1>
-            <p className="text-sm text-[var(--brand-muted)] mt-2 max-w-2xl">
-              Create a structured investor deck with AI. You can optionally attach one of your financial models to enrich the financial narrative.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-6">
               {/* Generation mode toggle */}
-              <section className="bg-white rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)]">
-                <h2 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mb-3">Generation mode</h2>
+              <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)]">
+                <h2 className="text-lg font-display text-[var(--brand-ink)] mb-3">Generation mode</h2>
                 <div className="flex gap-2 p-1 rounded-xl bg-[var(--surface-muted)] w-fit">
                   <button
                     type="button"
                     onClick={() => setGenerationMode("standard")}
                     className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       generationMode === "standard"
-                        ? "bg-white text-[var(--brand-ink)] shadow-sm"
+                        ? "bg-[var(--surface)] text-[var(--brand-ink)] shadow-sm"
                         : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)]"
                     }`}
                   >
@@ -712,7 +705,7 @@ function NewPitchDeckPage() {
                     onClick={() => setGenerationMode("fullAi")}
                     className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       generationMode === "fullAi"
-                        ? "bg-white text-[var(--brand-ink)] shadow-sm"
+                        ? "bg-[var(--surface)] text-[var(--brand-ink)] shadow-sm"
                         : "text-[var(--brand-muted)] hover:text-[var(--brand-ink)]"
                     }`}
                   >
@@ -726,8 +719,8 @@ function NewPitchDeckPage() {
                 </p>
               </section>
 
-              <section className="bg-white rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)] space-y-4">
-                <h2 className="text-lg font-[var(--font-display)]">Deck setup</h2>
+              <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)] space-y-4">
+                <h2 className="text-lg font-display">Deck setup</h2>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="text-sm text-[var(--brand-muted)]">
@@ -776,8 +769,8 @@ function NewPitchDeckPage() {
                             onClick={() => setTemplateId(t.id)}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-left transition-colors ${
                               templateId === t.id
-                                ? "border-[var(--brand-primary)] bg-[rgba(79,70,186,0.08)]"
-                                : "border-[var(--border-soft)] bg-white hover:border-[var(--brand-primary)]/40"
+                                ? "border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_8%,transparent)]"
+                                : "border-[var(--border-soft)] bg-[var(--surface)] hover:border-[var(--brand-primary)]/40"
                             }`}
                           >
                             <span
@@ -851,9 +844,9 @@ function NewPitchDeckPage() {
                 </div>
               </section>
 
-              <section className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[var(--card-shadow)] overflow-hidden">
+              <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] shadow-[var(--card-shadow)] overflow-hidden">
                 <div className="px-6 py-5 border-b border-[var(--border-soft)] bg-[var(--page)]">
-                  <h2 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">
+                  <h2 className="text-lg font-display text-[var(--brand-ink)]">
                     Structured Brief
                   </h2>
                   <p className="mt-1 text-sm text-[var(--brand-muted)] max-w-2xl">
@@ -893,7 +886,7 @@ function NewPitchDeckPage() {
                                 required
                               />
                               <div
-                                className={`text-xs ${nearLimit ? "text-amber-600" : "text-[var(--brand-muted)]"}`}
+                                className={`text-xs ${nearLimit ? "text-[var(--warning)]" : "text-[var(--brand-muted)]"}`}
                               >
                                 {length} / {BRIEF_MAX_LENGTH}
                               </div>
@@ -908,7 +901,7 @@ function NewPitchDeckPage() {
             </div>
 
             <aside className="space-y-4">
-              <div className="bg-white rounded-2xl border border-[var(--border-soft)] p-5 shadow-[var(--card-shadow)]">
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] p-5 shadow-[var(--card-shadow)]">
                 <h3 className="font-semibold text-[var(--brand-ink)]">Output</h3>
                 <ul className="mt-3 text-sm text-[var(--brand-muted)] space-y-2">
                   <li>10-slide investor deck</li>
@@ -919,7 +912,7 @@ function NewPitchDeckPage() {
               </div>
 
               {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-xl border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-4 py-3 text-sm text-[var(--destructive)]">
                   {error}
                 </div>
               ) : null}
@@ -947,8 +940,7 @@ function NewPitchDeckPage() {
               </button>
             </aside>
           </form>
-        </div>
-      </main>
-    </div>
+      </PageContainer>
+    </AppShell>
   );
 }

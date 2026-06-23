@@ -111,9 +111,9 @@ function SlideEditorComponent({
   const speakerNotesRef = useAutoResizeTextarea(slide.speakerNotes);
 
   return (
-    <section className="bg-white rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)] space-y-4 flex flex-col min-h-0">
+    <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] p-6 shadow-[var(--card-shadow)] space-y-4 flex flex-col min-h-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-[var(--font-display)]">
+        <h2 className="font-display text-xl">
           Slide {slideIndex + 1}: {slide.type}
         </h2>
         <div className="flex gap-2">

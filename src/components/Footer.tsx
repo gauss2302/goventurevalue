@@ -47,25 +47,18 @@ export default function Footer() {
           {/* Brand + tagline */}
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--brand-ink)]">
-                <div className="grid grid-cols-2 gap-[3px]">
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-ink)]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                </div>
-              </div>
               <span
-                className="text-lg font-bold tracking-tight text-[var(--brand-ink)]"
+                className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary)] text-[15px] font-extrabold text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)]"
                 style={{ fontFamily: "var(--font-display)" }}
+                aria-hidden
               >
+                H
+              </span>
+              <span className="font-display text-lg font-extrabold tracking-[-0.02em] text-[var(--brand-ink)]">
                 Havamind
               </span>
             </div>
-            <h3
-              className="mt-5 max-w-xs text-2xl font-bold leading-tight text-[var(--brand-ink)]"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <h3 className="font-display mt-5 max-w-xs text-2xl font-bold leading-tight text-[var(--brand-ink)]">
               Build your model,
               <br />
               tell your story
@@ -97,7 +90,7 @@ export default function Footer() {
                 animationDelay: `${i * 0.4}s`,
               }}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[var(--shadow-sm)]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface)] shadow-[var(--shadow-sm)]">
                 <Icon className="h-5 w-5 text-[var(--brand-muted)]" />
               </div>
             </div>

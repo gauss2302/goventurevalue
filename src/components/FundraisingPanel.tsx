@@ -170,7 +170,7 @@ export function FundraisingPanel({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Round Inputs */}
-        <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
           <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-4">
             Round inputs
           </h3>
@@ -218,10 +218,10 @@ export function FundraisingPanel({
                 </div>
               </div>
               {useOfFundsTotal !== 100 && useOfFundsTotal > 0 && (
-                <p className="text-xs text-amber-600 mt-1">Total: {useOfFundsTotal}% (should be 100%)</p>
+                <p className="text-xs text-[var(--warning)] mt-1">Total: {useOfFundsTotal}% (should be 100%)</p>
               )}
             </div>
-            <button type="button" onClick={handleSave} disabled={saving} className="px-6 py-2 bg-[var(--brand-primary)] text-white font-semibold rounded-xl hover:bg-[#3F38A4] disabled:opacity-50">
+            <button type="button" onClick={handleSave} disabled={saving} className="px-6 py-2 bg-[var(--brand-primary)] text-white font-semibold rounded-xl hover:bg-[var(--brand-primary-hover)] disabled:opacity-50">
               {saving ? "Saving..." : "Save"}
             </button>
           </div>
@@ -231,7 +231,7 @@ export function FundraisingPanel({
         <div className="space-y-6">
           {/* Dilution Summary */}
           {raiseNum > 0 && preMoneyNum > 0 && (
-            <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
               <h3 className="flex items-center text-lg font-semibold text-[var(--brand-ink)] mb-4">
                 Dilution & Cap Table<Tip text={TOOLTIPS.dilution} />
               </h3>
@@ -275,7 +275,7 @@ export function FundraisingPanel({
           )}
 
           {/* Valuation Comparison */}
-          <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
             <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-4">
               Valuation comparison
             </h3>

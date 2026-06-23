@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ExportPaywallModal } from "@/components/billing/ExportPaywallModal";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/layout";
 import {
   EditableSlideView,
   SlideCarousel,
@@ -812,26 +812,30 @@ function PitchDeckDetailPage() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="w-full max-w-md mx-auto px-4">
-          <div className="rounded-2xl border border-[var(--border-soft)] bg-white p-8 shadow-[var(--card-shadow)] animate-pulse">
-            <div className="h-6 bg-[var(--surface-muted)] rounded w-3/4 mb-4" />
-            <div className="h-4 bg-[var(--surface-muted)] rounded w-1/2 mb-6" />
-            <div className="aspect-[297/210] bg-[var(--surface-muted)] rounded-xl" />
-            <p className="text-sm text-[var(--brand-muted)] mt-4 text-center">Loading pitch deck…</p>
+      <AppShell>
+        <main className="relative flex min-h-screen items-center justify-center pt-[64px] md:pt-0">
+          <div className="w-full max-w-md mx-auto px-4">
+            <div className="rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-8 shadow-[var(--card-shadow)] animate-pulse">
+              <div className="h-6 bg-[var(--surface-muted)] rounded w-3/4 mb-4" />
+              <div className="h-4 bg-[var(--surface-muted)] rounded w-1/2 mb-6" />
+              <div className="aspect-[297/210] bg-[var(--surface-muted)] rounded-xl" />
+              <p className="text-sm text-[var(--brand-muted)] mt-4 text-center">Loading pitch deck…</p>
+            </div>
           </div>
-        </div>
-      </div>
+        </main>
+      </AppShell>
     );
   }
 
   if (loadError || !data) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-red-600">
-          Failed to load pitch deck. Please refresh the page.
-        </div>
-      </div>
+      <AppShell>
+        <main className="relative flex min-h-screen items-center justify-center pt-[64px] md:pt-0">
+          <div className="text-sm text-[var(--destructive)]">
+            We couldn't load this pitch deck. Please refresh the page.
+          </div>
+        </main>
+      </AppShell>
     );
   }
 
@@ -955,25 +959,23 @@ function PitchDeckDetailPage() {
 
   if (isGenerating) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex flex-col">
-        <Sidebar />
-        <main className="flex-1 md:ml-[var(--sidebar-width)] flex items-center justify-center p-8">
-          <div className="w-full max-w-lg rounded-2xl border border-[var(--border-soft)] bg-white p-10 shadow-[var(--card-shadow)] text-center">
+      <AppShell>
+        <main className="flex min-h-screen items-center justify-center p-8 pt-[64px] md:pt-8">
+          <div className="w-full max-w-lg rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-10 shadow-[var(--card-shadow)] text-center">
             <div className="inline-block w-10 h-10 rounded-full border-2 border-[var(--brand-primary)] border-t-transparent animate-spin mx-auto mb-4" />
-            <h2 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]">Generating your deck</h2>
+            <h2 className="font-display text-lg font-bold text-[var(--brand-ink)]">Generating your deck</h2>
             <p className="text-sm text-[var(--brand-muted)] mt-2">
               AI is creating your investor pitch deck. This usually takes a moment.
             </p>
             <p className="text-xs text-[var(--brand-muted)] mt-4">You can leave and come back—we’ll save your progress.</p>
           </div>
         </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex flex-col">
-      <Sidebar />
+    <AppShell>
       <ExportPaywallModal
         open={paywallOpen}
         onOpenChange={setPaywallOpen}
@@ -1007,9 +1009,9 @@ function PitchDeckDetailPage() {
         title="Full AI slides — style"
         submitLabel="Regenerate with Full AI"
       />
-      <main className="relative flex-1 flex flex-col md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
+      <main className="relative flex min-h-screen flex-1 flex-col pt-[64px] md:pt-0">
         {/* Compact top toolbar */}
-        <div className="shrink-0 px-4 py-3 border-b border-[var(--border-soft)] bg-white/80 flex flex-wrap items-center justify-between gap-3">
+        <div className="shrink-0 px-4 py-3 border-b border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--surface)_80%,transparent)] backdrop-blur-xl flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -1019,11 +1021,11 @@ function PitchDeckDetailPage() {
               Back
             </button>
             <div className="min-w-0">
-              <h1 className="text-lg font-[var(--font-display)] truncate">{data.title}</h1>
+              <h1 className="font-display text-lg font-bold truncate">{data.title}</h1>
               <p className="text-xs text-[var(--brand-muted)] truncate">{data.startupName}</p>
             </div>
             {data.designMode === "ai_designed" ? (
-              <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--brand-primary)]/40 bg-[rgba(79,70,186,0.08)] text-xs text-[var(--brand-primary)]">
+              <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[color-mix(in_srgb,var(--brand-primary)_40%,transparent)] bg-[color-mix(in_srgb,var(--brand-primary)_8%,transparent)] text-xs text-[var(--brand-primary)]">
                 AI-designed
               </span>
             ) : (
@@ -1035,7 +1037,7 @@ function PitchDeckDetailPage() {
                   )
                 }
                 disabled={saveTemplateMutation.isPending}
-                className="shrink-0 px-3 py-2 rounded-lg border border-[var(--border-soft)] text-sm bg-white disabled:opacity-50"
+                className="shrink-0 px-3 py-2 rounded-lg border border-[var(--border-soft)] text-sm bg-[var(--surface)] disabled:opacity-50"
               >
                 {getAllTemplates().map((t) => (
                   <option key={t.id} value={t.id}>
@@ -1139,7 +1141,7 @@ function PitchDeckDetailPage() {
                 <p className="text-xs text-[var(--brand-muted)]">Slides</p>
                 <div className="flex items-center gap-3 text-xs text-[var(--brand-muted)]">
                   {data.status === "failed" && data.lastError ? (
-                    <span className="text-red-600 truncate max-w-[200px]" title={data.lastError}>
+                    <span className="text-[var(--destructive)] truncate max-w-[200px]" title={data.lastError}>
                       {data.lastError}
                     </span>
                   ) : null}
@@ -1170,7 +1172,7 @@ function PitchDeckDetailPage() {
 
           {/* Collapsible speaker notes panel */}
           <div
-            className={`shrink-0 border-l border-[var(--border-soft)] bg-white flex flex-col transition-[width] duration-200 overflow-hidden ${
+            className={`shrink-0 border-l border-[var(--border-soft)] bg-[var(--surface)] flex flex-col transition-[width] duration-200 overflow-hidden ${
               speakerNotesPanelOpen ? "w-80 lg:w-96" : "w-0 border-l-0"
             }`}
           >
@@ -1207,7 +1209,7 @@ function PitchDeckDetailPage() {
                         type="button"
                         onClick={improveSpeakerNotesFromPanel}
                         disabled={improveTextMutation.isPending}
-                        className="mt-3 w-full px-3 py-2 rounded-lg border border-[var(--brand-primary)]/40 text-sm text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.08)] disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="mt-3 w-full px-3 py-2 rounded-lg border border-[color-mix(in_srgb,var(--brand-primary)_40%,transparent)] text-sm text-[var(--brand-primary)] hover:bg-[color-mix(in_srgb,var(--brand-primary)_8%,transparent)] disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {improveTextMutation.isPending ? (
                           <span className="inline-block w-4 h-4 rounded-full border-2 border-[var(--brand-primary)] border-t-transparent animate-spin" />
@@ -1231,6 +1233,6 @@ function PitchDeckDetailPage() {
         </div>
 
       </main>
-    </div>
+    </AppShell>
   );
 }

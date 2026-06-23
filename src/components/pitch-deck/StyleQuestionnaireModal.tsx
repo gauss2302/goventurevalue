@@ -1,5 +1,14 @@
 import { memo, useState, useRef, useCallback } from "react";
 import type { PitchDeckStyleQuestionnaireInput, PitchDeckThemePhoto } from "@/lib/dto";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const DIMENSIONS: {
   key: keyof Omit<PitchDeckStyleQuestionnaireInput, "optionalNote" | "themePhotos">;
@@ -64,7 +73,7 @@ function PhotoThumbnail({
       <button
         type="button"
         onClick={onRemove}
-        className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+        className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--destructive)]"
         aria-label="Remove photo"
       >
         <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
@@ -215,33 +224,20 @@ function StyleQuestionnaireModalComponent({
     [themePhotos, handleAddPhoto, handleRemovePhoto],
   );
 
-  if (!open) return null;
-
   const unsplashAvailable = Boolean(onSearchUnsplash);
   const canAddMore = themePhotos.length < MAX_THEME_PHOTOS;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="style-questionnaire-title"
-    >
-      <div
-        className="fixed inset-0 bg-black/50"
-        aria-hidden="true"
-        onClick={() => !isPending && onOpenChange(false)}
-      />
-      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--border-soft)] bg-white p-6 shadow-[var(--card-shadow)]">
-        <h2
-          id="style-questionnaire-title"
-          className="text-lg font-[var(--font-display)] text-[var(--brand-ink)]"
-        >
-          {title}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--brand-muted)]">
-          Answer a few style questions so the AI can design the deck look.
-        </p>
+    <Dialog open={open} onOpenChange={(next) => !isPending && onOpenChange(next)}>
+      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-[var(--text-title3)] font-bold text-[var(--brand-ink)]">
+            {title}
+          </DialogTitle>
+          <DialogDescription className="text-[var(--text-subheadline)] text-[var(--brand-muted)]">
+            Answer a few style questions so the AI can design the deck look.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="mt-6 space-y-5">
           {DIMENSIONS.map((dim) => (
@@ -262,8 +258,8 @@ function StyleQuestionnaireModalComponent({
                     }
                     className={`rounded-xl border px-3 py-2 text-sm transition-colors ${
                       values[dim.key] === opt
-                        ? "border-[var(--brand-primary)] bg-[rgba(79,70,186,0.08)] text-[var(--brand-primary)]"
-                        : "border-[var(--border-soft)] bg-white text-[var(--brand-ink)] hover:border-[var(--brand-primary)]/40"
+                        ? "border-[var(--brand-primary)] bg-[color-mix(in_srgb,var(--brand-primary)_8%,transparent)] text-[var(--brand-primary-hover)]"
+                        : "border-[var(--border-soft)] bg-[var(--surface)] text-[var(--brand-ink)] hover:border-[var(--brand-primary)]/40"
                     }`}
                   >
                     {opt}
@@ -330,7 +326,7 @@ function StyleQuestionnaireModalComponent({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={!canAddMore}
-                className="flex items-center gap-1.5 rounded-xl border border-[var(--border-soft)] px-3 py-2 text-sm text-[var(--brand-primary)] hover:bg-[rgba(79,70,186,0.06)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 rounded-xl border border-[var(--border-soft)] px-3 py-2 text-sm text-[var(--brand-primary-hover)] hover:bg-[color-mix(in_srgb,var(--brand-primary)_6%,transparent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path d="M7 1v8M4 4l3-3 3 3M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -383,7 +379,7 @@ function StyleQuestionnaireModalComponent({
                           setUnsplashQuery(q);
                           handleUnsplashSearch(q);
                         }}
-                        className="rounded-lg border border-[var(--border-soft)] px-2.5 py-1 text-xs text-[var(--brand-ink)] hover:border-[var(--brand-primary)]/50 hover:bg-[rgba(79,70,186,0.04)] transition-colors"
+                        className="rounded-lg border border-[var(--border-soft)] px-2.5 py-1 text-xs text-[var(--brand-ink)] hover:border-[var(--brand-primary)]/50 hover:bg-[color-mix(in_srgb,var(--brand-primary)_4%,transparent)] transition-colors"
                       >
                         {q}
                       </button>
@@ -392,7 +388,7 @@ function StyleQuestionnaireModalComponent({
                 )}
 
                 {unsplashError && (
-                  <p className="text-xs text-red-600">{unsplashError}</p>
+                  <p className="text-xs text-[var(--destructive)]">{unsplashError}</p>
                 )}
 
                 {/* Unsplash results grid */}
@@ -429,26 +425,16 @@ function StyleQuestionnaireModalComponent({
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-            className="rounded-xl border border-[var(--border-soft)] px-4 py-2 text-sm disabled:opacity-50"
-          >
+        <DialogFooter className="mt-6">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isPending}
-            className="rounded-xl bg-[var(--brand-primary)] px-4 py-2 text-sm text-white disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="brand" onClick={handleSubmit} disabled={isPending}>
             {isPending ? "Generating…" : submitLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

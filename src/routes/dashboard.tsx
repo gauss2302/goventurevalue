@@ -14,13 +14,19 @@ import {
   Users,
   Check,
   Circle,
+  ArrowRight,
 } from "lucide-react";
-import { Sidebar } from "../components/Sidebar";
 import { DashboardKpiCards } from "../components/DashboardKpiCards";
+import type { DashboardKpiItem } from "../components/DashboardKpiCards";
 import { DashboardStats } from "../components/DashboardStats";
 import ModelList from "../components/ModelList";
 import type { Model } from "../components/ModelList";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SubTitle, Muted } from "@/components/ui/typography";
+import { AppShell, DashboardHeader, PageContainer, LoadingState, ErrorState } from "@/components/layout";
+import { usePageMotion } from "@/lib/motion";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 import { openBillingPortal, startBillingCheckout } from "@/lib/billing/serverFns";
 import type { PresentationStatus } from "@/lib/dto";
@@ -203,11 +209,14 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
-const statusClassName: Record<PresentationStatus, string> = {
-  draft: "bg-[var(--surface-2)] text-[var(--brand-muted)]",
-  generating: "bg-blue-50 text-[var(--brand-primary)]",
-  ready: "bg-green-50 text-green-600",
-  failed: "bg-red-50 text-red-600",
+const statusBadgeVariant: Record<
+  PresentationStatus,
+  "secondary" | "info" | "success" | "destructive"
+> = {
+  draft: "secondary",
+  generating: "info",
+  ready: "success",
+  failed: "destructive",
 };
 
 function Dashboard() {
@@ -216,6 +225,7 @@ function Dashboard() {
   const openBillingPortalFn = useServerFn(openBillingPortal);
   const { billing } = Route.useSearch();
   const queryClient = useQueryClient();
+  const { container, item } = usePageMotion();
 
   useEffect(() => {
     if (billing === "success") {
@@ -226,19 +236,21 @@ function Dashboard() {
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f8f9ff]">
-        <div className="text-[13px] text-[#6b6a76]">Loading dashboard...</div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <LoadingState message="Loading your workspace…" />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f8f9ff]">
-        <div className="text-[13px] text-red-600">
-          Failed to load dashboard. Please refresh the page.
-        </div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <ErrorState message="We couldn't load your dashboard. Please refresh the page." />
+        </PageContainer>
+      </AppShell>
     );
   }
 
@@ -325,267 +337,201 @@ function Dashboard() {
     },
   ];
 
-  const kpiItems = [
+  const kpiItems: DashboardKpiItem[] = [
     {
       label: "Total Valuation",
       value: "\u2014",
       badge: "Add traction",
-      badgeClassName: "bg-[#ecfdf3] text-[#15803d]",
+      tone: "primary",
       icon: TrendingUp,
-      iconWrapClassName: "bg-[#eef2ff]",
-      iconClassName: "text-[#4338ca]",
     },
     {
       label: "Active Scenarios",
       value: scenariosDisplay,
       badge: "Across models",
-      badgeClassName: "bg-[#eef2ff] text-[#4338ca]",
+      tone: "accent",
       icon: Layers,
-      iconWrapClassName: "bg-[#f5f3ff]",
-      iconClassName: "text-[#5b21b6]",
     },
     {
       label: "Customer Cohorts",
       value: cohortValue,
       badge: stats.modelsCount > 0 ? "In workspace" : "Get started",
-      badgeClassName: "bg-[#fff7ed] text-[#c2410c]",
+      tone: "info",
       icon: Users,
-      iconWrapClassName: "bg-[#ecfeff]",
-      iconClassName: "text-[#0e7490]",
     },
   ];
 
   const setupHref = hasModels ? "/pitch-decks/new" : "/models/new";
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] text-[#0b1c30]">
-      <Sidebar />
-
-      <main className="relative transition-[margin] duration-300 md:ml-[var(--sidebar-width)]">
-        <header className="sticky top-0 z-20 border-b border-[#eeedf3] bg-[#f8f9ff]/90 px-3 py-2 backdrop-blur-md lg:px-8">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h1
-              className="pt-10 text-base font-bold text-[#0b1c30] md:pt-0"
-              style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
+    <AppShell>
+      <DashboardHeader
+        title="Dashboard"
+        subtitle={`Welcome back, ${user.name?.split(" ")[0] || "Founder"}`}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-9 rounded-[var(--radius-md)]"
+              aria-label="Notifications"
             >
-              Havamind Dashboard
-            </h1>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-[#eeedf3] bg-white text-[#464554] shadow-sm transition-colors hover:bg-[#f9fafb]"
-                aria-label="Notifications"
-              >
-                <Bell className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </button>
-              <button
-                type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-md border border-[#eeedf3] bg-white text-[#464554] shadow-sm transition-colors hover:bg-[#f9fafb]"
-                aria-label="Help"
-              >
-                <HelpCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </button>
-              {user.plan === "pro" ? (
-                <button
-                  type="button"
-                  onClick={handleOpenPortal}
-                  className="rounded-md border border-[#e0dffd] bg-[#ecebfa] px-2.5 py-1 text-xs font-bold text-[#2a14b4] transition-opacity hover:opacity-90"
-                >
-                  Manage plan
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleStartCheckout}
-                  className="rounded-md border border-[#e0dffd] bg-[#ecebfa] px-2.5 py-1 text-xs font-bold text-[#2a14b4] transition-opacity hover:opacity-90"
-                >
-                  Upgrade
-                </button>
-              )}
-              <div className="flex items-center gap-1.5 border-l border-[#eeedf3] pl-1.5">
-                <div className="text-right leading-tight">
-                  <p className="text-xs font-semibold text-[#0b1c30]">
-                    {user.name || "Founder"}
-                  </p>
-                  <p className="text-[11px] text-[#6b6a76]">Founder</p>
-                </div>
-                <div
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ecebfa] text-xs font-bold text-[#2a14b4]"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {initials}
-                </div>
+              <Bell className="size-4" strokeWidth={1.85} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden size-9 rounded-[var(--radius-md)] sm:flex"
+              aria-label="Help"
+            >
+              <HelpCircle className="size-4" strokeWidth={1.85} />
+            </Button>
+            {user.plan === "pro" ? (
+              <Button variant="ghost-brand" size="sm" onClick={handleOpenPortal}>
+                Manage plan
+              </Button>
+            ) : (
+              <Button variant="accent" size="sm" onClick={handleStartCheckout}>
+                Upgrade
+              </Button>
+            )}
+            <div className="ml-1 flex items-center gap-2 border-l border-[var(--border-soft)] pl-2">
+              <div className="hidden text-right leading-tight sm:block">
+                <p className="text-[var(--text-caption1)] font-semibold text-[var(--brand-ink)]">
+                  {user.name || "Founder"}
+                </p>
+                <p className="text-[var(--text-caption2)] text-[var(--brand-muted)]">Founder</p>
               </div>
+              <Avatar className="size-9">
+                <AvatarFallback className="bg-[var(--brand-primary-muted)] font-display text-[var(--text-caption1)] font-bold text-[var(--brand-primary-hover)]">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
             </div>
-          </div>
-        </header>
+          </>
+        }
+      />
 
-        <div className="mx-auto max-w-[1200px] space-y-5 px-3 py-5 lg:px-8">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: { opacity: 0 },
-              visible: {
-                opacity: 1,
-                transition: { staggerChildren: 0.05, delayChildren: 0.02 },
-              },
-            }}
-            className="space-y-5"
-          >
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-              }}
-            >
-              <DashboardKpiCards items={kpiItems} />
-            </motion.div>
+      <PageContainer>
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={container}
+          className="space-y-[var(--space-5)]"
+        >
+          <motion.div variants={item}>
+            <DashboardKpiCards items={kpiItems} />
+          </motion.div>
 
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-              }}
-            >
-              <DashboardStats stats={miniStats} />
-            </motion.div>
+          <motion.div variants={item}>
+            <DashboardStats stats={miniStats} />
+          </motion.div>
 
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-              }}
-              className="grid gap-4 lg:grid-cols-2"
-            >
-              <section className="rounded-xl border border-[#eeedf3] bg-white p-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <h2
-                      className="text-sm font-bold text-[#0b1c30]"
-                      style={{ fontFamily: "var(--font-display)" }}
-                    >
-                      Pitch Decks
-                    </h2>
-                    <p className="mt-0.5 text-xs text-[#6b6a76]">
-                      AI-generated slides from your models
+          <motion.div variants={item} className="grid gap-[var(--space-4)] lg:grid-cols-2">
+            <section className="rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] p-[var(--space-5)] shadow-[var(--card-shadow)]">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <SubTitle>Pitch Decks</SubTitle>
+                  <Muted className="mt-1 text-[var(--text-caption1)]">
+                    AI-generated slides from your models
+                  </Muted>
+                </div>
+                <Link
+                  to="/pitch-decks"
+                  className="flex items-center gap-1 text-[var(--text-caption1)] font-semibold text-[var(--brand-primary-hover)] hover:underline"
+                >
+                  View all <ArrowRight size={12} aria-hidden />
+                </Link>
+              </div>
+              <div className="mt-[var(--space-4)] grid gap-[var(--space-3)] sm:grid-cols-2">
+                <Link
+                  to="/pitch-decks/new"
+                  className="flex min-h-[112px] flex-col items-center justify-center gap-2 rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--border-soft)] bg-[var(--page)] p-[var(--space-4)] text-center transition-colors hover:border-[color-mix(in_srgb,var(--brand-primary)_45%,var(--border-soft))] hover:bg-[var(--brand-primary-muted)]"
+                >
+                  <div className="flex size-10 items-center justify-center rounded-full bg-[var(--brand-primary)] text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_32%,transparent)]">
+                    <Plus className="size-5" strokeWidth={2.5} />
+                  </div>
+                  <span className="text-[var(--text-caption1)] font-bold text-[var(--brand-primary-hover)]">
+                    Create New Deck
+                  </span>
+                </Link>
+                {previewDeck ? (
+                  <Link
+                    to="/pitch-decks/$deckId"
+                    params={{ deckId: String(previewDeck.id) }}
+                    className="group flex min-h-[112px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--page)] shadow-[var(--card-shadow)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)]"
+                  >
+                    <div className="relative h-16 w-full bg-mesh-accent">
+                      <Presentation className="absolute bottom-2 right-2 size-6 text-[var(--brand-primary)]/50" />
+                    </div>
+                    <div className="flex flex-1 flex-col justify-center p-[var(--space-3)]">
+                      <p className="line-clamp-2 text-[var(--text-caption1)] font-semibold text-[var(--brand-ink)] transition-colors group-hover:text-[var(--brand-primary-hover)]">
+                        {previewDeck.title}
+                      </p>
+                      <p className="mt-0.5 truncate text-[var(--text-caption2)] text-[var(--brand-muted)]">
+                        {previewDeck.startupName}
+                      </p>
+                      <Badge
+                        variant={statusBadgeVariant[previewDeck.status] ?? "secondary"}
+                        className="mt-1.5 capitalize"
+                      >
+                        {previewDeck.status}
+                      </Badge>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="flex min-h-[112px] flex-col justify-center rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--page)] p-[var(--space-4)] text-center">
+                    <Presentation className="mx-auto mb-1.5 size-8 text-[var(--brand-primary)]/35" />
+                    <p className="text-[var(--text-caption1)] font-medium text-[var(--brand-ink)]">No decks yet</p>
+                    <p className="mt-0.5 text-[var(--text-caption2)] text-[var(--brand-muted)]">
+                      Create a deck to see a preview here
                     </p>
                   </div>
-                  <Link
-                    to="/pitch-decks"
-                    className="text-xs font-bold text-[#4338ca] hover:underline"
-                  >
-                    View all
-                  </Link>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Link
-                    to="/pitch-decks/new"
-                    className="flex min-h-[100px] flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-[#d4d2e8] bg-[#f8f7ff] p-4 text-center transition-colors hover:border-[#4338ca]/40 hover:bg-[#f3f0ff]"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#4338ca] text-white shadow-md">
-                      <Plus className="h-5 w-5" strokeWidth={2.5} />
-                    </div>
-                    <span className="text-xs font-bold text-[#2a14b4]">Create New Deck</span>
-                  </Link>
-                  {previewDeck ? (
-                    <Link
-                      to="/pitch-decks/$deckId"
-                      params={{ deckId: String(previewDeck.id) }}
-                      className="group flex min-h-[100px] flex-col overflow-hidden rounded-lg border border-[#eeedf3] bg-[#fafbff] shadow-sm transition-shadow hover:shadow-md"
-                    >
-                      <div className="relative h-16 w-full bg-gradient-to-br from-[#4338ca]/20 via-[#a78bfa]/25 to-[#36c9f9]/20">
-                        <Presentation className="absolute bottom-2 right-2 h-6 w-6 text-[#4338ca]/40" />
-                      </div>
-                      <div className="flex flex-1 flex-col justify-center p-3">
-                        <p className="line-clamp-2 text-xs font-semibold text-[#0b1c30] group-hover:text-[#4338ca]">
-                          {previewDeck.title}
-                        </p>
-                        <p className="mt-0.5 truncate text-[11px] text-[#6b6a76]">
-                          {previewDeck.startupName}
-                        </p>
-                        <span
-                          className={`mt-1.5 w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClassName[previewDeck.status] ?? statusClassName.draft}`}
-                        >
-                          {previewDeck.status}
-                        </span>
-                      </div>
-                    </Link>
-                  ) : (
-                    <div className="flex min-h-[100px] flex-col justify-center rounded-lg border border-[#eeedf3] bg-gradient-to-br from-[#f8f9ff] to-[#eef2ff] p-4 text-center">
-                      <Presentation className="mx-auto mb-1.5 h-8 w-8 text-[#4338ca]/35" />
-                      <p className="text-xs font-medium text-[#464554]">No decks yet</p>
-                      <p className="mt-0.5 text-[11px] text-[#6b6a76]">
-                        Create a deck to see a preview here
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
+                )}
+              </div>
+            </section>
 
-              <section className="flex flex-col rounded-xl bg-[#2a14b4] p-4 text-white shadow-lg">
-                <h2
-                  className="text-sm font-bold"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  Next steps
-                </h2>
-                <p className="mt-0.5 text-xs text-white/80">
-                  Finish setup to unlock valuations and decks
-                </p>
-                <ul className="mt-4 space-y-3">
-                  <li className="flex items-start gap-2.5">
-                    {hasModels ? (
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" strokeWidth={2.5} />
+            <section className="relative flex flex-col overflow-hidden rounded-[var(--card-radius)] bg-[var(--brand-ink)] p-[var(--space-5)] text-white shadow-[var(--shadow-lg)]">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--brand-primary)_55%,transparent),transparent_70%)]"
+              />
+              <SubTitle className="relative text-white">Next steps</SubTitle>
+              <p className="relative mt-1 text-[var(--text-caption1)] text-white/75">
+                Finish setup to unlock valuations and decks
+              </p>
+              <ul className="relative mt-[var(--space-4)] space-y-[var(--space-3)]">
+                {[
+                  { done: hasModels, title: "Create a financial model", hint: "Capture traction and scenarios" },
+                  { done: hasDeck, title: "Generate a pitch deck", hint: "Export-ready narrative and slides" },
+                  { done: false, title: "Tune benchmark assumptions", hint: "Align multiples with your stage" },
+                ].map((step) => (
+                  <li key={step.title} className="flex items-start gap-2.5">
+                    {step.done ? (
+                      <Check className="mt-0.5 size-4 shrink-0 text-[var(--brand-primary)]" strokeWidth={2.5} />
                     ) : (
-                      <Circle className="mt-0.5 h-4 w-4 shrink-0 text-white/40" strokeWidth={2} />
+                      <Circle className="mt-0.5 size-4 shrink-0 text-white/40" strokeWidth={2} />
                     )}
                     <div>
-                      <p className="text-xs font-semibold">Create a financial model</p>
-                      <p className="text-[11px] text-white/70">Capture traction and scenarios</p>
+                      <p className="text-[var(--text-caption1)] font-semibold">{step.title}</p>
+                      <p className="text-[var(--text-caption2)] text-white/65">{step.hint}</p>
                     </div>
                   </li>
-                  <li className="flex items-start gap-2.5">
-                    {hasDeck ? (
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" strokeWidth={2.5} />
-                    ) : (
-                      <Circle className="mt-0.5 h-4 w-4 shrink-0 text-white/40" strokeWidth={2} />
-                    )}
-                    <div>
-                      <p className="text-xs font-semibold">Generate a pitch deck</p>
-                      <p className="text-[11px] text-white/70">Export-ready narrative and slides</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Circle className="mt-0.5 h-4 w-4 shrink-0 text-white/40" strokeWidth={2} />
-                    <div>
-                      <p className="text-xs font-semibold">Tune benchmark assumptions</p>
-                      <p className="text-[11px] text-white/70">Align multiples with your stage</p>
-                    </div>
-                  </li>
-                </ul>
-                <div className="mt-auto pt-5">
-                  <Button
-                    asChild
-                    className="h-9 w-full rounded-lg border-0 bg-white text-xs font-bold text-[#2a14b4] shadow-md hover:bg-white/95"
-                  >
-                    <Link to={setupHref}>Continue setup</Link>
-                  </Button>
-                </div>
-              </section>
-            </motion.div>
-
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 8 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-              }}
-            >
-              <ModelList models={models} />
-            </motion.div>
+                ))}
+              </ul>
+              <div className="relative mt-auto pt-[var(--space-5)]">
+                <Button variant="accent" className="w-full" asChild>
+                  <Link to={setupHref}>Continue setup</Link>
+                </Button>
+              </div>
+            </section>
           </motion.div>
-        </div>
-      </main>
-    </div>
+
+          <motion.div variants={item}>
+            <ModelList models={models} />
+          </motion.div>
+        </motion.div>
+      </PageContainer>
+    </AppShell>
   );
 }

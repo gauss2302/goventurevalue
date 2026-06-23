@@ -203,7 +203,7 @@ export default function LandingPage() {
       <nav
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "bg-white/90 shadow-[var(--shadow-sm)] backdrop-blur-lg"
+            ? "bg-[color-mix(in_srgb,var(--surface)_90%,transparent)] shadow-[var(--shadow-sm)] backdrop-blur-lg"
             : "bg-transparent"
         }`}
       >
@@ -212,18 +212,14 @@ export default function LandingPage() {
             to="/"
             className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--brand-ink)]">
-              <div className="grid grid-cols-2 gap-[3px]">
-                <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-ink)]" />
-                <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-                <div className="h-[7px] w-[7px] rounded-full bg-[var(--brand-primary)]" />
-              </div>
-            </div>
             <span
-              className="text-lg font-bold tracking-tight text-[var(--brand-ink)]"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-primary)] text-[15px] font-extrabold text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)]"
               style={{ fontFamily: "var(--font-display)" }}
+              aria-hidden
             >
+              H
+            </span>
+            <span className="font-display text-lg font-extrabold tracking-[-0.02em] text-[var(--brand-ink)]">
               Havamind
             </span>
           </Link>
@@ -281,7 +277,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden bg-white/95 backdrop-blur-lg lg:hidden"
+              className="overflow-hidden bg-[color-mix(in_srgb,var(--surface)_95%,transparent)] backdrop-blur-lg lg:hidden"
             >
               <div className="flex flex-col gap-1 px-6 pb-6 pt-2">
                 {[
@@ -358,7 +354,7 @@ export default function LandingPage() {
             delay: 1,
           }}
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-[var(--shadow-md)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface)] shadow-[var(--shadow-md)]">
             <Sparkles className="h-6 w-6 text-[var(--brand-primary)]" />
           </div>
         </motion.div>
@@ -377,7 +373,7 @@ export default function LandingPage() {
             delay: 0.5,
           }}
         >
-          <div className="w-48 rounded-2xl bg-white p-4 shadow-[var(--shadow-md)] rotate-3">
+          <div className="w-48 rounded-2xl bg-[var(--surface)] p-4 shadow-[var(--shadow-md)] rotate-3">
             <p className="text-xs font-semibold text-[var(--brand-ink)]">
               Series A Readiness
             </p>
@@ -386,7 +382,7 @@ export default function LandingPage() {
                 <span className="text-[11px] text-[var(--brand-muted)]">
                   Model completeness
                 </span>
-                <span className="text-[11px] font-semibold text-green-500">94%</span>
+                <span className="text-[11px] font-semibold text-[var(--success)]">94%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-[var(--brand-muted)]">
@@ -413,7 +409,7 @@ export default function LandingPage() {
             delay: 2,
           }}
         >
-          <div className="w-56 rounded-2xl bg-white p-4 shadow-[var(--shadow-md)]">
+          <div className="w-56 rounded-2xl bg-[var(--surface)] p-4 shadow-[var(--shadow-md)]">
             <p className="text-xs font-semibold text-[var(--brand-ink)]">
               Scenario Comparison
             </p>
@@ -437,7 +433,7 @@ export default function LandingPage() {
             delay: 1.5,
           }}
         >
-          <div className="w-48 rounded-2xl bg-white p-4 shadow-[var(--shadow-md)] rotate-3">
+          <div className="w-48 rounded-2xl bg-[var(--surface)] p-4 shadow-[var(--shadow-md)] rotate-3">
             <p className="text-xs font-semibold text-[var(--brand-ink)]">
               Valuation
             </p>
@@ -451,13 +447,13 @@ export default function LandingPage() {
               Pre-money · DCF method
             </p>
             <div className="mt-2 flex gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary)]">
                 <BarChart3 className="h-4 w-4" />
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-500">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]">
                 <TrendingUp className="h-4 w-4" />
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-500">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-accent)_14%,transparent)] text-[var(--brand-accent)]">
                 <DollarSign className="h-4 w-4" />
               </div>
             </div>
@@ -473,7 +469,7 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: easeOut }}
           >
-            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-[var(--shadow-md)]">
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)] shadow-[var(--shadow-md)]">
               <div className="grid grid-cols-2 gap-[3px]">
                 <div className="h-[8px] w-[8px] rounded-full bg-[var(--brand-primary)]" />
                 <div className="h-[8px] w-[8px] rounded-full bg-[var(--brand-ink)]" />
@@ -505,7 +501,7 @@ export default function LandingPage() {
               <Button
                 size="lg"
                 asChild
-                className="h-12 rounded-full bg-[var(--brand-primary)] px-8 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(79,70,186,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#3d36a3] hover:shadow-[0_12px_32px_rgba(79,70,186,0.4)] active:scale-[0.97]"
+                className="h-12 rounded-full bg-[var(--brand-primary)] px-8 text-[15px] font-semibold text-white shadow-[0_8px_24px_color-mix(in_srgb,var(--brand-primary)_30%,transparent)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--brand-primary-hover)] hover:shadow-[0_12px_32px_color-mix(in_srgb,var(--brand-primary)_40%,transparent)] active:scale-[0.97]"
               >
                 <Link to="/auth/signup">
                   Build your model free
@@ -596,9 +592,9 @@ export default function LandingPage() {
           {/* Dashboard preview card */}
           <motion.div
             {...fadeUp(0.2)}
-            className="relative mt-16 overflow-hidden rounded-[var(--radius-xl)] bg-gradient-to-b from-[var(--brand-primary)] to-[#36C9F9] p-2 shadow-[var(--shadow-lg)]"
+            className="relative mt-16 overflow-hidden rounded-[var(--radius-xl)] bg-gradient-to-b from-[var(--brand-primary)] to-[var(--brand-accent)] p-2 shadow-[var(--shadow-lg)]"
           >
-            <div className="overflow-hidden rounded-[calc(var(--radius-xl)-8px)] bg-white">
+            <div className="overflow-hidden rounded-[calc(var(--radius-xl)-8px)] bg-[var(--surface)]">
               <div className="p-6 lg:p-10">
                 <div className="flex flex-col gap-6 lg:flex-row">
                   <div className="flex-1 space-y-4">
@@ -613,21 +609,21 @@ export default function LandingPage() {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-xs text-[var(--brand-muted)]">
                             <span className="flex items-center gap-2">
-                              <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                              <div className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
                               MRR Growth
                             </span>
                             <span className="font-medium text-[var(--brand-ink)]">18% m/m</span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-[var(--brand-muted)]">
                             <span className="flex items-center gap-2">
-                              <div className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                              <div className="h-1.5 w-1.5 rounded-full bg-[var(--brand-accent)]" />
                               CAC
                             </span>
                             <span className="font-medium text-[var(--brand-ink)]">$142</span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-[var(--brand-muted)]">
                             <span className="flex items-center gap-2">
-                              <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                              <div className="h-1.5 w-1.5 rounded-full bg-[var(--brand-primary)]" />
                               LTV/CAC
                             </span>
                             <span className="font-medium text-[var(--brand-primary)]">4.2x</span>
@@ -643,8 +639,8 @@ export default function LandingPage() {
                           <span className="ml-1 text-sm font-medium text-[var(--brand-muted)]">months</span>
                         </p>
                         <div className="mt-2 flex items-center gap-1.5">
-                          <TrendingUp className="h-3 w-3 text-green-500" />
-                          <span className="text-[11px] font-medium text-green-500">+4.2 vs last month</span>
+                          <TrendingUp className="h-3 w-3 text-[var(--success)]" />
+                          <span className="text-[11px] font-medium text-[var(--success)]">+4.2 vs last month</span>
                         </div>
                       </DashboardCard>
                     </div>
@@ -680,7 +676,7 @@ export default function LandingPage() {
                 ease: "easeInOut",
               }}
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-[var(--shadow-md)]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface)] shadow-[var(--shadow-md)]">
                 <Check className="h-7 w-7 text-[var(--brand-primary)]" />
               </div>
             </motion.div>
@@ -799,7 +795,7 @@ export default function LandingPage() {
               <TestimonialCard testimonial={testimonials[2]} fadeUp={fadeUp} index={2} />
               <motion.div
                 {...fadeUp(0.3)}
-                className="relative overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-br from-blue-50 to-indigo-50 shadow-[var(--shadow-sm)]"
+                className="relative overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-br from-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] to-[color-mix(in_srgb,var(--brand-accent)_10%,transparent)] shadow-[var(--shadow-sm)]"
               >
                 <div className="p-6">
                   <Sparkles className="h-8 w-8 text-[var(--brand-primary)]" />
@@ -866,7 +862,7 @@ export default function LandingPage() {
 
 function PillLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-[var(--border-soft)] bg-white px-4 py-1.5 text-xs font-medium text-[var(--brand-muted)]">
+    <span className="inline-flex items-center rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-4 py-1.5 text-xs font-medium text-[var(--brand-muted)]">
       {children}
     </span>
   );
@@ -908,7 +904,7 @@ function DashboardCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-white p-4">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-4">
       <p
         className="mb-3 text-xs font-semibold text-[var(--brand-ink)]"
         style={{ fontFamily: "var(--font-display)" }}
@@ -935,7 +931,7 @@ function FeatureCard({
   return (
     <motion.div
       {...fadeUp(index * 0.08)}
-      className={`group overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-white p-6 shadow-[var(--shadow-sm)] transition-all duration-300 hover:shadow-[var(--shadow-md)] ${large ? "md:p-8" : ""}`}
+      className={`group overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-6 shadow-[var(--shadow-sm)] transition-all duration-300 hover:shadow-[var(--shadow-md)] ${large ? "md:p-8" : ""}`}
     >
       <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-2)]">
         <Icon className="h-5 w-5 text-[var(--brand-ink)]" />
@@ -966,11 +962,11 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
   const scenario = scenarioData.scenarios[activeScenario];
 
   return (
-    <div ref={containerRef} className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white shadow-[var(--shadow-lg)]">
+    <div ref={containerRef} className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
       {/* Excel-style toolbar */}
       <div className="flex items-center justify-between border-b border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 sm:px-6">
         <div className="flex items-center gap-3">
-          <FileSpreadsheet className="h-4 w-4 text-green-600" />
+          <FileSpreadsheet className="h-4 w-4 text-[var(--success)]" />
           <span className="text-xs font-semibold text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
             Havamind — Scenario Valuation Model
           </span>
@@ -990,8 +986,8 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
             onClick={() => setActiveScenario(i)}
             className={`flex-1 px-4 py-2.5 text-xs font-medium transition-all sm:text-[13px] ${
               activeScenario === i
-                ? "border-b-2 bg-white text-[var(--brand-ink)]"
-                : "bg-[var(--surface)] text-[var(--brand-muted)] hover:bg-white hover:text-[var(--brand-ink)]"
+                ? "border-b-2 bg-[var(--surface)] text-[var(--brand-ink)]"
+                : "bg-[var(--surface)] text-[var(--brand-muted)] hover:bg-[var(--surface)] hover:text-[var(--brand-ink)]"
             }`}
             style={{
               borderBottomColor: activeScenario === i ? s.color : "transparent",
@@ -1021,7 +1017,7 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
 
             {/* Revenue row */}
             <div className="mb-1 grid grid-cols-6 gap-px overflow-hidden rounded-lg border border-[var(--border-soft)] bg-[var(--border-soft)]">
-              <div className="bg-white px-3 py-2 text-[11px] font-medium text-[var(--brand-ink)]">
+              <div className="bg-[var(--surface)] px-3 py-2 text-[11px] font-medium text-[var(--brand-ink)]">
                 Revenue ($K)
               </div>
               {scenario.revenue.map((val, i) => (
@@ -1030,7 +1026,7 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
                   initial={prefersReducedMotion || !isInView ? false : { opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3, delay: i * 0.08 }}
-                  className="bg-white px-3 py-2 text-center text-[11px] font-semibold tabular-nums"
+                  className="bg-[var(--surface)] px-3 py-2 text-center text-[11px] font-semibold tabular-nums"
                   style={{ color: scenario.color }}
                 >
                   ${val.toLocaleString()}
@@ -1040,10 +1036,10 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
 
             {/* Growth row */}
             <div className="mb-6 grid grid-cols-6 gap-px overflow-hidden rounded-lg border border-[var(--border-soft)] bg-[var(--border-soft)]">
-              <div className="bg-white px-3 py-2 text-[11px] font-medium text-[var(--brand-ink)]">
+              <div className="bg-[var(--surface)] px-3 py-2 text-[11px] font-medium text-[var(--brand-ink)]">
                 YoY Growth
               </div>
-              <div className="bg-white px-3 py-2 text-center text-[11px] text-[var(--brand-muted)]">—</div>
+              <div className="bg-[var(--surface)] px-3 py-2 text-center text-[11px] text-[var(--brand-muted)]">—</div>
               {scenario.revenue.slice(1).map((val, i) => {
                 const prev = scenario.revenue[i];
                 const growth = Math.round(((val - prev) / prev) * 100);
@@ -1053,7 +1049,7 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
                     initial={prefersReducedMotion || !isInView ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3, delay: (i + 1) * 0.08 }}
-                    className="bg-white px-3 py-2 text-center text-[11px] font-medium tabular-nums text-green-600"
+                    className="bg-[var(--surface)] px-3 py-2 text-center text-[11px] font-medium tabular-nums text-[var(--success)]"
                   >
                     +{growth}%
                   </motion.div>
@@ -1135,7 +1131,7 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
             </div>
 
             {/* All scenarios comparison */}
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-white p-5">
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
               <p className="mb-3 text-[11px] uppercase tracking-wider text-[var(--brand-muted)]">
                 Compare All
               </p>
@@ -1173,7 +1169,7 @@ function TestimonialCard({
   return (
     <motion.div
       {...fadeUp(index * 0.08)}
-      className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-white p-5 shadow-[var(--shadow-sm)]"
+      className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-5 shadow-[var(--shadow-sm)]"
     >
       <p className="text-sm leading-relaxed text-[var(--brand-ink)]">
         &ldquo;{testimonial.quote}&rdquo;
@@ -1214,13 +1210,13 @@ function PricingCard({
       className={`relative overflow-hidden rounded-[var(--radius-lg)] p-6 transition-all duration-300 ${
         isFeatured
           ? "bg-[var(--brand-primary)] text-white shadow-[var(--shadow-lg)] scale-[1.02] z-10"
-          : "border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)]"
+          : "border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-sm)]"
       }`}
     >
       {isFeatured && (
         <div className="absolute -right-3 -top-3">
           <div className="flex h-12 w-12 items-center justify-center">
-            <Zap className="h-6 w-6 text-yellow-300" />
+            <Zap className="h-6 w-6 text-[var(--brand-accent)]" />
           </div>
         </div>
       )}
@@ -1260,8 +1256,8 @@ function PricingCard({
         asChild
         className={`mt-6 w-full rounded-[var(--radius-md)] font-semibold ${
           isFeatured
-            ? "bg-white text-[var(--brand-ink)] hover:bg-white/90"
-            : "bg-[var(--brand-primary)] text-white hover:bg-[#3d36a3]"
+            ? "bg-[var(--surface)] text-[var(--brand-ink)] hover:bg-[color-mix(in_srgb,var(--surface)_90%,transparent)]"
+            : "bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)]"
         }`}
       >
         <Link to="/auth/signup">Get started</Link>
@@ -1283,7 +1279,7 @@ function PricingCard({
       </ul>
 
       <button
-        className={`mt-5 text-xs font-medium underline underline-offset-2 ${isFeatured ? "text-white/70 hover:text-white" : "text-[var(--brand-primary)] hover:text-[#1565D8]"}`}
+        className={`mt-5 text-xs font-medium underline underline-offset-2 ${isFeatured ? "text-white/70 hover:text-white" : "text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)]"}`}
       >
         Learn more
       </button>

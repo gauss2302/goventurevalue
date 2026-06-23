@@ -1,5 +1,6 @@
-import { TrendingUp, FileSpreadsheet, Users, Activity } from "lucide-react";
-import { motion } from "framer-motion";
+import { TrendingUp, FileSpreadsheet, Users, Activity, type LucideIcon } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 type StatTone = "primary" | "secondary" | "ice" | "accent";
 
@@ -10,87 +11,57 @@ type DashboardStat = {
   tone: StatTone;
 };
 
-const toneMap: Record<
-  StatTone,
-  { icon: typeof FileSpreadsheet; color: string; bg: string }
-> = {
+const toneMap: Record<StatTone, { icon: LucideIcon; wrap: string }> = {
   primary: {
     icon: FileSpreadsheet,
-    color: "text-[var(--brand-primary)]",
-    bg: "bg-[var(--brand-primary)]/10",
+    wrap: "bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)] text-[var(--brand-primary-hover)]",
   },
   secondary: {
     icon: Activity,
-    color: "text-[var(--brand-secondary)]",
-    bg: "bg-[var(--brand-secondary)]/15",
+    wrap: "bg-[color-mix(in_srgb,var(--brand-secondary)_14%,transparent)] text-[var(--brand-secondary)]",
   },
   ice: {
     icon: Users,
-    color: "text-[var(--brand-primary)]",
-    bg: "bg-[var(--brand-ice)]/15",
+    wrap: "bg-[color-mix(in_srgb,var(--info)_12%,transparent)] text-[var(--info)]",
   },
   accent: {
     icon: TrendingUp,
-    color: "text-[var(--brand-ink)]",
-    bg: "bg-[var(--brand-accent)]/30",
-  },
-};
-
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.06, delayChildren: 0.05 },
-  },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: [0.25, 1, 0.5, 1] as const },
+    wrap: "bg-[color-mix(in_srgb,var(--brand-accent)_16%,transparent)] text-[#92610a] dark:text-[var(--brand-accent)]",
   },
 };
 
 export function DashboardStats({ stats }: { stats: DashboardStat[] }) {
   const gridClass =
     stats.length === 3
-      ? "grid grid-cols-1 gap-3 sm:grid-cols-3"
-      : "grid grid-cols-2 gap-3 lg:grid-cols-4";
+      ? "grid grid-cols-1 gap-[var(--space-3)] sm:grid-cols-3"
+      : "grid grid-cols-2 gap-[var(--space-3)] lg:grid-cols-4";
   return (
-    <motion.div
-      className={gridClass}
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {stats.map((stat, index) => {
+    <div className={gridClass}>
+      {stats.map((stat) => {
         const tone = toneMap[stat.tone];
         const Icon = tone.icon;
         return (
-          <motion.div
-            key={index}
-            variants={cardVariants}
-            className="rounded-xl border border-[var(--border-soft)] bg-white px-3 py-2.5 shadow-sm"
+          <div
+            key={stat.label}
+            className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] px-[var(--space-4)] py-[var(--space-3)] shadow-[var(--card-shadow)] transition-all duration-300 [transition-timing-function:var(--ease-out-quint)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)]"
           >
-            <div className="mb-1.5 flex items-center justify-between">
-              <div className={`flex h-6 w-6 items-center justify-center rounded ${tone.bg} ${tone.color}`}>
-                <Icon size={12} />
+            <div className="mb-[var(--space-2)] flex items-center justify-between">
+              <div className={cn("flex size-7 items-center justify-center rounded-lg", tone.wrap)}>
+                <Icon size={14} strokeWidth={1.85} aria-hidden />
               </div>
-              <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--brand-muted)]">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-muted)]">
                 {stat.helper}
               </span>
             </div>
-            <p
-              className="text-base tabular-nums leading-tight text-[var(--brand-ink)]"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-            >
+            <p className="font-display text-[var(--text-title3)] font-bold leading-tight text-[var(--brand-ink)] tabular-nums">
               {stat.value}
             </p>
-            <p className="mt-0.5 text-[11px] leading-tight text-[var(--brand-muted)]">{stat.label}</p>
-          </motion.div>
+            <p className="mt-0.5 text-[var(--text-caption1)] leading-tight text-[var(--brand-muted)]">
+              {stat.label}
+            </p>
+          </div>
         );
       })}
-    </motion.div>
+    </div>
   );
 }

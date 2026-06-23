@@ -1,7 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Sidebar } from "@/components/Sidebar";
+import { ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { AppShell, PageContainer, PageHeader, LoadingState, ErrorState } from "@/components/layout";
 import type { ScenarioType } from "@/lib/dto";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 
@@ -103,21 +114,21 @@ function ScenarioComparePage() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-[var(--brand-muted)]">
-          Loading scenario comparison...
-        </div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <LoadingState message="Loading scenario comparison…" />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   if (loadError || !data) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-red-600">
-          Failed to load scenario comparison. Please refresh the page.
-        </div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <ErrorState message="We couldn't load the scenario comparison. Please refresh the page." />
+        </PageContainer>
+      </AppShell>
     );
   }
   const scenarioMap = new Map<ScenarioType, ScenarioRow>();
@@ -175,70 +186,63 @@ function ScenarioComparePage() {
     },
   ];
 
+  const columns: ScenarioType[] = ["conservative", "base", "optimistic"];
+  const columnLabels: Record<ScenarioType, string> = {
+    conservative: "Conservative",
+    base: "Base",
+    optimistic: "Optimistic",
+  };
+
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
-      <Sidebar />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="relative px-6 py-10 lg:px-10 max-w-[1200px] mx-auto space-y-6">
-          <header className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-              Scenario Compare
-            </p>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-[var(--font-display)]">
-                  {data.model.name}
-                </h1>
-                <p className="text-[var(--brand-muted)]">
-                  Compare key assumptions across scenarios.
-                </p>
-              </div>
-              <Link
-                to="/models/$modelId"
-                params={{ modelId: data.model.id.toString() }}
-                className="px-4 py-2 rounded-full border border-[var(--border-soft)] text-sm text-[var(--brand-muted)] hover:text-[var(--brand-primary)]"
-              >
-                Back to model
-              </Link>
-            </div>
-          </header>
+    <AppShell>
+      <PageContainer>
+        <div className="space-y-[var(--space-6)]">
+          <PageHeader
+            eyebrow="Scenario Compare"
+            title={data.model.name}
+            description="Compare key assumptions across scenarios."
+            actions={
+              <Button variant="outline" size="sm" className="rounded-full" asChild>
+                <Link to="/models/$modelId" params={{ modelId: data.model.id.toString() }}>
+                  <ArrowLeft className="size-4" aria-hidden />
+                  Back to model
+                </Link>
+              </Button>
+            }
+          />
 
-          <div className="bg-white border border-[var(--border-soft)] rounded-2xl shadow-[0_4px_16px_rgba(17,24,39,0.06)] overflow-hidden">
-            <div className="grid grid-cols-[1.2fr_repeat(3,1fr)] gap-0 border-b border-[var(--border-soft)] bg-[var(--surface-muted)] text-sm font-semibold text-[var(--brand-muted)]">
-              <div className="px-5 py-3">Metric</div>
-              <div className="px-5 py-3 text-center">Conservative</div>
-              <div className="px-5 py-3 text-center">Base</div>
-              <div className="px-5 py-3 text-center">Optimistic</div>
+          <div className="-mx-[var(--page-padding-x)] overflow-x-auto px-[var(--page-padding-x)]">
+            <div className="min-w-[640px] overflow-hidden rounded-[var(--card-radius)] border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--card-shadow)]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[var(--surface-muted)] hover:bg-[var(--surface-muted)]">
+                    <TableHead className="text-[var(--brand-muted)]">Metric</TableHead>
+                    {columns.map((col) => (
+                      <TableHead key={col} className="text-center text-[var(--brand-muted)]">
+                        {columnLabels[col]}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row) => (
+                    <TableRow key={row.label}>
+                      <TableCell className="font-medium text-[var(--brand-muted)]">
+                        {row.label}
+                      </TableCell>
+                      {columns.map((col) => (
+                        <TableCell key={col} className="text-center tabular-nums text-[var(--brand-ink)]">
+                          {scenarioMap.get(col) ? row.format(scenarioMap.get(col)![row.key]) : "—"}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-
-            {rows.map((row) => (
-              <div
-                key={row.label}
-                className="grid grid-cols-[1.2fr_repeat(3,1fr)] gap-0 border-b border-[var(--border-soft)] text-sm"
-              >
-                <div className="px-5 py-4 text-[var(--brand-muted)]">
-                  {row.label}
-                </div>
-                <div className="px-5 py-4 text-center text-[var(--brand-ink)]">
-                  {scenarioMap.get("conservative")
-                    ? row.format(scenarioMap.get("conservative")![row.key])
-                    : "—"}
-                </div>
-                <div className="px-5 py-4 text-center text-[var(--brand-ink)]">
-                  {scenarioMap.get("base")
-                    ? row.format(scenarioMap.get("base")![row.key])
-                    : "—"}
-                </div>
-                <div className="px-5 py-4 text-center text-[var(--brand-ink)]">
-                  {scenarioMap.get("optimistic")
-                    ? row.format(scenarioMap.get("optimistic")![row.key])
-                    : "—"}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
-      </main>
-    </div>
+      </PageContainer>
+    </AppShell>
   );
 }

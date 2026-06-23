@@ -14,8 +14,8 @@ const actions = [
   {
     to: "#",
     icon: Upload,
-    iconBg: "bg-[var(--brand-ice)]/15",
-    iconColor: "text-[var(--brand-primary)]",
+    iconBg: "bg-[color-mix(in_srgb,var(--info)_14%,transparent)]",
+    iconColor: "text-[var(--info)]",
     title: "Import Data",
     subtitle: "CSV / Sheets",
     isLink: false,
@@ -23,7 +23,7 @@ const actions = [
   {
     to: "/academy",
     icon: Sparkles,
-    iconBg: "bg-[var(--brand-secondary)]/15",
+    iconBg: "bg-[color-mix(in_srgb,var(--brand-secondary)_14%,transparent)]",
     iconColor: "text-[var(--brand-secondary)]",
     title: "Walkthrough",
     subtitle: "Guided tour",
@@ -32,8 +32,8 @@ const actions = [
   {
     to: "/pitch-decks/new",
     icon: Presentation,
-    iconBg: "bg-[var(--brand-primary)]/10",
-    iconColor: "text-[var(--brand-primary)]",
+    iconBg: "bg-[color-mix(in_srgb,var(--brand-primary)_12%,transparent)]",
+    iconColor: "text-[var(--brand-primary-hover)]",
     title: "Pitch Deck",
     subtitle: "AI slides",
     isLink: true,
@@ -46,15 +46,15 @@ export function QuickActions() {
       {actions.map((action) => {
         const Icon = action.icon;
         const inner = (
-          <div className="flex items-center gap-2.5">
-            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${action.iconBg} ${action.iconColor}`}>
-              <Icon size={14} />
+          <div className="flex items-center gap-[var(--space-3)]">
+            <div className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${action.iconBg} ${action.iconColor}`}>
+              <Icon size={16} strokeWidth={1.9} aria-hidden />
             </div>
             <div className="min-w-0">
-              <span className="block truncate text-[12px] font-semibold text-[var(--brand-ink)]">
+              <span className="block truncate text-[var(--text-subheadline)] font-semibold text-[var(--brand-ink)]">
                 {action.title}
               </span>
-              <span className="block text-[10px] text-[var(--brand-muted)]">
+              <span className="block text-[var(--text-caption1)] text-[var(--brand-muted)]">
                 {action.subtitle}
               </span>
             </div>
@@ -62,7 +62,7 @@ export function QuickActions() {
         );
 
         const cls =
-          "rounded-lg border border-[var(--border-soft)] bg-white px-3 py-2.5 shadow-[var(--shadow-sm)] transition-all duration-150 hover:shadow-[var(--shadow-md)]";
+          "rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] px-[var(--space-4)] py-[var(--space-3)] shadow-[var(--card-shadow)] transition-all duration-300 [transition-timing-function:var(--ease-out-quint)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)]";
 
         return action.isLink ? (
           <Link key={action.title} to={action.to as any} className={cls}>

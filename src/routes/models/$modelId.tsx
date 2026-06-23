@@ -7,7 +7,7 @@ import { DEFAULT_SETTINGS, DEFAULT_MARKET_SIZING } from "@/lib/calculations";
 import { ExportPaywallModal } from "@/components/billing/ExportPaywallModal";
 import FinancialModelEditor from "@/components/FinancialModelEditor";
 import type { FundraisingData } from "@/components/FundraisingPanel";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell, LoadingState, ErrorState } from "@/components/layout";
 import { assertExportAccess } from "@/lib/billing/serverFns";
 import { logger } from "@/lib/logger";
 import type {
@@ -985,21 +985,21 @@ function ModelDetail() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-[var(--brand-muted)]">
-          Loading model...
-        </div>
-      </div>
+      <AppShell>
+        <main className="relative min-h-screen pt-[64px] md:pt-0">
+          <LoadingState message="Loading model…" />
+        </main>
+      </AppShell>
     );
   }
 
   if (loadError || !data) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-red-600">
-          Failed to load model. Please refresh the page.
-        </div>
-      </div>
+      <AppShell>
+        <main className="relative min-h-screen pt-[64px] md:pt-0">
+          <ErrorState message="We couldn't load this model. Please refresh the page." />
+        </main>
+      </AppShell>
     );
   }
 
@@ -1092,8 +1092,7 @@ function ModelDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
-      <Sidebar />
+    <AppShell>
       <ExportPaywallModal
         open={paywallOpen}
         onOpenChange={setPaywallOpen}
@@ -1101,8 +1100,8 @@ function ModelDetail() {
         title="Upgrade to export this model"
         description="Model editing is free. Exporting PDF and Excel files requires Pro ($10/month)."
       />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="bg-white border-b border-[var(--border-soft)] px-6 py-4 flex items-center justify-between shadow-sm">
+      <main className="relative pt-[64px] md:pt-0">
+        <div className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--page)_82%,transparent)] px-[var(--page-padding-x)] py-4 backdrop-blur-xl">
           <div>
             <button
               onClick={() => router.navigate({ to: "/models" })}
@@ -1123,7 +1122,7 @@ function ModelDetail() {
               </svg>
               Back to Models
             </button>
-            <h2 className="text-2xl font-[var(--font-display)] text-[var(--brand-ink)]">
+            <h2 className="font-display text-2xl font-bold text-[var(--brand-ink)]">
               {model.name}
             </h2>
             {model.companyName && (
@@ -1145,13 +1144,13 @@ function ModelDetail() {
             </Link>
             <button
               onClick={handleExportPdf}
-              className="px-4 py-2 rounded-full border border-[var(--border-soft)] text-xs text-[var(--brand-muted)] font-semibold hover:text-[var(--brand-primary)] hover:border-[rgba(79,70,186,0.3)]"
+              className="px-4 py-2 rounded-full border border-[var(--border-soft)] text-xs text-[var(--brand-muted)] font-semibold hover:text-[var(--brand-primary)] hover:border-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)]"
             >
               Download PDF
             </button>
             <button
               onClick={handleExport}
-              className="px-4 py-2 rounded-full bg-[var(--brand-primary)] text-white text-xs font-semibold shadow-[0_10px_20px_rgba(79,70,186,0.2)]"
+              className="px-4 py-2 rounded-full bg-[var(--brand-primary)] text-white text-xs font-semibold shadow-[0_10px_20px_color-mix(in_srgb,var(--brand-primary)_25%,transparent)] hover:bg-[var(--brand-primary-hover)] transition-colors"
             >
               Download Excel
             </button>
@@ -1196,7 +1195,7 @@ function ModelDetail() {
           />
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }
 

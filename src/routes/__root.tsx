@@ -98,17 +98,14 @@ function NotFoundComponent() {
     <div className="min-h-screen bg-[var(--page)] flex items-center justify-center px-[var(--space-4)]">
       <div className="text-center max-w-md">
         <div className="mb-[var(--space-5)]">
-          <h1
-            className="text-[var(--text-display)] text-[var(--brand-primary)]"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "8rem", lineHeight: 1 }}
-          >
+        <h1
+          className="font-display text-[var(--brand-primary)]"
+          style={{ fontWeight: 800, fontSize: "8rem", lineHeight: 1, letterSpacing: "-0.03em" }}
+        >
             404
           </h1>
         </div>
-        <h2
-          className="text-[var(--text-title1)] text-[var(--brand-ink)] mb-[var(--space-4)]"
-          style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
-        >
+        <h2 className="font-display text-[var(--text-title1)] font-bold text-[var(--brand-ink)] mb-[var(--space-4)]">
           Page Not Found
         </h2>
         <p className="text-[var(--text-body)] text-[var(--brand-muted)] mb-[var(--space-6)]">
@@ -116,7 +113,7 @@ function NotFoundComponent() {
         </p>
         <Link
           to="/"
-          className="inline-flex items-center px-[var(--space-5)] py-[var(--space-3)] bg-[var(--brand-primary)] hover:bg-[#1565D8] text-white font-semibold rounded-full transition-all shadow-[0_4px_14px_rgba(27,118,252,0.25)] hover:shadow-[0_6px_20px_rgba(27,118,252,0.3)]"
+          className="inline-flex items-center px-[var(--space-5)] py-[var(--space-3)] bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-full transition-all shadow-[0_6px_18px_color-mix(in_srgb,var(--brand-primary)_35%,transparent)] hover:shadow-[0_10px_26px_color-mix(in_srgb,var(--brand-primary)_42%,transparent)]"
         >
           Go Back Home
         </Link>

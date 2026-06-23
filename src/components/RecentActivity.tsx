@@ -23,14 +23,11 @@ const formatRelativeTime = (date: Date) => {
 export function RecentActivity({ activities }: { activities: ActivityItem[] }) {
   if (activities.length === 0) {
     return (
-      <div className="rounded-lg border border-[var(--border-soft)] bg-white p-3 shadow-[var(--shadow-sm)]">
-        <h3
-          className="text-[12px] font-semibold text-[var(--brand-ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-[var(--space-4)] shadow-[var(--card-shadow)]">
+        <h3 className="font-display text-[var(--text-subheadline)] font-bold text-[var(--brand-ink)]">
           Recent Activity
         </h3>
-        <p className="mt-1 text-[11px] text-[var(--brand-muted)]">
+        <p className="mt-1 text-[var(--text-caption1)] text-[var(--brand-muted)]">
           No activity yet. Create a model to get started.
         </p>
       </div>
@@ -38,36 +35,33 @@ export function RecentActivity({ activities }: { activities: ActivityItem[] }) {
   }
 
   return (
-    <div className="rounded-lg border border-[var(--border-soft)] bg-white shadow-[var(--shadow-sm)]">
-      <div className="flex items-center justify-between px-3 py-2.5">
-        <h3
-          className="text-[12px] font-semibold text-[var(--brand-ink)]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--card-shadow)]">
+      <div className="flex items-center justify-between px-[var(--space-4)] py-[var(--space-3)]">
+        <h3 className="font-display text-[var(--text-subheadline)] font-bold text-[var(--brand-ink)]">
           Recent Activity
         </h3>
         <Link
           to="/models"
-          className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--brand-primary)] hover:underline"
+          className="flex items-center gap-1 text-[var(--text-caption1)] font-semibold text-[var(--brand-primary-hover)] hover:underline"
         >
-          All <ArrowRight size={9} />
+          All <ArrowRight size={11} aria-hidden />
         </Link>
       </div>
-      <div className="border-t border-[var(--border-soft)] px-3 py-2.5">
-        <div className="space-y-2.5">
+      <div className="border-t border-[var(--border-soft)] px-[var(--space-4)] py-[var(--space-3)]">
+        <div className="space-y-[var(--space-3)]">
           {activities.map((activity) => (
             <div
               key={activity.id}
-              className="relative border-l-2 border-[var(--border-soft)] pl-3 last:border-transparent"
+              className="relative border-l-2 border-[var(--border-soft)] pl-[var(--space-3)] last:border-transparent"
             >
-              <div className="absolute -left-[3.5px] top-0.5 h-[5px] w-[5px] rounded-full bg-[var(--brand-primary)] ring-2 ring-white" />
-              <p className="text-[11px] text-[var(--brand-muted)]">
+              <div className="absolute -left-[3.5px] top-1 size-1.5 rounded-full bg-[var(--brand-primary)] ring-2 ring-[var(--surface)]" />
+              <p className="text-[var(--text-caption1)] text-[var(--brand-muted)]">
                 <span className="font-medium text-[var(--brand-ink)]">{activity.action}</span>
                 {" \u2014 "}
-                <span className="text-[var(--brand-primary)]">{activity.target}</span>
+                <span className="text-[var(--brand-primary-hover)]">{activity.target}</span>
               </p>
-              <div className="mt-0.5 flex items-center gap-0.5 text-[9px] text-[var(--brand-muted)]">
-                <Clock size={8} />
+              <div className="mt-0.5 flex items-center gap-1 text-[var(--text-caption2)] text-[var(--brand-muted)]">
+                <Clock size={10} aria-hidden />
                 {formatRelativeTime(new Date(activity.at))}
               </div>
             </div>

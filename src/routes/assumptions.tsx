@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Sidebar } from "@/components/Sidebar";
+import { motion } from "framer-motion";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { SubTitle } from "@/components/ui/typography";
+import { AppShell, PageContainer, PageHeader } from "@/components/layout";
+import { usePageMotion } from "@/lib/motion";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 
 type AssumptionSet = {
@@ -116,6 +122,7 @@ export const Route = createFileRoute("/assumptions")({
 
 function AssumptionsPage() {
   const [category, setCategory] = useState<(typeof CATEGORY_FILTERS)[number]["id"]>("all");
+  const { container, item } = usePageMotion();
 
   const filteredSets = assumptionSets.filter((set) => {
     if (category === "all") return true;
@@ -123,118 +130,115 @@ function AssumptionsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
-      <Sidebar />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="relative px-6 py-10 lg:px-10 max-w-[1200px] mx-auto space-y-10">
-          <div className="pointer-events-none absolute -top-20 right-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(249,137,107,0.12),transparent_70%)]" />
+    <AppShell>
+      <PageContainer>
+        <div className="space-y-[var(--space-7)]">
+          <PageHeader
+            eyebrow="Assumptions"
+            title="Assumptions Library"
+            description="Reference ranges to sanity-check growth, pricing, churn, and margins in your financial models. Use these as a starting point, not a rule."
+          />
 
-          <header className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-              Assumptions
-            </p>
-            <h1 className="text-3xl lg:text-4xl font-[var(--font-display)]">
-              Assumptions Library
-            </h1>
-            <p className="text-[var(--brand-muted)] max-w-2xl">
-              Reference ranges to sanity‑check growth, pricing, churn, and
-              margins in your financial models. Use these as a starting point, not a rule.
-            </p>
-          </header>
-
-          <section className="bg-white/80 border border-[var(--border-soft)] rounded-2xl p-5 shadow-[0_4px_16px_rgba(17,24,39,0.04)]">
-            <h2 className="text-sm font-semibold text-[var(--brand-ink)] mb-3">
-              How to use this library
-            </h2>
-            <ul className="text-sm text-[var(--brand-muted)] space-y-2 list-disc list-inside max-w-2xl">
-              <li>Pick benchmarks that match your business model (SaaS, marketplace, etc.).</li>
-              <li>Use the ranges as inputs or sanity checks when building scenarios in your financial models.</li>
-              <li>Compare your assumptions to these norms to stress-test base, conservative, and optimistic cases.</li>
-              <li>Ranges vary by stage, geography, and segment—treat them as indicative, not prescriptive.</li>
-            </ul>
-          </section>
+          <Card>
+            <CardContent className="p-[var(--space-5)]">
+              <SubTitle className="mb-[var(--space-3)] text-[var(--text-subheadline)]">
+                How to use this library
+              </SubTitle>
+              <ul className="max-w-2xl list-inside list-disc space-y-2 text-[var(--text-subheadline)] text-[var(--brand-muted)]">
+                <li>Pick benchmarks that match your business model (SaaS, marketplace, etc.).</li>
+                <li>Use the ranges as inputs or sanity checks when building scenarios in your financial models.</li>
+                <li>Compare your assumptions to these norms to stress-test base, conservative, and optimistic cases.</li>
+                <li>Ranges vary by stage, geography, and segment—treat them as indicative, not prescriptive.</li>
+              </ul>
+            </CardContent>
+          </Card>
 
           <div className="flex flex-wrap gap-2">
             {CATEGORY_FILTERS.map(({ id, label }) => (
-              <button
+              <Button
                 key={id}
                 type="button"
+                size="sm"
+                variant={category === id ? "brand" : "outline"}
+                className="rounded-full"
                 onClick={() => setCategory(id)}
-                className={`px-4 py-2 rounded-full border text-sm transition-colors ${
-                  category === id
-                    ? "border-[var(--brand-primary)] bg-[rgba(79,70,186,0.1)] text-[var(--brand-primary)]"
-                    : "border-[var(--border-soft)] text-[var(--brand-muted)] hover:text-[var(--brand-primary)] hover:border-[rgba(79,70,186,0.3)]"
-                }`}
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
 
-          <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <motion.section
+            key={category}
+            className="grid gap-[var(--space-5)] sm:grid-cols-2 lg:grid-cols-3"
+            variants={container}
+            initial="hidden"
+            animate="visible"
+          >
             {filteredSets.map((set) => (
-              <div
-                key={set.title}
-                className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]"
-              >
-                <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mb-2">
-                  {set.title}
-                </h3>
-                <p className="text-sm text-[var(--brand-muted)] mb-4">
-                  {set.description}
-                </p>
-                <div className="space-y-3 text-sm">
-                  {set.items.map((item) => (
-                    <div
-                      key={item.label}
-                      className="border border-[var(--border-soft)] rounded-xl px-3 py-2.5"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[var(--brand-muted)]">{item.label}</span>
-                        <span className="text-[var(--brand-ink)] font-semibold shrink-0">
-                          {item.value}
-                        </span>
-                      </div>
-                      {item.hint ? (
-                        <p className="mt-1.5 text-xs text-[var(--brand-muted)]/80">
-                          {item.hint}
-                        </p>
-                      ) : null}
+              <motion.div key={set.title} variants={item}>
+                <Card interactive className="h-full">
+                  <CardContent className="p-[var(--space-5)]">
+                    <h3 className="mb-[var(--space-2)] font-display text-[var(--text-title3)] font-semibold text-[var(--brand-ink)]">
+                      {set.title}
+                    </h3>
+                    <p className="mb-[var(--space-4)] text-[var(--text-subheadline)] text-[var(--brand-muted)]">
+                      {set.description}
+                    </p>
+                    <div className="space-y-[var(--space-3)] text-[var(--text-subheadline)]">
+                      {set.items.map((entry) => (
+                        <div
+                          key={entry.label}
+                          className="rounded-[var(--radius-md)] border border-[var(--border-soft)] px-[var(--space-3)] py-2.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[var(--brand-muted)]">{entry.label}</span>
+                            <span className="shrink-0 font-semibold text-[var(--brand-ink)]">
+                              {entry.value}
+                            </span>
+                          </div>
+                          {entry.hint ? (
+                            <p className="mt-1.5 text-[var(--text-caption1)] text-[var(--brand-muted)]">
+                              {entry.hint}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
-          </section>
+          </motion.section>
 
-          <section className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
-            <h2 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mb-3">
-              Key metrics explained
-            </h2>
-            <p className="text-sm text-[var(--brand-muted)] mb-4 max-w-2xl">
-              Short definitions for metrics used in the library and in your financial model scenarios.
-            </p>
-            <dl className="grid gap-3 sm:grid-cols-2">
-              {metricDefinitions.map(({ term, definition }) => (
-                <div key={term} className="border-b border-[var(--surface-muted-border)] pb-3 last:border-0 sm:last:border-b">
-                  <dt className="text-sm font-semibold text-[var(--brand-ink)]">{term}</dt>
-                  <dd className="text-sm text-[var(--brand-muted)] mt-0.5">{definition}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
+          <Card>
+            <CardContent className="p-[var(--space-5)]">
+              <SubTitle className="mb-[var(--space-3)]">Key metrics explained</SubTitle>
+              <p className="mb-[var(--space-4)] max-w-2xl text-[var(--text-subheadline)] text-[var(--brand-muted)]">
+                Short definitions for metrics used in the library and in your financial model scenarios.
+              </p>
+              <dl className="grid gap-[var(--space-3)] sm:grid-cols-2">
+                {metricDefinitions.map(({ term, definition }) => (
+                  <div key={term} className="border-b border-[var(--surface-muted-border)] pb-3 last:border-0 sm:last:border-b">
+                    <dt className="text-[var(--text-subheadline)] font-semibold text-[var(--brand-ink)]">{term}</dt>
+                    <dd className="mt-0.5 text-[var(--text-subheadline)] text-[var(--brand-muted)]">{definition}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
 
-          <div className="text-xs text-[var(--brand-muted)] max-w-2xl border-t border-[var(--border-soft)] pt-6">
-            <p className="font-medium text-[var(--brand-ink)]/80 mb-1">Notes</p>
+          <div className="max-w-2xl border-t border-[var(--border-soft)] pt-[var(--space-5)] text-[var(--text-caption1)] text-[var(--brand-muted)]">
+            <p className="mb-1 font-medium text-[var(--brand-ink)]">Notes</p>
             <p>
-              Ranges are drawn from industry reports, benchmarks, and typical early‑stage company data.
-              They are not guarantees. Stage (pre‑seed vs growth), geography, and segment can shift numbers significantly.
+              Ranges are drawn from industry reports, benchmarks, and typical early-stage company data.
+              They are not guarantees. Stage (pre-seed vs growth), geography, and segment can shift numbers significantly.
               Always validate assumptions against your own unit economics and market research.
             </p>
           </div>
         </div>
-      </main>
-    </div>
+      </PageContainer>
+    </AppShell>
   );
 }
 

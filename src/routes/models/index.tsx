@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import ModelList from "../../components/ModelList";
-import { Sidebar } from "../../components/Sidebar";
 import type { Model } from "../../components/ModelList";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { AppShell, PageContainer, PageHeader, LoadingState, ErrorState } from "@/components/layout";
+import { usePageMotion } from "@/lib/motion";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
 
 const toNum = (v: string | null): number | null =>
@@ -97,66 +101,64 @@ export const Route = createFileRoute("/models/")({
 
 function ModelsIndex() {
   const { data: models, isPending, error } = useQuery(modelsQueryOptions());
+  const { container, item } = usePageMotion();
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-[var(--brand-muted)]">Loading models...</div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <LoadingState message="Loading your models…" />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   if (error || !models) {
     return (
-      <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)] flex items-center justify-center">
-        <div className="text-sm text-red-600">
-          Failed to load models. Please refresh the page.
-        </div>
-      </div>
+      <AppShell>
+        <PageContainer decorated={false}>
+          <ErrorState message="We couldn't load your models. Please refresh the page." />
+        </PageContainer>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
-      <Sidebar />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="relative px-6 py-8 lg:px-10 max-w-[1100px] mx-auto">
-          <div className="pointer-events-none absolute -top-24 right-0 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.14),transparent_70%)]" />
-          <div className="pointer-events-none absolute top-32 -left-10 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(132,232,244,0.18),transparent_70%)]" />
+    <AppShell>
+      <PageContainer>
+        <motion.div
+          className="space-y-[var(--space-6)]"
+          variants={container}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div variants={item}>
+            <PageHeader
+              eyebrow="Library"
+              title="My Models"
+              description="Keep every valuation, scenario, and revision in one place."
+            />
+          </motion.div>
 
-          <div className="relative space-y-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                Library
-              </p>
-              <h1 className="text-3xl lg:text-4xl font-[var(--font-display)] text-[var(--brand-ink)]">
-                My Models
-              </h1>
-              <p className="text-[var(--brand-muted)]">
-                Keep every valuation, scenario, and revision in one place.
-              </p>
+          <motion.div variants={item} className="flex flex-col gap-[var(--space-3)] md:flex-row md:items-center">
+            <div className="flex-1">
+              <Input type="text" placeholder="Search models, companies, or tags…" />
             </div>
-            <div className="flex flex-col md:flex-row md:items-center gap-3">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Search models, companies, or tags..."
-                  className="w-full px-4 py-2 rounded-xl border border-[var(--border-soft)] bg-white text-sm focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="px-4 py-2 rounded-xl border border-[var(--border-soft)] text-sm text-[var(--brand-muted)] hover:text-[var(--brand-primary)]">
-                  Last updated
-                </button>
-                <button className="px-4 py-2 rounded-xl border border-[var(--border-soft)] text-sm text-[var(--brand-muted)] hover:text-[var(--brand-primary)]">
-                  All statuses
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="default">
+                Last updated
+              </Button>
+              <Button variant="outline" size="default">
+                All statuses
+              </Button>
             </div>
+          </motion.div>
+
+          <motion.div variants={item}>
             <ModelList models={models} />
-          </div>
-        </div>
-      </main>
-    </div>
+          </motion.div>
+        </motion.div>
+      </PageContainer>
+    </AppShell>
   );
 }

@@ -140,7 +140,7 @@ export function InvestorSnapshot({
             <div
               key={k.label}
               className={`rounded-xl border border-[var(--border-soft)] p-4 ${
-                k.highlight ? "bg-[rgba(79,70,186,0.08)] border-[rgba(79,70,186,0.2)]" : "bg-white"
+                k.highlight ? "bg-[color-mix(in_srgb,var(--brand-primary)_8%,transparent)] border-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)]" : "bg-[var(--surface)]"
               }`}
             >
               <p className="text-xs text-[var(--brand-muted)] mb-1 flex items-center gap-1">
@@ -164,7 +164,7 @@ export function InvestorSnapshot({
       )}
 
       {hasChart && (
-        <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
           <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-4">
             MRR trajectory
           </h3>
@@ -202,7 +202,7 @@ export function InvestorSnapshot({
       )}
 
       {(derived?.cac != null || derived?.ltv != null || grossMargin != null || burnRate != null) && (
-        <div className="bg-white rounded-xl border border-[var(--border-soft)] p-6">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border-soft)] p-6">
           <h3 className="text-lg font-semibold text-[var(--brand-ink)] mb-4">
             Unit economics
           </h3>

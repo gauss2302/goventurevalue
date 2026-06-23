@@ -2,6 +2,8 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { AppShell, PageContainer, PageHeader } from "@/components/layout";
+import { SubTitle } from "@/components/ui/typography";
 import { DEFAULT_SETTINGS } from "@/lib/calculations";
 import type { CreateModelDto, BusinessModelType, StartupStageDto } from "@/lib/dto";
 
@@ -18,7 +20,6 @@ const BUSINESS_MODELS: { value: BusinessModelType; label: string }[] = [
   { value: "ecommerce", label: "E-commerce" },
   { value: "other", label: "Other" },
 ];
-import { Sidebar } from "@/components/Sidebar";
 
 const createModel = createServerFn({
   method: "POST",
@@ -249,25 +250,16 @@ function NewModel() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--page)] text-[var(--brand-ink)]">
-      <Sidebar />
-      <main className="relative md:ml-[var(--sidebar-width)] transition-[margin] duration-300">
-        <div className="relative px-6 py-10 lg:px-10 max-w-[1100px] mx-auto">
-          <div className="pointer-events-none absolute -top-20 right-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(79,70,186,0.15),transparent_70%)]" />
-
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div>
-              <div className="mb-6">
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
-                  New Model
-                </p>
-                <h1 className="text-3xl font-[var(--font-display)] mb-2">
-                  Create Investor Snapshot
-                </h1>
-                <p className="text-[var(--brand-muted)]">
-                  Set up your financial model in under 10 minutes. Add traction data now or later.
-                </p>
-              </div>
+    <AppShell>
+      <PageContainer>
+        <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div>
+            <PageHeader
+              className="mb-[var(--space-6)]"
+              eyebrow="New Model"
+              title="Create Investor Snapshot"
+              description="Set up your financial model in under 10 minutes. Add traction data now or later."
+            />
 
               <div className="flex gap-2 mb-6">
                 {[1, 2].map((s) => (
@@ -285,10 +277,10 @@ function NewModel() {
 
               <form
                 onSubmit={step === 2 ? handleSubmit : (e) => { e.preventDefault(); handleNextStep1(); }}
-                className="bg-white rounded-2xl border border-[var(--border-soft)] shadow-[0_4px_16px_rgba(17,24,39,0.06)] p-6 space-y-6"
+                className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] shadow-[var(--card-shadow)] p-6 space-y-6"
               >
                 {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                  <div className="bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] text-[var(--destructive)] px-4 py-3 rounded-xl">
                     {error}
                   </div>
                 )}
@@ -393,7 +385,7 @@ function NewModel() {
                       />
                     </div>
                     <div className="flex gap-4">
-                      <button type="submit" className="flex-1 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-xl transition-colors">
+                      <button type="submit" className="flex-1 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-xl transition-colors">
                         Next: Quick Snapshot (optional)
                       </button>
                       <button type="button" onClick={() => router.navigate({ to: "/models" })} className="px-6 py-3 bg-[var(--surface-muted)] hover:bg-[var(--surface-muted-border)] text-[var(--brand-ink)] font-semibold rounded-xl transition-colors">
@@ -430,7 +422,7 @@ function NewModel() {
                       <button type="button" onClick={handleBackStep2} className="px-6 py-3 bg-[var(--surface-muted)] hover:bg-[var(--surface-muted-border)] text-[var(--brand-ink)] font-semibold rounded-xl transition-colors">
                         Back
                       </button>
-                      <button type="submit" disabled={isSubmitting} className="flex-1 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[#3F38A4] text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                      <button type="submit" disabled={isSubmitting} className="flex-1 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         {isSubmitting ? "Creating..." : "Create Model"}
                       </button>
                     </div>
@@ -440,13 +432,11 @@ function NewModel() {
             </div>
 
             <aside className="space-y-6">
-              <div className="bg-white border border-[var(--border-soft)] rounded-2xl p-6 shadow-[0_4px_16px_rgba(17,24,39,0.06)]">
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--brand-muted)]">
+              <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-6 shadow-[var(--card-shadow)]">
+                <p className="text-xs uppercase tracking-[0.16em] font-semibold text-[var(--brand-primary-hover)]">
                   What you get
                 </p>
-                <h3 className="text-lg font-[var(--font-display)] text-[var(--brand-ink)] mt-2">
-                  Investor-ready snapshot
-                </h3>
+                <SubTitle className="mt-2">Investor-ready snapshot</SubTitle>
                 <ul className="mt-4 text-sm text-[var(--brand-muted)] space-y-3">
                   <li>• KPI dashboard (ARR, NRR, burn multiple, runway)</li>
                   <li>• Monthly traction table and cohort retention</li>
@@ -454,19 +444,21 @@ function NewModel() {
                   <li>• Export to Excel and PDF</li>
                 </ul>
               </div>
-              <div className="bg-[linear-gradient(135deg,rgba(79,70,186,0.12),rgba(132,232,244,0.18))] rounded-2xl p-6">
-                <p className="text-sm font-semibold text-[var(--brand-ink)]">
-                  Tip
-                </p>
-                <p className="text-sm text-[var(--brand-muted)] mt-2">
-                  Use a clear name like “2026 Seed Plan” and pick your stage so we can tailor
-                  metrics and multiples.
-                </p>
+              <div className="relative overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] p-6">
+                <div aria-hidden className="absolute inset-0 -z-0 bg-mesh-accent opacity-70" />
+                <div className="relative">
+                  <p className="text-sm font-semibold text-[var(--brand-ink)]">
+                    Tip
+                  </p>
+                  <p className="text-sm text-[var(--brand-muted)] mt-2">
+                    Use a clear name like “2026 Seed Plan” and pick your stage so we can tailor
+                    metrics and multiples.
+                  </p>
+                </div>
               </div>
             </aside>
           </div>
-        </div>
-      </main>
-    </div>
+      </PageContainer>
+    </AppShell>
   );
 }

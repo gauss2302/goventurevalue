@@ -34,14 +34,14 @@ function AutosaveIndicatorComponent({ isPending, isSuccess, isError }: AutosaveI
   }
   if (isError) {
     return (
-      <span className="text-xs text-red-600" aria-live="polite">
+      <span className="text-xs text-[var(--destructive)]" aria-live="polite">
         Save failed
       </span>
     );
   }
   if (showSaved) {
     return (
-      <span className="text-xs text-green-600" aria-live="polite">
+      <span className="text-xs text-[var(--success)]" aria-live="polite">
         Saved
       </span>
     );

@@ -148,7 +148,7 @@ const pricingPlans = [
   {
     name: "Pro",
     subtitle: "For serious fundraisers.",
-    price: "$29",
+    price: "$15",
     featured: true,
     features: [
       "Unlimited models",
@@ -162,7 +162,7 @@ const pricingPlans = [
   {
     name: "Team",
     subtitle: "For startups with co-founders.",
-    price: "$79",
+    price: "$49",
     featured: false,
     features: [
       "Everything in Pro",

@@ -19,6 +19,16 @@
     "POLAR_SERVER": "sandbox",
     "POLAR_SUCCESS_URL": "https://havamind.com/billing/success"
   },
+  "routes": [
+    {
+      "pattern": "havamind.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.havamind.com",
+      "custom_domain": true
+    }
+  ],
   "secrets": {
     "required": [
       "BETTER_AUTH_SECRET",

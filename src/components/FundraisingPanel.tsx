@@ -30,7 +30,8 @@ type FundraisingPanelProps = {
 
 type ValuationMethod = 'vc' | 'dcf' | 'multiples';
 
-function formatCompact(n: number): string {
+function formatCompact(n: number | null): string {
+  if (n == null) return "N/A";
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
   if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -320,9 +321,15 @@ export function FundraisingPanel({
                   <div className="rounded-xl border border-[var(--border-soft)] p-4">
                     <p className="text-sm text-[var(--brand-muted)] mb-1">Enterprise value (DCF)</p>
                     <p className="text-2xl font-bold text-[var(--brand-primary)]">{formatCompact(dcf.enterpriseValue)}</p>
-                    <p className="text-xs text-[var(--brand-muted)] mt-1">
-                      WACC {(settings.discountRate * 100).toFixed(0)}%, terminal growth {(settings.terminalGrowth * 100).toFixed(0)}%
-                    </p>
+                    {dcf.isApplicable ? (
+                      <p className="text-xs text-[var(--brand-muted)] mt-1">
+                        WACC {(settings.discountRate * 100).toFixed(0)}%, terminal growth {(settings.terminalGrowth * 100).toFixed(0)}%
+                      </p>
+                    ) : (
+                      <p className="text-xs text-[var(--brand-muted)] mt-1">
+                        {dcf.notApplicableReason}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-[var(--brand-muted)]">Add projections in the Results tab to see DCF valuation.</p>

@@ -375,11 +375,22 @@ export function calculateProjections(
   return projections;
 }
 
+export type DCFResult = {
+  discountRate: number;
+  terminalGrowth: number;
+  terminalValue: number;
+  pvCashFlows: number[];
+  pvTerminal: number;
+  enterpriseValue: number | null;
+  isApplicable: boolean;
+  notApplicableReason?: string;
+};
+
 export function calculateDCF(
   projections: ProjectionData[],
   discountRate: number,
   terminalGrowth: number
-) {
+): DCFResult {
   const normalizedDiscountRate = normalizeRate(discountRate, {
     min: 0.01,
     max: 0.95,
@@ -403,7 +414,21 @@ export function calculateDCF(
   );
   const pvTerminal =
     terminalValue / Math.pow(1 + normalizedDiscountRate, projections.length);
-  const enterpriseValue = pvCashFlows.reduce((a, b) => a + b, 0) + pvTerminal;
+  const rawEnterpriseValue = pvCashFlows.reduce((a, b) => a + b, 0) + pvTerminal;
+
+  if (terminalYear.freeCashFlow <= 0) {
+    return {
+      discountRate: normalizedDiscountRate,
+      terminalGrowth: normalizedTerminalGrowth,
+      terminalValue,
+      pvCashFlows,
+      pvTerminal,
+      enterpriseValue: null,
+      isApplicable: false,
+      notApplicableReason:
+        "DCF requires positive terminal free cash flow. Use VC Method or revenue multiples for early-stage companies.",
+    };
+  }
 
   return {
     discountRate: normalizedDiscountRate,
@@ -411,7 +436,8 @@ export function calculateDCF(
     terminalValue,
     pvCashFlows,
     pvTerminal,
-    enterpriseValue,
+    enterpriseValue: rawEnterpriseValue,
+    isApplicable: true,
   };
 }
 

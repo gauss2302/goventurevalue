@@ -110,6 +110,8 @@ const createModel = createServerFn({
         churnRate: scenario.params.churnRate.toString(),
         farmerGrowth: "0",
         cac: scenario.params.cac.toString(),
+        expansionRate: scenario.params.expansionRate.toString(),
+        grossMarginTarget: scenario.params.grossMarginTarget.toString(),
       });
     }
 

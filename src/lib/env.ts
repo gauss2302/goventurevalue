@@ -1,15 +1,17 @@
 import { env as workerEnv } from "cloudflare:workers";
 
 const readBinding = (key: string): string | null => {
-  const fromProcess = process.env[key]?.trim();
-  if (fromProcess) {
-    return fromProcess;
-  }
-
   const fromWorker = (workerEnv as unknown as Record<string, unknown>)[key];
   if (typeof fromWorker === "string") {
     const trimmed = fromWorker.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  const fromProcess = process.env[key]?.trim();
+  if (fromProcess) {
+    return fromProcess;
   }
 
   return null;

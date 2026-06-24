@@ -84,7 +84,8 @@ const formatScenarioLabel = (scenario: ScenarioType) =>
 const getCurrencySymbol = (currency: string) =>
   currencySymbols[currency] ?? "$";
 
-function formatNumber(n: number, currency: string): string {
+function formatNumber(n: number | null, currency: string): string {
+  if (n == null) return "N/A";
   const sym = getCurrencySymbol(currency);
   if (n >= 1_000_000) return `${sym}${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000) return `${sym}${(n / 1_000).toFixed(1)}K`;

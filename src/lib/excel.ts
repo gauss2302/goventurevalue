@@ -495,8 +495,8 @@ const getScenarioParams = (scenario?: ExportScenario): ScenarioParams => ({
   arpu: toNumber(scenario?.arpu),
   churnRate: toNumber(scenario?.churnRate),
   cac: toNumber(scenario?.cac),
-  expansionRate: 0,
-  grossMarginTarget: 0.75,
+  expansionRate: toNumber(scenario?.expansionRate),
+  grossMarginTarget: toNumber(scenario?.grossMarginTarget) || 0.75,
   revenueGrowthRate: 0,
 });
 
@@ -947,11 +947,14 @@ const appendValuationBlock = (
     {
       key: "enterpriseValue",
       label: "Enterprise value",
-      value: dcf.enterpriseValue,
-      valueFormat: currencyFmt,
+      value: dcf.enterpriseValue ?? "N/A",
+      valueFormat: dcf.enterpriseValue != null ? currencyFmt : undefined,
       isTotal: true,
-      formula: (row, c) =>
-        `${columnLetter(c.pvCashFlows)}${row}+${columnLetter(c.pvTerminal)}${row}`,
+      formula:
+        dcf.enterpriseValue != null
+          ? (row, c) =>
+              `${columnLetter(c.pvCashFlows)}${row}+${columnLetter(c.pvTerminal)}${row}`
+          : undefined,
     },
     {
       key: "fundingNeed",

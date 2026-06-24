@@ -61,6 +61,7 @@ export default function FinancialModel({
       : n >= 1000
         ? `$${(n / 1000).toFixed(1)}K`
         : `$${n.toLocaleString()}`;
+  const fmtMoney = (n: number | null) => (n == null ? "N/A" : fmt(n));
   const fmtNum = (n: number) => n.toLocaleString();
 
   const tabs: { id: TabId; label: string; icon: string }[] = [
@@ -133,8 +134,12 @@ export default function FinancialModel({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <MetricCard
                 title="Enterprise Value"
-                value={fmt(dcf.enterpriseValue)}
-                subtitle={`${(settings.discountRate * 100).toFixed(0)}% WACC`}
+                value={fmtMoney(dcf.enterpriseValue)}
+                subtitle={
+                  dcf.isApplicable
+                    ? `${(settings.discountRate * 100).toFixed(0)}% WACC`
+                    : "DCF not applicable"
+                }
                 color="emerald"
               />
               <MetricCard
@@ -671,8 +676,12 @@ export default function FinancialModel({
               />
               <ValuationCard
                 title="Enterprise Value"
-                value={fmt(dcf.enterpriseValue)}
-                subtitle="Sum of PV of FCF"
+                value={fmtMoney(dcf.enterpriseValue)}
+                subtitle={
+                  dcf.isApplicable
+                    ? "Sum of PV of FCF"
+                    : dcf.notApplicableReason ?? "DCF not applicable"
+                }
                 highlight
                 tooltip={TOOLTIPS.dcf}
               />

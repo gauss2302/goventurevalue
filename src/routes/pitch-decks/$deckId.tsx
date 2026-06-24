@@ -25,7 +25,6 @@ import {
   improvePitchDeckTextWithGemini,
   type ImproveTextFieldType,
 } from "@/lib/pitchDeck/improveText";
-import { exportPitchDeckToPdf } from "@/lib/pitchDeck/pdf";
 import { getTemplateById, getAllTemplates } from "@/lib/pitchDeck/templates";
 import { aiStyleToTemplate } from "@/lib/pitchDeck/aiStyleAdapter";
 import type { ModelContextSummary } from "@/lib/pitchDeck/types";
@@ -925,6 +924,7 @@ function PitchDeckDetailPage() {
         return;
       }
 
+      const { exportPitchDeckToPdf } = await import("@/lib/pitchDeck/pdf");
       await exportPitchDeckToPdf({
         title: data.title,
         startupName: data.startupName,

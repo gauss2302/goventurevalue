@@ -15,6 +15,13 @@ export default defineConfig(() => ({
     port: 5173,
     strictPort: true,
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      // Lower parallelism reduces peak memory during SSR builds on CI.
+      maxParallelFileOps: 4,
+    },
+  },
   plugins: [
     ...(isTest
       ? []

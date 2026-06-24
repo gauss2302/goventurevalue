@@ -1,0 +1,37 @@
+# Havamind
+
+> AI-powered financial modeling and investor pitch deck generation for startup founders.
+
+Havamind helps founders build investor-ready financial models, run scenario analysis, calculate DCF valuations, and generate pitch decks — without spreadsheet gymnastics or expensive consultants.
+
+## Primary URL
+
+- https://havamind.com/
+
+## What Havamind does
+
+- Builds 5-year financial models from plain-English business descriptions
+- Generates investor-ready pitch decks synced with your model
+- Compares conservative, base, and optimistic scenarios side by side
+- Calculates DCF, revenue multiples, and comparable valuations
+- Exports to PDF and Excel
+
+## Who it is for
+
+- Seed and Series A startup founders preparing for fundraising
+- Solo founders and technical co-founders without a finance background
+- Teams that need investor materials fast without hiring consultants
+
+## Pricing (public landing)
+
+- Starter: free — 1 model, basic AI projections, 3 scenarios, PDF export
+- Pro: paid — unlimited models, pitch deck generation, Excel export
+- Team: paid — collaboration for co-founding teams
+
+## Sign up
+
+- https://havamind.com/auth/signup
+
+## Sitemap
+
+- https://havamind.com/sitemap.xml

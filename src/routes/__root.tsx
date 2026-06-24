@@ -14,6 +14,7 @@ import { Toaster } from "sonner";
 import type { QueryClient } from "@tanstack/react-query";
 import { getRootAuth } from "@/lib/auth/rootAuth";
 import { logger } from "@/lib/logger";
+import { siteConfig } from "@/lib/seo/site";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -38,13 +39,33 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Havamind — Financial modeling & pitch decks for investors",
+        title: siteConfig.title,
+      },
+      {
+        name: "description",
+        content: siteConfig.description,
+      },
+      {
+        name: "theme-color",
+        content: "#0c1222",
       },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        href: "/favicon.ico",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/logo192.png",
+      },
+      {
+        rel: "manifest",
+        href: "/manifest.json",
       },
     ],
   }),

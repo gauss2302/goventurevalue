@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion, useInView } from "framer-motion";
 import type { Easing } from "framer-motion";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type CSSProperties } from "react";
 import {
   Check,
   FileSpreadsheet,
@@ -19,6 +19,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import Footer from "./Footer";
 
 const features = [
@@ -198,7 +199,7 @@ export default function LandingPage() {
         };
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-[var(--page)]">
+    <main className="relative min-h-screen overflow-x-clip bg-[var(--page)]">
       {/* ───── NAVBAR ───── */}
       <nav
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
@@ -321,7 +322,10 @@ export default function LandingPage() {
       </nav>
 
       {/* ───── HERO ───── */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-24 lg:pt-40 lg:pb-32">
+      <section
+        aria-labelledby="hero-heading"
+        className="relative overflow-hidden px-6 pt-32 pb-24 lg:pt-40 lg:pb-32"
+      >
         <div className="pointer-events-none absolute inset-0 bg-dot-pattern opacity-[0.04]" />
 
         {/* Floating decorative elements */}
@@ -479,6 +483,7 @@ export default function LandingPage() {
             </div>
 
             <h1
+              id="hero-heading"
               className="mx-auto max-w-3xl text-[clamp(2.5rem,5vw,3.5rem)] leading-[1.08] text-[var(--brand-ink)]"
               style={{
                 fontFamily: "var(--font-display)",
@@ -854,7 +859,7 @@ export default function LandingPage() {
       </section>
 
       <Footer />
-    </div>
+    </main>
   );
 }
 
@@ -954,205 +959,470 @@ function ValuationSpreadsheet({ prefersReducedMotion }: { prefersReducedMotion: 
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: true, amount: 0.3 });
 
-  const maxVal = useMemo(
+  const maxRevenue = useMemo(
     () => Math.max(...scenarioData.scenarios.flatMap((s) => s.revenue)),
     [],
   );
 
+  const maxValuation = useMemo(
+    () =>
+      Math.max(
+        ...scenarioData.scenarios.map((s) =>
+          Number.parseFloat(s.valuation.replace(/[$M]/g, "")),
+        ),
+      ),
+    [],
+  );
+
   const scenario = scenarioData.scenarios[activeScenario];
+  const columnLabels = ["A", "B", "C", "D", "E", "F"];
+  const grossMargins = useMemo(
+    () =>
+      activeScenario === 0
+        ? [62, 64, 65, 66, 67]
+        : activeScenario === 1
+          ? [68, 70, 72, 73, 74]
+          : [70, 73, 75, 77, 78],
+    [activeScenario],
+  );
+
+  const parseValuation = (value: string) =>
+    Number.parseFloat(value.replace(/[$M]/g, ""));
 
   return (
-    <div ref={containerRef} className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
-      {/* Excel-style toolbar */}
-      <div className="flex items-center justify-between border-b border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 sm:px-6">
-        <div className="flex items-center gap-3">
-          <FileSpreadsheet className="h-4 w-4 text-[var(--success)]" />
-          <span className="text-xs font-semibold text-[var(--brand-ink)]" style={{ fontFamily: "var(--font-display)" }}>
+    <div
+      ref={containerRef}
+      className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+    >
+      {/* Window chrome */}
+      <div className="flex items-center justify-between border-b border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--surface-2)_92%,var(--brand-primary)_8%)] px-4 py-2.5 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-full bg-[#FF5F57]" />
+            <div className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
+            <div className="h-3 w-3 rounded-full bg-[#28C840]" />
+          </div>
+          <div className="hidden h-4 w-px bg-[var(--border-soft)] sm:block" />
+          <FileSpreadsheet className="h-4 w-4 shrink-0 text-[var(--success)]" />
+          <span
+            className="truncate text-xs font-semibold text-[var(--brand-ink)] sm:text-[13px]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             Havamind — Scenario Valuation Model
           </span>
         </div>
-        <div className="hidden items-center gap-1.5 sm:flex">
-          <div className="h-3 w-3 rounded-full bg-[#FF5F57]" />
-          <div className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
-          <div className="h-3 w-3 rounded-full bg-[#28C840]" />
-        </div>
+        <span className="hidden rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--brand-muted)] sm:inline">
+          Live preview
+        </span>
+      </div>
+
+      {/* Formula bar */}
+      <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2 sm:px-4">
+        <span className="shrink-0 rounded border border-[var(--border-soft)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-muted)]">
+          fx
+        </span>
+        <code className="truncate text-[11px] text-[var(--brand-ink)] sm:text-xs">
+          =DCF(FCF_5Y, WACC 12%, Terminal 3%) →{" "}
+          <span style={{ color: scenario.color }}>{scenario.valuation}</span>
+        </code>
       </div>
 
       {/* Scenario tabs */}
-      <div className="flex border-b border-[var(--border-soft)]">
-        {scenarioData.scenarios.map((s, i) => (
-          <button
-            key={s.name}
-            onClick={() => setActiveScenario(i)}
-            className={`flex-1 px-4 py-2.5 text-xs font-medium transition-all sm:text-[13px] ${
-              activeScenario === i
-                ? "border-b-2 bg-[var(--surface)] text-[var(--brand-ink)]"
-                : "bg-[var(--surface)] text-[var(--brand-muted)] hover:bg-[var(--surface)] hover:text-[var(--brand-ink)]"
-            }`}
-            style={{
-              borderBottomColor: activeScenario === i ? s.color : "transparent",
-            }}
-          >
-            <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
-            {s.name}
-          </button>
-        ))}
+      <div className="flex gap-1 border-b border-[var(--border-soft)] bg-[var(--surface-2)] p-1.5 sm:px-2">
+        {scenarioData.scenarios.map((s, i) => {
+          const isActive = activeScenario === i;
+          return (
+            <button
+              key={s.name}
+              type="button"
+              onClick={() => setActiveScenario(i)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius-md)] px-3 py-2 text-xs font-medium transition-all sm:text-[13px]",
+                isActive
+                  ? "bg-[var(--surface)] text-[var(--brand-ink)] shadow-[var(--shadow-sm)]"
+                  : "text-[var(--brand-muted)] hover:bg-[color-mix(in_srgb,var(--surface)_70%,transparent)] hover:text-[var(--brand-ink)]",
+              )}
+              style={
+                isActive
+                  ? { boxShadow: `inset 0 -2px 0 0 ${s.color}` }
+                  : undefined
+              }
+            >
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: s.color }}
+              />
+              <span className="truncate">{s.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="p-4 sm:p-6 lg:p-8">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
-          {/* Chart area */}
-          <div>
-            {/* Header row — Excel style */}
-            <div className="mb-4 grid grid-cols-6 gap-px overflow-hidden rounded-lg border border-[var(--border-soft)] bg-[var(--border-soft)]">
-              <div className="bg-[var(--surface-2)] px-3 py-2 text-[11px] font-semibold text-[var(--brand-muted)]">
-                Metric
-              </div>
-              {scenarioData.years.map((y) => (
-                <div key={y} className="bg-[var(--surface-2)] px-3 py-2 text-center text-[11px] font-semibold text-[var(--brand-muted)]">
-                  {y}
-                </div>
-              ))}
-            </div>
-
-            {/* Revenue row */}
-            <div className="mb-1 grid grid-cols-6 gap-px overflow-hidden rounded-lg border border-[var(--border-soft)] bg-[var(--border-soft)]">
-              <div className="bg-[var(--surface)] px-3 py-2 text-[11px] font-medium text-[var(--brand-ink)]">
-                Revenue ($K)
-              </div>
-              {scenario.revenue.map((val, i) => (
-                <motion.div
-                  key={`${activeScenario}-rev-${i}`}
-                  initial={prefersReducedMotion || !isInView ? false : { opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: i * 0.08 }}
-                  className="bg-[var(--surface)] px-3 py-2 text-center text-[11px] font-semibold tabular-nums"
-                  style={{ color: scenario.color }}
-                >
-                  ${val.toLocaleString()}
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Growth row */}
-            <div className="mb-6 grid grid-cols-6 gap-px overflow-hidden rounded-lg border border-[var(--border-soft)] bg-[var(--border-soft)]">
-              <div className="bg-[var(--surface)] px-3 py-2 text-[11px] font-medium text-[var(--brand-ink)]">
-                YoY Growth
-              </div>
-              <div className="bg-[var(--surface)] px-3 py-2 text-center text-[11px] text-[var(--brand-muted)]">—</div>
-              {scenario.revenue.slice(1).map((val, i) => {
-                const prev = scenario.revenue[i];
-                const growth = Math.round(((val - prev) / prev) * 100);
-                return (
-                  <motion.div
-                    key={`${activeScenario}-gr-${i}`}
-                    initial={prefersReducedMotion || !isInView ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: (i + 1) * 0.08 }}
-                    className="bg-[var(--surface)] px-3 py-2 text-center text-[11px] font-medium tabular-nums text-[var(--success)]"
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+          {/* Spreadsheet + chart */}
+          <div className="space-y-5">
+            <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-soft)]">
+              {/* Column letters */}
+              <div className="grid grid-cols-[minmax(88px,1.1fr)_repeat(5,minmax(0,1fr))] border-b border-[var(--border-soft)] bg-[var(--surface-2)]">
+                <div className="border-r border-[var(--border-soft)] px-3 py-1.5" />
+                {columnLabels.slice(1).map((col, i) => (
+                  <div
+                    key={col}
+                    className="border-r border-[var(--border-soft)] px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--brand-muted)] last:border-r-0"
                   >
-                    +{growth}%
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Bar chart */}
-            <div className="flex items-end gap-2 sm:gap-3" style={{ height: 180 }}>
-              {scenario.revenue.map((val, i) => {
-                const pct = (val / maxVal) * 100;
-                return (
-                  <div key={`${activeScenario}-bar-${i}`} className="flex flex-1 flex-col items-center gap-1.5">
-                    <motion.div
-                      className="w-full rounded-t-lg"
-                      style={{ backgroundColor: scenario.color }}
-                      initial={prefersReducedMotion || !isInView ? { height: `${pct}%` } : { height: 0 }}
-                      animate={{ height: `${pct}%` }}
-                      transition={{ duration: 0.6, delay: i * 0.1, ease: "easeOut" }}
-                    />
-                    <span className="text-[10px] font-medium text-[var(--brand-muted)]">
+                    {col}
+                    <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal">
                       {scenarioData.years[i]}
                     </span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
+              {/* Revenue row */}
+              <SpreadsheetRow
+                rowLabel="1"
+                metric="Revenue ($K)"
+                values={scenario.revenue.map((v) => `$${v.toLocaleString()}`)}
+                valueClassName="font-semibold tabular-nums"
+                valueStyle={{ color: scenario.color }}
+                animate={!prefersReducedMotion && isInView}
+                activeScenario={activeScenario}
+                rowKey="revenue"
+              />
+
+              {/* Growth row */}
+              <SpreadsheetRow
+                rowLabel="2"
+                metric="YoY Growth"
+                values={[
+                  "—",
+                  ...scenario.revenue.slice(1).map((val, i) => {
+                    const prev = scenario.revenue[i];
+                    const growth = Math.round(((val - prev) / prev) * 100);
+                    return `+${growth}%`;
+                  }),
+                ]}
+                valueClassName="font-medium tabular-nums text-[var(--success)]"
+                animate={!prefersReducedMotion && isInView}
+                activeScenario={activeScenario}
+                rowKey="growth"
+              />
+
+              {/* Gross margin row */}
+              <SpreadsheetRow
+                rowLabel="3"
+                metric="Gross Margin"
+                values={grossMargins.map((m) => `${m}%`)}
+                valueClassName="font-medium tabular-nums text-[var(--brand-ink)]"
+                animate={false}
+                activeScenario={activeScenario}
+                rowKey="margin"
+                isLast
+              />
+            </div>
+
+            {/* Chart */}
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--surface-2)_55%,var(--surface)_45%)] p-4 sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-muted)]">
+                    Revenue trajectory
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-[var(--brand-ink)]">
+                    {scenario.name} · 5-year projection
+                  </p>
+                </div>
+                <div
+                  className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                  style={{
+                    backgroundColor: `color-mix(in srgb, ${scenario.color} 14%, transparent)`,
+                    color: scenario.color,
+                  }}
+                >
+                  {scenario.growth}
+                </div>
+              </div>
+
+              <div className="relative">
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 flex flex-col justify-between"
+                  style={{ height: 168 }}
+                  aria-hidden
+                >
+                  {[0, 1, 2, 3].map((line) => (
+                    <div
+                      key={line}
+                      className="border-t border-dashed border-[color-mix(in_srgb,var(--border-soft)_80%,transparent)]"
+                    />
+                  ))}
+                </div>
+
+                <div className="flex items-end gap-2 sm:gap-3" style={{ height: 168 }}>
+                  {scenario.revenue.map((val, i) => {
+                    const pct = Math.max(8, (val / maxRevenue) * 100);
+                    return (
+                      <div
+                        key={`${activeScenario}-bar-${i}`}
+                        className="relative flex flex-1 flex-col items-center"
+                        style={{ height: 168 }}
+                      >
+                        <span
+                          className="mb-1.5 text-[10px] font-semibold tabular-nums sm:text-[11px]"
+                          style={{ color: scenario.color }}
+                        >
+                          ${val >= 1000 ? `${(val / 1000).toFixed(1)}M` : `${val}K`}
+                        </span>
+                        <div className="flex w-full flex-1 items-end">
+                          <motion.div
+                            className="relative w-full rounded-t-[6px] shadow-[0_8px_20px_color-mix(in_srgb,var(--brand-ink)_8%,transparent)]"
+                            style={{
+                              background: `linear-gradient(180deg, color-mix(in srgb, ${scenario.color} 88%, white) 0%, ${scenario.color} 100%)`,
+                            }}
+                            initial={
+                              prefersReducedMotion || !isInView
+                                ? { height: `${pct}%` }
+                                : { height: 0 }
+                            }
+                            animate={{ height: `${pct}%` }}
+                            transition={{
+                              duration: 0.55,
+                              delay: i * 0.08,
+                              ease: "easeOut",
+                            }}
+                          />
+                        </div>
+                        <span className="mt-2 text-[10px] font-medium text-[var(--brand-muted)]">
+                          Y{i + 1}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Summary panel */}
-          <div className="space-y-4">
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
-              <p className="text-[11px] uppercase tracking-wider text-[var(--brand-muted)]">
-                {scenario.name} Valuation
-              </p>
-              <motion.p
-                key={`val-${activeScenario}`}
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="mt-2 text-3xl font-extrabold"
-                style={{ fontFamily: "var(--font-display)", color: scenario.color }}
-              >
-                {scenario.valuation}
-              </motion.p>
-              <p className="mt-1 text-xs text-[var(--brand-muted)]">Pre-money · DCF method</p>
-            </div>
-
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
-              <p className="text-[11px] uppercase tracking-wider text-[var(--brand-muted)]">
-                Revenue Growth
-              </p>
-              <motion.p
-                key={`growth-${activeScenario}`}
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className="mt-2 text-xl font-bold text-[var(--brand-ink)]"
-                style={{ fontFamily: "var(--font-display)" }}
-              >
-                {scenario.growth}
-              </motion.p>
-            </div>
-
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
-              <p className="text-[11px] uppercase tracking-wider text-[var(--brand-muted)]">
-                Year 5 Revenue
-              </p>
-              <motion.p
-                key={`y5-${activeScenario}`}
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 }}
-                className="mt-2 text-xl font-bold"
-                style={{ fontFamily: "var(--font-display)", color: scenario.color }}
-              >
-                ${(scenario.revenue[4] / 1000).toFixed(1)}M
-              </motion.p>
-            </div>
-
-            {/* All scenarios comparison */}
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
-              <p className="mb-3 text-[11px] uppercase tracking-wider text-[var(--brand-muted)]">
-                Compare All
-              </p>
-              {scenarioData.scenarios.map((s, i) => (
-                <div
-                  key={s.name}
-                  className={`flex items-center justify-between py-1.5 ${i === activeScenario ? "font-semibold" : ""}`}
-                >
-                  <span className="flex items-center gap-2 text-xs text-[var(--brand-ink)]">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
-                    {s.name}
-                  </span>
-                  <span className="text-xs font-semibold tabular-nums" style={{ color: s.color }}>
-                    {s.valuation}
-                  </span>
+          <div className="flex flex-col gap-4">
+            <div
+              className="relative overflow-hidden rounded-[var(--radius-lg)] border p-5"
+              style={{
+                borderColor: `color-mix(in srgb, ${scenario.color} 35%, var(--border-soft))`,
+                background: `linear-gradient(145deg, color-mix(in srgb, ${scenario.color} 10%, var(--surface)) 0%, var(--surface) 55%)`,
+              }}
+            >
+              <div
+                className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-40 blur-2xl"
+                style={{ backgroundColor: scenario.color }}
+                aria-hidden
+              />
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" style={{ color: scenario.color }} />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-muted)]">
+                    {scenario.name} valuation
+                  </p>
                 </div>
-              ))}
+                <motion.p
+                  key={`val-${activeScenario}`}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-3 text-[clamp(2rem,4vw,2.75rem)] font-extrabold leading-none tracking-[-0.02em]"
+                  style={{ fontFamily: "var(--font-display)", color: scenario.color }}
+                >
+                  {scenario.valuation}
+                </motion.p>
+                <p className="mt-2 text-xs text-[var(--brand-muted)]">
+                  Pre-money · DCF method · WACC 12%
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <MetricTile label="Revenue CAGR" value={scenario.growth} />
+              <MetricTile
+                label="Year 5 revenue"
+                value={`$${(scenario.revenue[4] / 1000).toFixed(1)}M`}
+                accent={scenario.color}
+              />
+              <MetricTile
+                label="Gross margin (Y5)"
+                value={`${grossMargins[4]}%`}
+              />
+              <MetricTile
+                label="Multiple implied"
+                value={`${(parseValuation(scenario.valuation) / (scenario.revenue[4] / 1000)).toFixed(1)}x`}
+              />
+            </div>
+
+            <div className="flex-1 rounded-[var(--radius-lg)] border border-[var(--border-soft)] bg-[var(--surface)] p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-muted)]">
+                  Compare scenarios
+                </p>
+                <BarChart3 className="h-4 w-4 text-[var(--brand-muted)]" />
+              </div>
+              <div className="space-y-3">
+                {scenarioData.scenarios.map((s, i) => {
+                  const amount = parseValuation(s.valuation);
+                  const width = `${(amount / maxValuation) * 100}%`;
+                  const isActive = i === activeScenario;
+                  return (
+                    <button
+                      key={s.name}
+                      type="button"
+                      onClick={() => setActiveScenario(i)}
+                      className={cn(
+                        "w-full rounded-[var(--radius-md)] px-2 py-1.5 text-left transition-colors",
+                        isActive && "bg-[color-mix(in_srgb,var(--surface-2)_80%,transparent)]",
+                      )}
+                    >
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2 text-xs text-[var(--brand-ink)]">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          <span className={cn("truncate", isActive && "font-semibold")}>
+                            {s.name}
+                          </span>
+                        </span>
+                        <span
+                          className="shrink-0 text-xs font-semibold tabular-nums"
+                          style={{ color: s.color }}
+                        >
+                          {s.valuation}
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ backgroundColor: s.color }}
+                          initial={
+                            prefersReducedMotion || !isInView
+                              ? { width }
+                              : { width: 0 }
+                          }
+                          animate={{ width }}
+                          transition={{ duration: 0.5, delay: i * 0.06 }}
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Status bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-[10px] text-[var(--brand-muted)] sm:px-6">
+        <span>
+          Sheet: <strong className="font-semibold text-[var(--brand-ink)]">Valuation</strong>
+        </span>
+        <span className="hidden sm:inline">5-year model · USD · Updated live</span>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium"
+          style={{
+            color: scenario.color,
+            backgroundColor: `color-mix(in srgb, ${scenario.color} 12%, transparent)`,
+          }}
+        >
+          <span className="relative flex h-1.5 w-1.5">
+            <span
+              className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
+              style={{ backgroundColor: scenario.color }}
+            />
+            <span
+              className="relative inline-flex h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: scenario.color }}
+            />
+          </span>
+          {scenario.name} active
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SpreadsheetRow({
+  rowLabel,
+  metric,
+  values,
+  valueClassName,
+  valueStyle,
+  animate,
+  activeScenario,
+  rowKey,
+  isLast = false,
+}: {
+  rowLabel: string;
+  metric: string;
+  values: string[];
+  valueClassName?: string;
+  valueStyle?: CSSProperties;
+  animate: boolean;
+  activeScenario: number;
+  rowKey: string;
+  isLast?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(88px,1.1fr)_repeat(5,minmax(0,1fr))] bg-[var(--surface)]",
+        !isLast && "border-b border-[var(--border-soft)]",
+      )}
+    >
+      <div className="flex items-center gap-2 border-r border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--surface-2)_65%,var(--surface)_35%)] px-3 py-2.5">
+        <span className="w-4 shrink-0 text-[10px] font-medium text-[var(--brand-muted)]">
+          {rowLabel}
+        </span>
+        <span className="text-[11px] font-medium text-[var(--brand-ink)] sm:text-xs">
+          {metric}
+        </span>
+      </div>
+      {values.map((value, i) => (
+        <motion.div
+          key={`${activeScenario}-${rowKey}-${i}`}
+          initial={animate ? { opacity: 0, y: 4 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: i * 0.05 }}
+          className={cn(
+            "border-r border-[var(--border-soft)] px-2 py-2.5 text-center text-[11px] last:border-r-0 sm:text-xs",
+            valueClassName,
+          )}
+          style={valueStyle}
+        >
+          {value}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+function MetricTile({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-[var(--radius-md)] border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-muted)]">
+        {label}
+      </p>
+      <p
+        className="mt-1.5 text-lg font-bold leading-none tracking-[-0.01em] text-[var(--brand-ink)]"
+        style={{ fontFamily: "var(--font-display)", color: accent }}
+      >
+        {value}
+      </p>
     </div>
   );
 }

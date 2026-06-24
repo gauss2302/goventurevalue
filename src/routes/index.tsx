@@ -2,8 +2,10 @@ import { createFileRoute, redirect, isRedirect } from "@tanstack/react-router";
 import LandingPage from "@/components/LandingPage";
 import { getSessionForLoader } from "@/lib/auth/requireAuth";
 import { logger } from "@/lib/logger";
+import { buildLandingHead } from "@/lib/seo/metadata";
 
 export const Route = createFileRoute("/")({
+  head: () => buildLandingHead(),
   component: Home,
   loader: async ({ location }) => {
     try {

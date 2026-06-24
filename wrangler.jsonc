@@ -14,10 +14,10 @@
     }
   ],
   "vars": {
-    "BETTER_AUTH_URL": "https://goventurevalue.devshilov.workers.dev",
-    "VITE_BETTER_AUTH_URL": "https://goventurevalue.devshilov.workers.dev",
+    "BETTER_AUTH_URL": "https://havamind.com",
+    "VITE_BETTER_AUTH_URL": "https://havamind.com",
     "POLAR_SERVER": "sandbox",
-    "POLAR_SUCCESS_URL": "https://goventurevalue.devshilov.workers.dev/billing/success"
+    "POLAR_SUCCESS_URL": "https://havamind.com/billing/success"
   },
   "secrets": {
     "required": [

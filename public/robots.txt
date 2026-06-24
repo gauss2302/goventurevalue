@@ -1,3 +1,81 @@
-# https://www.robotstxt.org/robotstxt.html
+# Havamind — https://havamind.com
+
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /auth/callback
+Disallow: /billing/
+Disallow: /api/
+
+# AI crawlers — allow public marketing pages
+User-agent: GPTBot
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /api/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /api/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /api/
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /dashboard
+Disallow: /models
+Disallow: /pitch-decks
+Disallow: /assumptions
+Disallow: /academy
+Disallow: /api/
+
+Sitemap: https://havamind.com/sitemap.xml
+
+# AI-readable site summary
+# See also: /llms.txt

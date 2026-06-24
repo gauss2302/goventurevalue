@@ -150,15 +150,20 @@ function SidebarBody({
         <BrandMark collapsed={collapsed} />
       </div>
 
-      <div className={cn("shrink-0 pt-4", collapsed ? "px-2" : "px-4")}>
+      <div
+        className={cn(
+          "shrink-0 pt-4",
+          collapsed ? "flex justify-center px-2" : "px-4"
+        )}
+      >
         <Link
           to="/models/new"
           data-slot="sidebar-new-model"
           onClick={onNavigate}
           title="Create a new model"
           className={cn(
-            "flex h-9 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--brand-primary)] text-[var(--text-subheadline)] font-semibold text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_32%,transparent)] transition-all duration-200 hover:bg-[var(--brand-primary-hover)] active:scale-[0.98]",
-            collapsed ? "w-9" : "w-full"
+            "flex h-9 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--brand-primary)] text-[var(--text-subheadline)] font-semibold text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--brand-primary)_32%,transparent)] transition-all duration-200 hover:bg-[var(--brand-primary-hover)] active:scale-[0.98]",
+            collapsed ? "size-9" : "w-full"
           )}
         >
           <Plus className="size-4" strokeWidth={2.5} aria-hidden />
@@ -265,7 +270,7 @@ export function Sidebar() {
   };
 
   const shellClass =
-    "flex h-full flex-col gap-0 overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] py-5";
+    "relative flex h-full flex-col gap-0 border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] py-5";
 
   return (
     <>
@@ -302,22 +307,24 @@ export function Sidebar() {
         data-slot="sidebar"
         className={cn(
           shellClass,
-          "fixed left-0 top-0 z-40 hidden w-[var(--sidebar-width)] transition-[width] duration-300 [transition-timing-function:var(--ease-out-quint)] md:flex"
+          "fixed left-0 top-0 z-40 hidden w-[var(--sidebar-width)] overflow-visible transition-[width] duration-300 [transition-timing-function:var(--ease-out-quint)] md:flex"
         )}
       >
-        <SidebarBody
-          collapsed={collapsed}
-          groupId="desktop"
-          pathname={pathname}
-          onNavigate={() => {}}
-          onSignOut={handleSignOut}
-          reduceMotion={reduceMotion}
-        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <SidebarBody
+            collapsed={collapsed}
+            groupId="desktop"
+            pathname={pathname}
+            onNavigate={() => {}}
+            onSignOut={handleSignOut}
+            reduceMotion={reduceMotion}
+          />
+        </div>
         <button
           type="button"
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3 top-7 hidden size-6 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface)] text-[var(--brand-muted)] shadow-[var(--shadow-sm)] transition-colors hover:text-[var(--brand-ink)] md:flex"
+          className="absolute right-0 top-[22px] z-50 hidden size-6 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface)] text-[var(--brand-muted)] shadow-[var(--shadow-sm)] transition-colors hover:border-[color-mix(in_srgb,var(--brand-primary)_35%,var(--border-soft))] hover:text-[var(--brand-ink)] md:flex"
         >
           {collapsed ? <PanelLeft className="size-3.5" /> : <PanelLeftClose className="size-3.5" />}
         </button>

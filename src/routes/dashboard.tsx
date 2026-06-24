@@ -20,9 +20,8 @@ import ModelList from "../components/ModelList";
 import type { Model } from "../components/ModelList";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SubTitle } from "@/components/ui/typography";
-import { AppShell, DashboardHeader, PageContainer, LoadingState, ErrorState } from "@/components/layout";
+import { AppShell, DashboardHeader, PageContainer, LoadingState, ErrorState, UserMenu } from "@/components/layout";
 import { cn } from "@/lib/utils";
 import { usePageMotion } from "@/lib/motion";
 import { requireAuthForLoader } from "@/lib/auth/requireAuth";
@@ -326,15 +325,6 @@ function Dashboard() {
   }
 
   const { models, user, stats, pitchDecks, lastLoginAt } = data;
-  const initials =
-    user.name
-      ?.split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() ||
-    user.email?.slice(0, 2).toUpperCase() ||
-    "HM";
 
   const numberFormat = new Intl.NumberFormat();
   const formatShortDate = (iso: string | null) =>
@@ -427,28 +417,11 @@ function Dashboard() {
                 <span className="hidden sm:inline">New model</span>
               </Link>
             </Button>
-            {user.plan === "pro" ? (
-              <Button variant="ghost-brand" size="sm" onClick={handleOpenPortal}>
-                Manage plan
-              </Button>
-            ) : (
-              <Button variant="accent" size="sm" onClick={handleStartCheckout}>
-                Upgrade
-              </Button>
-            )}
-            <div className="ml-1 flex items-center gap-2 border-l border-[var(--border-soft)] pl-2">
-              <div className="hidden text-right leading-tight sm:block">
-                <p className="text-[var(--text-caption1)] font-semibold text-[var(--brand-ink)]">
-                  {user.name || "Founder"}
-                </p>
-                <p className="text-[var(--text-caption2)] text-[var(--brand-muted)]">Founder</p>
-              </div>
-              <Avatar className="size-9">
-                <AvatarFallback className="bg-[var(--brand-primary-muted)] font-display text-[var(--text-caption1)] font-bold text-[var(--brand-primary-hover)]">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-            </div>
+            <UserMenu
+              user={user}
+              onUpgrade={handleStartCheckout}
+              onManagePlan={handleOpenPortal}
+            />
           </>
         }
       />

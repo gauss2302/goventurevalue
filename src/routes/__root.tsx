@@ -14,6 +14,7 @@ import { Toaster } from "sonner";
 import type { QueryClient } from "@tanstack/react-query";
 import { getRootAuth } from "@/lib/auth/rootAuth";
 import { logger } from "@/lib/logger";
+import { BRAND } from "@/config/brand";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -38,7 +39,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Havamind — Financial modeling & pitch decks for investors",
+        title: `${BRAND.name} — ${BRAND.tagline}`,
+      },
+      {
+        name: "description",
+        content: BRAND.promise,
       },
     ],
     links: [
@@ -71,12 +76,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const hideHeader =
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/billing/") ||
-    (pathname === "/" && !isAuthenticated) ||
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/models") ||
-    pathname.startsWith("/pitch-decks") ||
-    pathname.startsWith("/academy") ||
-    pathname.startsWith("/assumptions");
+    (pathname === "/" && !isAuthenticated);
 
   return (
     <html lang="en">

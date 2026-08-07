@@ -4,13 +4,15 @@ import { getRequestOrigin, sanitizeReturnPath } from "@/lib/billing/serverFns";
 
 describe("sanitizeReturnPath", () => {
   it("keeps a safe in-app path", () => {
-    expect(sanitizeReturnPath("/models/42")).toBe("/models/42");
+    expect(sanitizeReturnPath("/jobs/42")).toBe("/jobs/42");
   });
 
+  // Fallback is "/" until the dashboards exist (Phase 4).
   it("falls back for unsafe paths", () => {
-    expect(sanitizeReturnPath("https://evil.example")).toBe("/dashboard");
-    expect(sanitizeReturnPath("//evil.example")).toBe("/dashboard");
-    expect(sanitizeReturnPath("models/42")).toBe("/dashboard");
+    expect(sanitizeReturnPath("https://evil.example")).toBe("/");
+    expect(sanitizeReturnPath("//evil.example")).toBe("/");
+    expect(sanitizeReturnPath("jobs/42")).toBe("/");
+    expect(sanitizeReturnPath(null)).toBe("/");
   });
 });
 

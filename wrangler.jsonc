@@ -1,0 +1,100 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "startup-jobs",
+  "main": "@tanstack/react-start/server-entry",
+
+  // nodejs_compat is required for node-postgres, which Hyperdrive needs.
+  // Hyperdrive + Neon requires a compatibility date of 2026-08-03 or later.
+  "compatibility_date": "2026-08-07",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "observability": {
+    "enabled": true
+  },
+
+  // Ingest and queue work run in Queue consumers, not in the request path.
+  // 30s is the paid-plan default; raise here if resume parsing needs more.
+  "limits": {
+    "cpu_ms": 30000
+  },
+
+  // ---------------------------------------------------------------------------
+  // Bindings. IDs are placeholders until the Cloudflare account exists — see
+  // docs/PHASE_0.md for the provisioning commands that fill them in.
+  // ---------------------------------------------------------------------------
+
+  // Postgres (Neon) through Hyperdrive. NOTE: the binding is only readable
+  // inside a request context, which is why db/auth are per-request factories.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      // Used by `wrangler dev` only; points at a local Postgres.
+      "localConnectionString": "postgresql://postgres:postgres@localhost:5432/startup_jobs"
+    }
+  ],
+
+  // Session cache (Better Auth secondaryStorage) and hot-list caching.
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "REPLACE_WITH_KV_ID"
+    }
+  ],
+
+  // Resumes, company logos, OG images, raw ingest payloads.
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "startup-jobs-files"
+    }
+  ],
+
+  // Background work: normalize, embed, parse-resume, email, SLA timers.
+  "queues": {
+    "producers": [
+      {
+        "binding": "JOBS_QUEUE",
+        "queue": "startup-jobs-work"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "startup-jobs-work",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "startup-jobs-work-dlq"
+      }
+    ]
+  },
+
+  // Embeddings and cheap-tier classification.
+  "ai": {
+    "binding": "AI"
+  },
+
+  // NOTE: the RATE_LIMITER Durable Object from docs/PRODUCT_PLAN.md §5.1 is not
+  // declared yet, deliberately. Exporting a DO class requires a custom worker
+  // entry that re-exports it, whereas `main` here is the framework's own entry.
+  // Declaring the binding without the class makes `wrangler deploy` fail, so it
+  // arrives in Phase 4 together with the public endpoints that need it. The
+  // weekly application cap does not depend on it — that lives in Postgres
+  // because it must be transactional (§3.2).
+
+  // Daily ingest of prospect sources, role reverification, SLA sweeps, digests.
+  "triggers": {
+    "crons": [
+      // Ingest prospect sources — 03:00 UTC.
+      "0 3 * * *",
+      // Reverify published roles and archive vanished ones — 04:00 UTC.
+      "0 4 * * *",
+      // SLA sweep: remind, escalate, recompute response rates — hourly.
+      "0 * * * *"
+    ]
+  },
+
+  "vars": {
+    "APP_ENV": "development"
+  }
+}

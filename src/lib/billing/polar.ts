@@ -3,30 +3,31 @@ import { PolarError } from "@polar-sh/sdk/models/errors/polarerror";
 import type { CustomerState } from "@polar-sh/sdk/models/components/customerstate";
 import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks";
 
+import { optionalEnv } from "@/lib/env";
+
 const POLAR_SERVER_VALUES = ["sandbox", "production"] as const;
 type PolarServer = (typeof POLAR_SERVER_VALUES)[number];
 
 const DEFAULT_POLAR_SERVER: PolarServer = "sandbox";
 
 const getRequiredEnv = (name: string): string => {
-  const value = process.env[name];
-  if (!value || !value.trim()) {
+  const value = optionalEnv(name);
+  if (!value) {
     throw new Error(`${name} is required for Polar billing integration`);
   }
-  return value.trim();
+  return value;
 };
 
 export const getPolarAccessToken = (): string => getRequiredEnv("POLAR_ACCESS_TOKEN");
 
 export const getPolarWebhookSecret = (): string => getRequiredEnv("POLAR_WEBHOOK_SECRET");
 
-export const getPolarExportsProductId = (): string =>
-  getRequiredEnv("POLAR_EXPORTS_PRODUCT_ID");
+/** Product behind the Growth tier (docs/PRODUCT_PLAN.md §3.5). */
+export const getPolarGrowthProductId = (): string =>
+  getRequiredEnv("POLAR_GROWTH_PRODUCT_ID");
 
 export const getPolarServer = (): PolarServer => {
-  const value = (process.env.POLAR_SERVER || DEFAULT_POLAR_SERVER)
-    .trim()
-    .toLowerCase();
+  const value = (optionalEnv("POLAR_SERVER") ?? DEFAULT_POLAR_SERVER).toLowerCase();
 
   if (POLAR_SERVER_VALUES.includes(value as PolarServer)) {
     return value as PolarServer;
@@ -37,18 +38,17 @@ export const getPolarServer = (): PolarServer => {
   );
 };
 
-let polarClient: Polar | null = null;
-
-export const getPolarClient = (): Polar => {
-  if (!polarClient) {
-    polarClient = new Polar({
-      accessToken: getPolarAccessToken(),
-      server: getPolarServer(),
-    });
-  }
-
-  return polarClient;
-};
+/**
+ * Builds a Polar client.
+ *
+ * Deliberately not memoised: a module-level client would be shared across
+ * requests inside a Worker isolate, and construction is cheap.
+ */
+export const getPolarClient = (): Polar =>
+  new Polar({
+    accessToken: getPolarAccessToken(),
+    server: getPolarServer(),
+  });
 
 export type CreateCheckoutParams = {
   userId: string;
@@ -60,7 +60,7 @@ export const createCheckoutForUser = async (
   params: CreateCheckoutParams,
 ): Promise<string> => {
   const checkout = await getPolarClient().checkouts.create({
-    products: [getPolarExportsProductId()],
+    products: [getPolarGrowthProductId()],
     externalCustomerId: params.userId,
     successUrl: params.successUrl,
     returnUrl: params.returnUrl,

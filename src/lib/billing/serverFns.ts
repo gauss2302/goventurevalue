@@ -1,32 +1,32 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { logger } from "@/lib/logger";
+import { optionalEnv } from "@/lib/env";
+
+const isProduction = () =>
+  (optionalEnv("APP_ENV") ?? optionalEnv("NODE_ENV")) === "production";
 
 type BillingFlowInput = {
   returnPath?: string | null;
 };
 
-export type ExportAccessResult =
-  | { allowed: true }
-  | { allowed: false; checkoutUrl: string };
-
 const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, "");
 
 export const sanitizeReturnPath = (value: string | null | undefined): string => {
-  if (!value) return "/dashboard";
-  if (!value.startsWith("/")) return "/dashboard";
-  if (value.startsWith("//")) return "/dashboard";
-  if (value.includes("://")) return "/dashboard";
+  if (!value) return "/";
+  if (!value.startsWith("/")) return "/";
+  if (value.startsWith("//")) return "/";
+  if (value.includes("://")) return "/";
   return value;
 };
 
 export const getRequestOrigin = (headers: Headers): string => {
   const configuredOrigin =
-    process.env.BETTER_AUTH_URL || process.env.VITE_BETTER_AUTH_URL;
+    optionalEnv("BETTER_AUTH_URL") ?? optionalEnv("VITE_BETTER_AUTH_URL");
 
   // In production, prefer the configured origin over request headers so a
   // forged Host / X-Forwarded-Host can't shape outgoing redirect URLs.
-  if (process.env.NODE_ENV === "production" && configuredOrigin) {
+  if (isProduction() && configuredOrigin) {
     return normalizeBaseUrl(configuredOrigin);
   }
 
@@ -41,8 +41,7 @@ export const getRequestOrigin = (headers: Headers): string => {
   const host = forwardedHost || headers.get("host")?.trim();
 
   if (host) {
-    const defaultProto =
-      process.env.NODE_ENV === "production" ? "https" : "http";
+    const defaultProto = isProduction() ? "https" : "http";
     const proto = forwardedProto || defaultProto;
     return `${proto}://${host}`;
   }
@@ -51,7 +50,7 @@ export const getRequestOrigin = (headers: Headers): string => {
     return normalizeBaseUrl(configuredOrigin);
   }
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProduction()) {
     return "http://localhost:3000";
   }
 
@@ -144,45 +143,5 @@ export const openBillingPortal = createServerFn({ method: "POST" })
     } catch (error) {
       logger.error("[Billing] Failed to open billing portal or checkout:", error);
       throw new Error("Unable to open billing. Please try again.");
-    }
-  });
-
-export const assertExportAccess = createServerFn({ method: "POST" })
-  .inputValidator(billingInputValidator)
-  .handler(async ({ data }) => {
-    const [
-      { getRequestHeaders },
-      { requireAuthFromHeaders },
-      { ensureFreshBillingSnapshot, isExportEntitled },
-      { createCheckoutForUser },
-    ] = await Promise.all([
-      import("@tanstack/react-start/server"),
-      import("@/lib/auth/server"),
-      import("@/lib/billing/subscription"),
-      import("@/lib/billing/polar"),
-    ]);
-
-    const headers = getRequestHeaders();
-    const session = await requireAuthFromHeaders(headers);
-
-    try {
-      const snapshot = await ensureFreshBillingSnapshot(session.user.id);
-      if (isExportEntitled(snapshot)) {
-        return { allowed: true } satisfies ExportAccessResult;
-      }
-
-      const checkoutUrl = await createCheckoutForUser({
-        userId: session.user.id,
-        successUrl: resolveCheckoutSuccessUrl(headers),
-        returnUrl: resolveReturnUrl(headers, data.returnPath),
-      });
-
-      return {
-        allowed: false,
-        checkoutUrl,
-      } satisfies ExportAccessResult;
-    } catch (error) {
-      logger.error("[Billing] Failed to verify export entitlement:", error);
-      throw new Error("Could not verify subscription. Please try again.");
     }
   });

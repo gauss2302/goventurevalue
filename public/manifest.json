@@ -1,7 +1,6 @@
 {
-  "short_name": "Havamind",
-  "name": "Havamind — Financial modeling & pitch decks for investors",
-  "description": "Rapid financial modeling and investor pitch deck generation for startups",
+  "short_name": "Runway",
+  "name": "Runway — Startup jobs where you actually get an answer",
   "icons": [
     {
       "src": "favicon.ico",
@@ -19,7 +18,7 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
   "theme_color": "#000000",
   "background_color": "#ffffff"

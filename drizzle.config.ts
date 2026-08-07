@@ -48,7 +48,7 @@ if (!databaseUrl && process.env.NODE_ENV === "production") {
 }
 
 const resolvedDatabaseUrl =
-  databaseUrl || "postgresql://postgres:postgres@localhost:5432/goventurevalue";
+  databaseUrl || "postgresql://postgres:postgres@localhost:5432/startup_jobs";
 
 const schema = parseList(process.env.DRIZZLE_SCHEMA) ?? ["./src/db/schema.ts"];
 const out = process.env.DRIZZLE_OUT ?? "./drizzle";

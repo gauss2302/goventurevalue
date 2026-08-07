@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth/client";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BRAND } from "@/config/brand";
 
 export const Route = createFileRoute("/auth/signin")({
   component: SignIn,
@@ -131,7 +132,7 @@ function SignIn() {
               Welcome back
             </h1>
             <p className="mt-2 text-sm text-[var(--brand-muted)]">
-              Sign in to your Havamind workspace
+              Sign in to {BRAND.name}
             </p>
           </div>
 

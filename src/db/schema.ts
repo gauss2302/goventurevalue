@@ -1,527 +1,939 @@
-import { pgTable, serial, text, timestamp, integer, decimal, boolean, pgEnum, index, jsonb, date, uniqueIndex } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+/**
+ * Database schema.
+ *
+ * Mirrors docs/PRODUCT_PLAN.md §6.1. Two design rules from the plan are enforced
+ * structurally here rather than left to application discipline:
+ *
+ *  - §6.4 (data honesty): measured facts and estimates live in different tables.
+ *    `company_signal` holds only deterministic derivations and is NULL when the
+ *    inputs are missing — it never carries a guess. Estimates live in
+ *    `company_estimate` with their method, inputs and confidence attached.
+ *
+ *  - §3.2 (the response promise): a company cannot be published without
+ *    `sla_accepted_at`, and every application carries its own `sla_due_at`.
+ *    The weekly application cap has its own table because it is load-bearing
+ *    and must be transactional, not cached.
+ */
 
-// Better Auth Schema - Required for authentication
-export const user = pgTable('user', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').default(false).notNull(),
-  image: text('image'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at')
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  vector,
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+
+import { EMBEDDING_DIMENSIONS } from "@/lib/ai/workersAi";
+
+// ---------------------------------------------------------------------------
+// Better Auth — required tables, unchanged from the previous product.
+// ---------------------------------------------------------------------------
+
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-})
+});
 
 export const session = pgTable(
-  'session',
+  "session",
   {
-    id: text('id').primaryKey(),
-    expiresAt: timestamp('expires_at').notNull(),
-    token: text('token').notNull().unique(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
-    ipAddress: text('ip_address'),
-    userAgent: text('user_agent'),
-    userId: text('user_id')
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
       .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index('session_userId_idx').on(table.userId)],
-)
+  (table) => [index("session_user_id_idx").on(table.userId)],
+);
 
 export const account = pgTable(
-  'account',
+  "account",
   {
-    id: text('id').primaryKey(),
-    accountId: text('account_id').notNull(),
-    providerId: text('provider_id').notNull(),
-    userId: text('user_id')
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
       .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    accessToken: text('access_token'),
-    refreshToken: text('refresh_token'),
-    idToken: text('id_token'),
-    accessTokenExpiresAt: timestamp('access_token_expires_at'),
-    refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
-    scope: text('scope'),
-    password: text('password'), // Password hash for email/password auth (providerId='credential')
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index('account_userId_idx').on(table.userId)],
-)
+  (table) => [index("account_user_id_idx").on(table.userId)],
+);
 
 export const verification = pgTable(
-  'verification',
+  "verification",
   {
-    id: text('id').primaryKey(),
-    identifier: text('identifier').notNull(),
-    value: text('value').notNull(),
-    expiresAt: timestamp('expires_at').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index('verification_identifier_idx').on(table.identifier)],
-)
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
 
-// Better Auth Relations
-export const userRelations = relations(user, ({ many }) => ({
-  sessions: many(session),
-  accounts: many(account),
-}))
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
 
-export const sessionRelations = relations(session, ({ one }) => ({
-  user: one(user, {
-    fields: [session.userId],
-    references: [user.id],
-  }),
-}))
+/** Curator's verdict on whether a company is worth pursuing (§6.5 gate 3).
+ *  Cached forever so the human decides once per company, not once per job. */
+export const companyTrustStateEnum = pgEnum("company_trust_state", [
+  "unreviewed",
+  "qualified",
+  "rejected",
+]);
 
-export const accountRelations = relations(account, ({ one }) => ({
-  user: one(user, {
-    fields: [account.userId],
-    references: [user.id],
-  }),
-}))
+/** Outreach-to-onboarding funnel. Only `onboarded` is publicly visible (§3.3). */
+export const companyLifecycleEnum = pgEnum("company_lifecycle", [
+  "prospect",
+  "contacted",
+  "onboarding",
+  "onboarded",
+  "suspended",
+]);
 
-export const todos = pgTable('todos', {
-  id: serial().primaryKey(),
-  title: text().notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-})
+export const companyTierEnum = pgEnum("company_tier", ["free", "growth", "scale"]);
+
+export const startupStageEnum = pgEnum("startup_stage", [
+  "pre_seed",
+  "seed",
+  "series_a",
+  "series_b_plus",
+  "unknown",
+]);
+
+/** `prospect` = seen via aggregation, company not onboarded, never public. */
+export const jobStatusEnum = pgEnum("job_status", [
+  "prospect",
+  "pending",
+  "published",
+  "archived",
+  "rejected",
+]);
+
+export const autoDecisionEnum = pgEnum("auto_decision", ["approved", "rejected", "escalated"]);
+
+/** Vertical per §0: engineering and product only. */
+export const roleFamilyEnum = pgEnum("role_family", [
+  "backend",
+  "frontend",
+  "fullstack",
+  "mobile",
+  "ml_ai",
+  "infra_devops",
+  "data",
+  "security",
+  "engineering_leadership",
+  "product_management",
+]);
+
+export const seniorityEnum = pgEnum("seniority", [
+  "junior",
+  "mid",
+  "senior",
+  "staff",
+  "principal",
+  "lead",
+]);
+
+export const remoteTypeEnum = pgEnum("remote_type", ["remote", "hybrid", "onsite"]);
+
+export const sourceKindEnum = pgEnum("source_kind", [
+  "greenhouse",
+  "lever",
+  "ashby",
+  "workable",
+  "recruitee",
+  "smartrecruiters",
+  "rss",
+  "crawl",
+]);
+
+/** Where a value came from — half of the honesty contract (§6.4). */
+export const provenanceKindEnum = pgEnum("provenance_kind", [
+  "ats_api",
+  "funding_db",
+  "company_claimed",
+  "derived",
+  "user_reported",
+]);
+
+export const confidenceEnum = pgEnum("confidence", ["high", "medium", "low"]);
+
+export const moderationKindEnum = pgEnum("moderation_kind", [
+  "new_company",
+  "dedupe_ambiguous",
+  "low_confidence",
+  "claim",
+  "user_report",
+  "sla_breach",
+  "audit_sample",
+]);
+
+export const moderationStateEnum = pgEnum("moderation_state", ["open", "resolved", "dismissed"]);
+
+export const applicationStatusEnum = pgEnum("application_status", [
+  "submitted",
+  "in_review",
+  "interviewing",
+  "offer",
+  "hired",
+  "rejected",
+  "withdrawn",
+]);
+
+/** Tracks the response promise per application (§3.2). */
+export const slaStateEnum = pgEnum("sla_state", ["pending", "answered", "breached"]);
+
+export const outreachStateEnum = pgEnum("outreach_state", [
+  "queued",
+  "sent",
+  "replied",
+  "declined",
+  "won",
+]);
+
+export const claimStateEnum = pgEnum("claim_state", [
+  "pending",
+  "domain_verified",
+  "approved",
+  "rejected",
+]);
+
+export const alertCadenceEnum = pgEnum("alert_cadence", ["off", "daily", "weekly"]);
+
+export const profileVisibilityEnum = pgEnum("profile_visibility", [
+  "hidden",
+  "visible_to_onboarded",
+  "public",
+]);
+
+export const userReportKindEnum = pgEnum("user_report_kind", [
+  "dead",
+  "wrong_salary",
+  "not_startup",
+  "spam",
+  "other",
+]);
+
+export const blocklistKindEnum = pgEnum("blocklist_kind", ["domain", "company_name", "source"]);
+
+// ---------------------------------------------------------------------------
+// Companies
+// ---------------------------------------------------------------------------
+
+export const company = pgTable(
+  "company",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    /** Corporate domain — the key for dedupe and for claim verification. */
+    domain: text("domain"),
+    description: text("description"),
+    logoR2Key: text("logo_r2_key"),
+    website: text("website"),
+    hqLocation: text("hq_location"),
+    remotePolicy: text("remote_policy"),
+    teamSize: integer("team_size"),
+    teamSizeUpdatedAt: timestamp("team_size_updated_at"),
+    stage: startupStageEnum("stage").default("unknown").notNull(),
+    foundedYear: integer("founded_year"),
+
+    isClaimed: boolean("is_claimed").default(false).notNull(),
+    claimedByUserId: text("claimed_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    tier: companyTierEnum("tier").default("free").notNull(),
+
+    atsProvider: sourceKindEnum("ats_provider"),
+    atsExternalId: text("ats_external_id"),
+
+    // Prospect qualification, cached forever (§6.5).
+    trustState: companyTrustStateEnum("trust_state").default("unreviewed").notNull(),
+    trustReason: text("trust_reason"),
+    trustReviewedBy: text("trust_reviewed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    trustReviewedAt: timestamp("trust_reviewed_at"),
+
+    lifecycle: companyLifecycleEnum("lifecycle").default("prospect").notNull(),
+
+    // The response promise (§3.2). Without sla_accepted_at nothing publishes.
+    slaResponseDays: integer("sla_response_days"),
+    slaAcceptedAt: timestamp("sla_accepted_at"),
+    slaAcceptedByUserId: text("sla_accepted_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    responseRate30d: numeric("response_rate_30d", { precision: 5, scale: 4 }),
+    medianFirstResponseHours: integer("median_first_response_hours"),
+    slaBreachCount: integer("sla_breach_count").default(0).notNull(),
+    suspendedForSlaAt: timestamp("suspended_for_sla_at"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("company_domain_idx").on(table.domain),
+    index("company_lifecycle_idx").on(table.lifecycle),
+    index("company_trust_state_idx").on(table.trustState),
+    index("company_stage_idx").on(table.stage),
+  ],
+);
+
+export const companyFunding = pgTable(
+  "company_funding",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    roundType: text("round_type").notNull(),
+    amountUsd: numeric("amount_usd", { precision: 16, scale: 2 }),
+    announcedAt: date("announced_at"),
+    leadInvestor: text("lead_investor"),
+    investors: jsonb("investors").$type<string[]>(),
+    sourceKind: provenanceKindEnum("source_kind").notNull(),
+    sourceUrl: text("source_url"),
+    /** When this fact was true, not when we wrote the row (§6.4 rule 1). */
+    asOf: timestamp("as_of").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("company_funding_company_id_idx").on(table.companyId)],
+);
+
+/**
+ * Deterministic derivations only.
+ *
+ * Every value here is computed from data we actually hold. If an input is
+ * missing the column stays NULL and the UI renders "no data" — we never
+ * substitute a guess (§6.4 rule 2). Each value carries its own `as_of` because
+ * a number without a date is not a fact.
+ */
+export const companySignal = pgTable("company_signal", {
+  companyId: text("company_id")
+    .primaryKey()
+    .references(() => company.id, { onDelete: "cascade" }),
+
+  monthsSinceLastRaise: integer("months_since_last_raise"),
+  monthsSinceLastRaiseAsOf: timestamp("months_since_last_raise_as_of"),
+
+  teamGrowthRate90d: numeric("team_growth_rate_90d", { precision: 6, scale: 4 }),
+  teamGrowthRate90dAsOf: timestamp("team_growth_rate_90d_as_of"),
+
+  openRolesCount: integer("open_roles_count"),
+  openRolesCountAsOf: timestamp("open_roles_count_as_of"),
+
+  medianDaysToFirstResponse: integer("median_days_to_first_response"),
+  medianDaysToFirstResponseAsOf: timestamp("median_days_to_first_response_as_of"),
+
+  hiringMix: jsonb("hiring_mix").$type<Record<string, number>>(),
+  hiringMixAsOf: timestamp("hiring_mix_as_of"),
+
+  computedAt: timestamp("computed_at").defaultNow().notNull(),
+});
+
+/**
+ * Explicit estimates, kept apart from facts.
+ *
+ * Anything inferred rather than observed lands here with its method and inputs
+ * recorded, so the UI can show how a number was reached (§6.4 rule 3). A company
+ * can dispute a value, which removes it from display immediately — before any
+ * human review (§6.4 rule 5).
+ */
+export const companyEstimate = pgTable(
+  "company_estimate",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    /** e.g. "runway_months", "burn_rate_usd" */
+    key: text("key").notNull(),
+    valueNumeric: numeric("value_numeric", { precision: 16, scale: 4 }),
+    /** Human-readable description of how the value was derived. */
+    method: text("method").notNull(),
+    /** The exact inputs used, so an estimate is always reproducible. */
+    inputs: jsonb("inputs").$type<Record<string, unknown>>().notNull(),
+    confidence: confidenceEnum("confidence").notNull(),
+    asOf: timestamp("as_of").notNull(),
+    isDisputed: boolean("is_disputed").default(false).notNull(),
+    disputedByCompanyAt: timestamp("disputed_by_company_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("company_estimate_company_key_idx").on(table.companyId, table.key)],
+);
+
+export const companyHeadcount = pgTable(
+  "company_headcount",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    observedAt: timestamp("observed_at").notNull(),
+    headcount: integer("headcount").notNull(),
+    sourceKind: provenanceKindEnum("source_kind").notNull(),
+  },
+  (table) => [
+    uniqueIndex("company_headcount_company_observed_idx").on(table.companyId, table.observedAt),
+  ],
+);
+
+export const blocklist = pgTable(
+  "blocklist",
+  {
+    id: text("id").primaryKey(),
+    kind: blocklistKindEnum("kind").notNull(),
+    /** Matched case-insensitively against domain / name / source id. */
+    pattern: text("pattern").notNull(),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("blocklist_kind_pattern_idx").on(table.kind, table.pattern)],
+);
+
+// ---------------------------------------------------------------------------
+// Jobs
+// ---------------------------------------------------------------------------
+
+export const job = pgTable(
+  "job",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    roleFamily: roleFamilyEnum("role_family"),
+    seniority: seniorityEnum("seniority"),
+    descriptionMd: text("description_md"),
+
+    salaryMin: integer("salary_min"),
+    salaryMax: integer("salary_max"),
+    salaryCurrency: text("salary_currency"),
+    /** False means the company hid the band — shown as such, never guessed. */
+    salaryIsPublic: boolean("salary_is_public").default(false).notNull(),
+    equityMin: numeric("equity_min", { precision: 8, scale: 5 }),
+    equityMax: numeric("equity_max", { precision: 8, scale: 5 }),
+
+    remoteType: remoteTypeEnum("remote_type"),
+    timezones: text("timezones").array(),
+    locations: text("locations").array(),
+    visaSponsorship: boolean("visa_sponsorship"),
+    techStack: text("tech_stack").array(),
+
+    status: jobStatusEnum("status").default("prospect").notNull(),
+
+    firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
+    lastVerifiedAt: timestamp("last_verified_at").defaultNow().notNull(),
+    publishedAt: timestamp("published_at"),
+    archivedAt: timestamp("archived_at"),
+    applyUrl: text("apply_url"),
+
+    sourceId: text("source_id").references(() => source.id, { onDelete: "set null" }),
+    sourceExternalId: text("source_external_id"),
+    /** Set when this row was merged into another as a duplicate. */
+    canonicalJobId: text("canonical_job_id"),
+    contentHash: text("content_hash").notNull(),
+
+    // Per-field normalization confidence drives gate 2 of automoderation (§6.5).
+    fieldConfidence: jsonb("field_confidence").$type<Record<string, number>>(),
+    autoDecision: autoDecisionEnum("auto_decision"),
+    autoDecisionRule: text("auto_decision_rule"),
+    autoDecisionAt: timestamp("auto_decision_at"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("job_company_id_idx").on(table.companyId),
+    index("job_status_idx").on(table.status),
+    index("job_role_family_idx").on(table.roleFamily),
+    index("job_last_verified_at_idx").on(table.lastVerifiedAt),
+    uniqueIndex("job_source_external_idx").on(table.sourceId, table.sourceExternalId),
+    index("job_content_hash_idx").on(table.contentHash),
+  ],
+);
+
+export const jobEmbedding = pgTable(
+  "job_embedding",
+  {
+    jobId: text("job_id")
+      .primaryKey()
+      .references(() => job.id, { onDelete: "cascade" }),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    /** Which model produced this vector — a model change invalidates every row. */
+    model: text("model").notNull(),
+    computedAt: timestamp("computed_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // HNSW over cosine distance: matching ranks by direction, not magnitude (§6.2).
+    index("job_embedding_hnsw_idx").using("hnsw", table.embedding.op("vector_cosine_ops")),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Ingest / prospecting (internal contour — never published, §3.3)
+// ---------------------------------------------------------------------------
+
+export const source = pgTable(
+  "source",
+  {
+    id: text("id").primaryKey(),
+    kind: sourceKindEnum("kind").notNull(),
+    /** Board token, feed URL, and any adapter-specific settings. */
+    config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+    isEnabled: boolean("is_enabled").default(true).notNull(),
+    lastRunAt: timestamp("last_run_at"),
+    health: text("health"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("source_kind_idx").on(table.kind)],
+);
+
+export const ingestRun = pgTable(
+  "ingest_run",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => source.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+    fetched: integer("fetched").default(0).notNull(),
+    created: integer("created").default(0).notNull(),
+    updated: integer("updated").default(0).notNull(),
+    archived: integer("archived").default(0).notNull(),
+    errors: jsonb("errors").$type<unknown[]>(),
+  },
+  (table) => [index("ingest_run_source_id_idx").on(table.sourceId)],
+);
+
+export const rawPosting = pgTable(
+  "raw_posting",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => source.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    /** Raw payload lives in R2; only the pointer is in Postgres. */
+    r2Key: text("r2_key").notNull(),
+    contentHash: text("content_hash").notNull(),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("raw_posting_source_external_idx").on(table.sourceId, table.externalId)],
+);
+
+/**
+ * The single human queue (§6.5 gate 3).
+ *
+ * Priority ordering is intentional: things that break the promise for live
+ * users (`sla_breach`, `user_report`) outrank things that grow the database
+ * (`new_company`).
+ */
+export const moderationItem = pgTable(
+  "moderation_item",
+  {
+    id: text("id").primaryKey(),
+    kind: moderationKindEnum("kind").notNull(),
+    companyId: text("company_id").references(() => company.id, { onDelete: "cascade" }),
+    jobId: text("job_id").references(() => job.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").$type<Record<string, unknown>>(),
+    priority: integer("priority").default(0).notNull(),
+    state: moderationStateEnum("state").default("open").notNull(),
+    resolution: text("resolution"),
+    curatorId: text("curator_id").references(() => user.id, { onDelete: "set null" }),
+    note: text("note"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+  },
+  (table) => [
+    index("moderation_item_state_priority_idx").on(table.state, table.priority),
+    index("moderation_item_kind_idx").on(table.kind),
+  ],
+);
+
+export const userReport = pgTable(
+  "user_report",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => job.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    kind: userReportKindEnum("kind").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("user_report_job_id_idx").on(table.jobId)],
+);
+
+/** Minimal outreach CRM over the prospecting list (§3.3). */
+export const outreach = pgTable(
+  "outreach",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    state: outreachStateEnum("state").default("queued").notNull(),
+    /** Ranks the list — freshly opened roles are the best cold-email trigger. */
+    hiringIntentScore: numeric("hiring_intent_score", { precision: 6, scale: 3 }),
+    contactedAt: timestamp("contacted_at"),
+    repliedAt: timestamp("replied_at"),
+    note: text("note"),
+    ownerId: text("owner_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("outreach_company_id_idx").on(table.companyId),
+    index("outreach_state_score_idx").on(table.state, table.hiringIntentScore),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Candidates
+// ---------------------------------------------------------------------------
+
+export const candidateProfile = pgTable("candidate_profile", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  headline: text("headline"),
+  bio: text("bio"),
+  yearsExperience: integer("years_experience"),
+  roleFamilies: text("role_families").array(),
+  seniority: seniorityEnum("seniority"),
+  techStack: text("tech_stack").array(),
+  timezone: text("timezone"),
+  locations: text("locations").array(),
+  needsVisa: boolean("needs_visa"),
+  openTo: remoteTypeEnum("open_to"),
+  salaryExpectationMin: integer("salary_expectation_min"),
+  preferredStages: text("preferred_stages").array(),
+  resumeR2Key: text("resume_r2_key"),
+  /** Output of the unpdf + LLM parse, kept for re-derivation without re-upload. */
+  resumeParsed: jsonb("resume_parsed").$type<Record<string, unknown>>(),
+  visibility: profileVisibilityEnum("visibility").default("hidden").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const candidateEmbedding = pgTable(
+  "candidate_embedding",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    model: text("model").notNull(),
+    computedAt: timestamp("computed_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("candidate_embedding_hnsw_idx").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops"),
+    ),
+  ],
+);
+
+/**
+ * Career trajectory, not just a skill list.
+ *
+ * The stage and team size at join time are what make trajectory matching
+ * possible (§6.2) — "was third engineer at a seed startup" is the signal,
+ * and it cannot be expressed as tags.
+ */
+export const candidateExperience = pgTable(
+  "candidate_experience",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    companyName: text("company_name").notNull(),
+    companyStageAtJoin: startupStageEnum("company_stage_at_join"),
+    teamSizeAtJoin: integer("team_size_at_join"),
+    title: text("title").notNull(),
+    startedAt: date("started_at"),
+    endedAt: date("ended_at"),
+    wasFirstInFunction: boolean("was_first_in_function"),
+  },
+  (table) => [index("candidate_experience_user_id_idx").on(table.userId)],
+);
+
+// ---------------------------------------------------------------------------
+// Interaction
+// ---------------------------------------------------------------------------
+
+export const application = pgTable(
+  "application",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => job.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: applicationStatusEnum("status").default("submitted").notNull(),
+    coverLetter: text("cover_letter"),
+    appliedAt: timestamp("applied_at").defaultNow().notNull(),
+    firstResponseAt: timestamp("first_response_at"),
+    statusHistory: jsonb("status_history").$type<unknown[]>(),
+
+    // The promise, per application (§3.2).
+    slaDueAt: timestamp("sla_due_at").notNull(),
+    slaState: slaStateEnum("sla_state").default("pending").notNull(),
+    remindedAt: timestamp("reminded_at"),
+    breachedAt: timestamp("breached_at"),
+  },
+  (table) => [
+    uniqueIndex("application_job_user_idx").on(table.jobId, table.userId),
+    index("application_user_id_idx").on(table.userId),
+    // Drives the hourly SLA sweep.
+    index("application_sla_state_due_idx").on(table.slaState, table.slaDueAt),
+  ],
+);
+
+/**
+ * Weekly application cap (§3.2).
+ *
+ * Deliberately in Postgres rather than KV: the cap is what makes the response
+ * promise achievable, so it must be transactional. KV's eventual consistency
+ * would let a candidate exceed it by racing requests.
+ */
+export const applicationQuota = pgTable(
+  "application_quota",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Monday 00:00 UTC of the quota week. */
+    windowStart: date("window_start").notNull(),
+    used: integer("used").default(0).notNull(),
+    limitPerWindow: integer("limit_per_window").notNull(),
+  },
+  (table) => [uniqueIndex("application_quota_user_window_idx").on(table.userId, table.windowStart)],
+);
+
+export const savedJob = pgTable(
+  "saved_job",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => job.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("saved_job_user_job_idx").on(table.userId, table.jobId)],
+);
+
+export const savedSearch = pgTable(
+  "saved_search",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    filters: jsonb("filters").$type<Record<string, unknown>>().notNull(),
+    alertCadence: alertCadenceEnum("alert_cadence").default("off").notNull(),
+    lastSentAt: timestamp("last_sent_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("saved_search_user_id_idx").on(table.userId)],
+);
+
+export const jobView = pgTable(
+  "job_view",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => job.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    /** Hashed, not raw — anonymous views must not be re-identifiable. */
+    sessionHash: text("session_hash"),
+    occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+  },
+  (table) => [index("job_view_job_id_occurred_idx").on(table.jobId, table.occurredAt)],
+);
+
+export const companyClaim = pgTable(
+  "company_claim",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workEmail: text("work_email").notNull(),
+    state: claimStateEnum("state").default("pending").notNull(),
+    verifiedAt: timestamp("verified_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("company_claim_company_id_idx").on(table.companyId)],
+);
+
+// ---------------------------------------------------------------------------
+// Billing (carried over, retargeted at the new tiers)
+// ---------------------------------------------------------------------------
 
 export const billingSubscriptions = pgTable(
-  'billing_subscriptions',
+  "billing_subscriptions",
   {
-    id: serial().primaryKey(),
-    userId: text('user_id')
+    id: text("id").primaryKey(),
+    userId: text("user_id")
       .notNull()
-      .references(() => user.id, { onDelete: 'cascade' })
-      .unique(),
-    polarCustomerId: text('polar_customer_id'),
-    polarSubscriptionId: text('polar_subscription_id'),
-    productId: text('product_id'),
-    status: text('status').default('inactive').notNull(),
-    currentPeriodEnd: timestamp('current_period_end'),
-    cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
+      .references(() => user.id, { onDelete: "cascade" }),
+    companyId: text("company_id").references(() => company.id, { onDelete: "set null" }),
+    provider: text("provider").default("polar").notNull(),
+    externalId: text("external_id"),
+    productId: text("product_id"),
+    status: text("status").notNull(),
+    currentPeriodEnd: timestamp("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [
-    index('billing_subscriptions_user_idx').on(table.userId),
-    index('billing_subscriptions_status_idx').on(table.status),
+    index("billing_subscriptions_user_id_idx").on(table.userId),
+    uniqueIndex("billing_subscriptions_external_id_idx").on(table.provider, table.externalId),
   ],
-)
+);
 
-// Enums (must be defined before tables that use them)
-export const scenarioTypeEnum = pgEnum('scenario_type', ['conservative', 'base', 'optimistic'])
-export const stageEnum = pgEnum('startup_stage', ['idea', 'early_growth', 'scale'])
-export const businessModelTypeEnum = pgEnum('business_model_type', ['saas_subscription', 'marketplace', 'usage_based', 'ecommerce', 'other'])
-export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'gemini'])
-export const pitchDeckStatusEnum = pgEnum('pitch_deck_status', ['draft', 'generating', 'ready', 'failed'])
-export const pitchDeckDesignModeEnum = pgEnum('pitch_deck_design_mode', ['manual_template', 'ai_designed'])
-
-// Financial Models Schema
-export const financialModels = pgTable('financial_models', {
-  id: serial().primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }), // Better Auth user ID
-  name: text('name').notNull(),
-  companyName: text('company_name'),
-  description: text('description'),
-  currency: text('currency').default('USD').notNull(),
-  businessModelType: businessModelTypeEnum('business_model_type'),
-  stage: stageEnum('stage'),
-  foundedAt: date('founded_at'),
-  industry: text('industry'),
-  lastRoundSize: decimal('last_round_size', { precision: 18, scale: 2 }),
-  lastRoundValuation: decimal('last_round_valuation', { precision: 18, scale: 2 }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-export const modelScenarios = pgTable('model_scenarios', {
-  id: serial().primaryKey(),
-  modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'cascade' }).notNull(),
-  scenarioType: scenarioTypeEnum('scenario_type').notNull(),
-  userGrowth: decimal('user_growth', { precision: 8, scale: 4 }).notNull(), // e.g., 0.25 for 25% or 25 for 25%
-  arpu: decimal('arpu', { precision: 10, scale: 2 }).notNull(), // Average Revenue Per User
-  churnRate: decimal('churn_rate', { precision: 8, scale: 4 }).notNull(),
-  farmerGrowth: decimal('farmer_growth', { precision: 8, scale: 4 }).notNull(),
-  cac: decimal('cac', { precision: 10, scale: 2 }).notNull(), // Customer Acquisition Cost
-  revenueGrowthRate: decimal('revenue_growth_rate', { precision: 8, scale: 4 }),
-  grossMarginTarget: decimal('gross_margin_target', { precision: 8, scale: 4 }),
-  expansionRate: decimal('expansion_rate', { precision: 8, scale: 4 }),
-  takeRate: decimal('take_rate', { precision: 8, scale: 4 }),
-  gmvGrowth: decimal('gmv_growth', { precision: 8, scale: 4 }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-export const modelProjections = pgTable('model_projections', {
-  id: serial().primaryKey(),
-  modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'cascade' }).notNull(),
-  scenarioType: scenarioTypeEnum('scenario_type').notNull(),
-  year: integer('year').notNull(),
-  // User metrics
-  users: integer('users').notNull(),
-  farmers: integer('farmers').notNull(),
-  mau: integer('mau').notNull(), // Monthly Active Users
-  newUsers: integer('new_users').notNull(),
-  // Revenue
-  platformRevenue: integer('platform_revenue').notNull(),
-  farmerRevShare: integer('farmer_rev_share').notNull(),
-  b2bRevenue: integer('b2b_revenue').notNull(),
-  totalRevenue: integer('total_revenue').notNull(),
-  // COGS
-  hostingCosts: integer('hosting_costs').notNull(),
-  paymentProcessing: integer('payment_processing').notNull(),
-  customerSupport: integer('customer_support').notNull(),
-  cogs: integer('cogs').notNull(),
-  grossProfit: integer('gross_profit').notNull(),
-  grossMargin: decimal('gross_margin', { precision: 5, scale: 2 }).notNull(),
-  // Operating Expenses
-  personnel: integer('personnel').notNull(),
-  employees: integer('employees').notNull(),
-  marketing: integer('marketing').notNull(),
-  rd: integer('rd').notNull(), // R&D
-  gna: integer('gna').notNull(), // G&A
-  opex: integer('opex').notNull(),
-  // EBITDA
-  ebitda: integer('ebitda').notNull(),
-  ebitdaMargin: decimal('ebitda_margin', { precision: 5, scale: 2 }).notNull(),
-  // Depreciation & Taxes
-  capex: integer('capex').notNull(),
-  depreciation: integer('depreciation').notNull(),
-  ebit: integer('ebit').notNull(),
-  taxes: integer('taxes').notNull(),
-  netIncome: integer('net_income').notNull(),
-  // Working Capital
-  accountsReceivable: integer('accounts_receivable').notNull(),
-  accountsPayable: integer('accounts_payable').notNull(),
-  workingCapital: integer('working_capital').notNull(),
-  // Cash Flow
-  operatingCF: integer('operating_cf').notNull(),
-  investingCF: integer('investing_cf').notNull(),
-  freeCashFlow: integer('free_cash_flow').notNull(),
-  // KPIs
-  ltv: integer('ltv').notNull(),
-  ltvCac: decimal('ltv_cac', { precision: 5, scale: 2 }).notNull(),
-  paybackMonths: integer('payback_months').notNull(),
-  revenuePerEmployee: integer('revenue_per_employee').notNull(),
-  marketShare: decimal('market_share', { precision: 5, scale: 2 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-})
-
-// Market sizing data (TAM, SAM, SOM)
-export const marketSizing = pgTable('market_sizing', {
-  id: serial().primaryKey(),
-  modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'cascade' }).notNull(),
-  tam: integer('tam').notNull(),
-  tamDescription: text('tam_description').default(''),
-  sam: integer('sam').notNull(),
-  samDescription: text('sam_description').default(''),
-  som: integer('som').array().notNull(),
-  somDescription: text('som_description').default(''),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-// Model settings for configurable parameters
-export const modelSettings = pgTable('model_settings', {
-  id: serial().primaryKey(),
-  modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'cascade' }).notNull(),
-  // Initial values
-  startUsers: integer('start_users').default(1000).notNull(),
-  startFarmers: integer('start_farmers').default(50).notNull(),
-  // Tax and valuation
-  taxRate: decimal('tax_rate', { precision: 8, scale: 4 }).default('0.12').notNull(), // 12% default
-  discountRate: decimal('discount_rate', { precision: 8, scale: 4 }).default('0.30').notNull(), // 30% WACC
-  terminalGrowth: decimal('terminal_growth', { precision: 8, scale: 4 }).default('0.03').notNull(), // 3%
-  // Funding
-  safetyBuffer: integer('safety_buffer').default(50000).notNull(),
-  // Personnel by year (JSON array)
-  personnelByYear: integer('personnel_by_year').array().default([36000, 72000, 144000, 216000, 288000]).notNull(),
-  employeesByYear: integer('employees_by_year').array().default([2, 4, 8, 12, 16]).notNull(),
-  capexByYear: integer('capex_by_year').array().default([15000, 10000, 20000, 15000, 10000]).notNull(),
-  depreciationByYear: integer('depreciation_by_year').array().default([3750, 6250, 11250, 15000, 13750]).notNull(),
-  // Years to project
-  projectionYears: integer('projection_years').array().default([2025, 2026, 2027, 2028, 2029]).notNull(),
-  monthlyBurnRate: decimal('monthly_burn_rate', { precision: 18, scale: 2 }),
-  currentCash: decimal('current_cash', { precision: 18, scale: 2 }),
-  revenueMultiple: decimal('revenue_multiple', { precision: 8, scale: 2 }),
-  arrMultiple: decimal('arr_multiple', { precision: 8, scale: 2 }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-export const modelMetrics = pgTable('model_metrics', {
-  id: serial().primaryKey(),
-  modelId: integer('model_id')
-    .references(() => financialModels.id, { onDelete: 'cascade' })
-    .notNull(),
-  usersTotal: decimal('users_total', { precision: 18, scale: 4 }),
-  dau: decimal('dau', { precision: 18, scale: 4 }),
-  mau: decimal('mau', { precision: 18, scale: 4 }),
-  growthRate: decimal('growth_rate', { precision: 10, scale: 4 }),
-  activationRate: decimal('activation_rate', { precision: 10, scale: 4 }),
-  retentionRate: decimal('retention_rate', { precision: 10, scale: 4 }),
-  churnRate: decimal('churn_rate', { precision: 10, scale: 4 }),
-  mrr: decimal('mrr', { precision: 18, scale: 4 }),
-  arr: decimal('arr', { precision: 18, scale: 4 }),
-  arpu: decimal('arpu', { precision: 18, scale: 4 }),
-  revenueGrowthRate: decimal('revenue_growth_rate', { precision: 10, scale: 4 }),
-  expansionRevenue: decimal('expansion_revenue', { precision: 18, scale: 4 }),
-  contractionRevenue: decimal('contraction_revenue', { precision: 18, scale: 4 }),
-  cac: decimal('cac', { precision: 18, scale: 4 }),
-  ltv: decimal('ltv', { precision: 18, scale: 4 }),
-  ltvCac: decimal('ltv_cac', { precision: 10, scale: 4 }),
-  paybackPeriodMonths: decimal('payback_period_months', { precision: 10, scale: 2 }),
-  conversionRate: decimal('conversion_rate', { precision: 10, scale: 4 }),
-  cpl: decimal('cpl', { precision: 18, scale: 4 }),
-  salesCycleLengthDays: decimal('sales_cycle_length_days', { precision: 10, scale: 2 }),
-  winRate: decimal('win_rate', { precision: 10, scale: 4 }),
-  dauMauRatio: decimal('dau_mau_ratio', { precision: 10, scale: 4 }),
-  featureAdoptionRate: decimal('feature_adoption_rate', { precision: 10, scale: 4 }),
-  timeToValueDays: decimal('time_to_value_days', { precision: 10, scale: 2 }),
-  nps: decimal('nps', { precision: 10, scale: 2 }),
-  burnRate: decimal('burn_rate', { precision: 18, scale: 4 }),
-  runwayMonths: decimal('runway_months', { precision: 10, scale: 2 }),
-  grossMargin: decimal('gross_margin', { precision: 10, scale: 4 }),
-  operatingMargin: decimal('operating_margin', { precision: 10, scale: 4 }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-// Time-series traction data (investor-facing monthly metrics)
-export const modelMonthlyMetrics = pgTable(
-  'model_monthly_metrics',
-  {
-    id: serial().primaryKey(),
-    modelId: integer('model_id')
-      .notNull()
-      .references(() => financialModels.id, { onDelete: 'cascade' }),
-    month: date('month').notNull(), // first of month
-    mrr: decimal('mrr', { precision: 18, scale: 4 }),
-    newMrr: decimal('new_mrr', { precision: 18, scale: 4 }),
-    expansionMrr: decimal('expansion_mrr', { precision: 18, scale: 4 }),
-    contractionMrr: decimal('contraction_mrr', { precision: 18, scale: 4 }),
-    churnedMrr: decimal('churned_mrr', { precision: 18, scale: 4 }),
-    customers: integer('customers'),
-    newCustomers: integer('new_customers'),
-    churnedCustomers: integer('churned_customers'),
-    gmv: decimal('gmv', { precision: 18, scale: 4 }),
-    revenue: decimal('revenue', { precision: 18, scale: 4 }),
-    grossProfit: decimal('gross_profit', { precision: 18, scale: 4 }),
-    opex: decimal('opex', { precision: 18, scale: 4 }),
-    cashBalance: decimal('cash_balance', { precision: 18, scale: 4 }),
-    headcount: integer('headcount'),
-    marketingSpend: decimal('marketing_spend', { precision: 18, scale: 4 }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex('model_monthly_metrics_model_month_idx').on(table.modelId, table.month),
-    index('model_monthly_metrics_model_id_idx').on(table.modelId),
-  ],
-)
-
-// Full cohort retention triangle
-export const modelCohorts = pgTable(
-  'model_cohorts',
-  {
-    id: serial().primaryKey(),
-    modelId: integer('model_id')
-      .notNull()
-      .references(() => financialModels.id, { onDelete: 'cascade' }),
-    cohortMonth: date('cohort_month').notNull(),
-    cohortSize: integer('cohort_size').notNull(),
-    retentionByMonth: jsonb('retention_by_month').$type<number[]>(),
-    revenueByMonth: jsonb('revenue_by_month').$type<number[]>(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex('model_cohorts_model_cohort_month_idx').on(table.modelId, table.cohortMonth),
-    index('model_cohorts_model_id_idx').on(table.modelId),
-  ],
-)
-
-// Fundraising round inputs (minimal, optional)
-export const modelFundraising = pgTable('model_fundraising', {
-  id: serial().primaryKey(),
-  modelId: integer('model_id')
-    .notNull()
-    .references(() => financialModels.id, { onDelete: 'cascade' })
-    .unique(),
-  targetRaise: decimal('target_raise', { precision: 18, scale: 2 }),
-  preMoneyValuation: decimal('pre_money_valuation', { precision: 18, scale: 2 }),
-  useOfFunds: jsonb('use_of_funds').$type<Record<string, number>>(),
-  runwayTarget: integer('runway_target'),
-  plannedClose: date('planned_close'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
-export const pitchDecks = pgTable(
-  'pitch_decks',
-  {
-    id: serial().primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    modelId: integer('model_id').references(() => financialModels.id, { onDelete: 'set null' }),
-    title: text('title').notNull(),
-    startupName: text('startup_name').notNull(),
-    oneLiner: text('one_liner'),
-    audience: text('audience').default('investors').notNull(),
-    language: text('language').default('en').notNull(),
-    currency: text('currency').default('USD').notNull(),
-    provider: aiProviderEnum('provider').notNull(),
-    providerModel: text('provider_model').notNull(),
-    status: pitchDeckStatusEnum('status').default('draft').notNull(),
-    brief: jsonb('brief').notNull(),
-    slides: jsonb('slides').default([]).notNull(),
-    template: text('template').default('minimal').notNull(),
-    designMode: pitchDeckDesignModeEnum('design_mode').default('manual_template').notNull(),
-    aiStyleInput: jsonb('ai_style_input'),
-    aiStyleInstructions: jsonb('ai_style_instructions'),
-    generationMeta: jsonb('generation_meta'),
-    lastError: text('last_error'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => [
-    index('pitch_decks_user_idx').on(table.userId),
-    index('pitch_decks_model_idx').on(table.modelId),
-    index('pitch_decks_updated_idx').on(table.updatedAt),
-  ],
-)
-
-// Metrics snapshots for dashboard analytics (manual input or imports)
-export const metricSnapshot = pgTable(
-  'metric_snapshots',
-  {
-    id: serial().primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    stage: stageEnum('stage').notNull(),
-    metricKey: text('metric_key').notNull(),
-    value: decimal('value', { precision: 18, scale: 4 }).notNull(),
-    periodStart: timestamp('period_start').notNull(),
-    periodEnd: timestamp('period_end').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .defaultNow()
-      .$onUpdate(() => new Date())
-      .notNull(),
-  },
-  (table) => [
-    index('metric_snapshots_user_period_idx').on(table.userId, table.periodEnd),
-    index('metric_snapshots_stage_idx').on(table.stage),
-  ],
-)
-
+// ---------------------------------------------------------------------------
 // Relations
-export const financialModelsRelations = relations(financialModels, ({ many, one }) => ({
-  scenarios: many(modelScenarios),
-  projections: many(modelProjections),
-  marketSizing: many(marketSizing),
-  settings: one(modelSettings),
-  metrics: many(modelMetrics),
-  monthlyMetrics: many(modelMonthlyMetrics),
-  cohorts: many(modelCohorts),
-  fundraising: one(modelFundraising),
-  pitchDecks: many(pitchDecks),
-}))
+// ---------------------------------------------------------------------------
 
-export const modelScenariosRelations = relations(modelScenarios, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [modelScenarios.modelId],
-    references: [financialModels.id],
+export const userRelations = relations(user, ({ many, one }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  applications: many(application),
+  savedJobs: many(savedJob),
+  savedSearches: many(savedSearch),
+  experience: many(candidateExperience),
+  profile: one(candidateProfile, {
+    fields: [user.id],
+    references: [candidateProfile.userId],
   }),
-}))
+}));
 
-export const modelProjectionsRelations = relations(modelProjections, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [modelProjections.modelId],
-    references: [financialModels.id],
-  }),
-}))
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, { fields: [session.userId], references: [user.id] }),
+}));
 
-export const marketSizingRelations = relations(marketSizing, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [marketSizing.modelId],
-    references: [financialModels.id],
-  }),
-}))
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, { fields: [account.userId], references: [user.id] }),
+}));
 
-export const modelSettingsRelations = relations(modelSettings, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [modelSettings.modelId],
-    references: [financialModels.id],
+export const companyRelations = relations(company, ({ many, one }) => ({
+  jobs: many(job),
+  funding: many(companyFunding),
+  headcount: many(companyHeadcount),
+  estimates: many(companyEstimate),
+  claims: many(companyClaim),
+  signal: one(companySignal, {
+    fields: [company.id],
+    references: [companySignal.companyId],
   }),
-}))
+  outreach: one(outreach, {
+    fields: [company.id],
+    references: [outreach.companyId],
+  }),
+}));
 
-export const modelMetricsRelations = relations(modelMetrics, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [modelMetrics.modelId],
-    references: [financialModels.id],
+export const jobRelations = relations(job, ({ one, many }) => ({
+  company: one(company, { fields: [job.companyId], references: [company.id] }),
+  source: one(source, { fields: [job.sourceId], references: [source.id] }),
+  embedding: one(jobEmbedding, {
+    fields: [job.id],
+    references: [jobEmbedding.jobId],
   }),
-}))
+  applications: many(application),
+  reports: many(userReport),
+}));
 
-export const modelMonthlyMetricsRelations = relations(modelMonthlyMetrics, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [modelMonthlyMetrics.modelId],
-    references: [financialModels.id],
-  }),
-}))
+export const applicationRelations = relations(application, ({ one }) => ({
+  job: one(job, { fields: [application.jobId], references: [job.id] }),
+  user: one(user, { fields: [application.userId], references: [user.id] }),
+}));
 
-export const modelCohortsRelations = relations(modelCohorts, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [modelCohorts.modelId],
-    references: [financialModels.id],
+export const candidateProfileRelations = relations(candidateProfile, ({ one }) => ({
+  user: one(user, { fields: [candidateProfile.userId], references: [user.id] }),
+  embedding: one(candidateEmbedding, {
+    fields: [candidateProfile.userId],
+    references: [candidateEmbedding.userId],
   }),
-}))
+}));
 
-export const modelFundraisingRelations = relations(modelFundraising, ({ one }) => ({
-  model: one(financialModels, {
-    fields: [modelFundraising.modelId],
-    references: [financialModels.id],
-  }),
-}))
-
-export const pitchDecksRelations = relations(pitchDecks, ({ one }) => ({
-  user: one(user, {
-    fields: [pitchDecks.userId],
-    references: [user.id],
-  }),
-  model: one(financialModels, {
-    fields: [pitchDecks.modelId],
-    references: [financialModels.id],
-  }),
-}))
-
-export const billingSubscriptionsRelations = relations(billingSubscriptions, ({ one }) => ({
-  user: one(user, {
-    fields: [billingSubscriptions.userId],
-    references: [user.id],
-  }),
-}))
+export const sourceRelations = relations(source, ({ many }) => ({
+  jobs: many(job),
+  runs: many(ingestRun),
+  rawPostings: many(rawPosting),
+}));

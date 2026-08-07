@@ -3,25 +3,25 @@ import { describe, expect, it } from "vitest";
 import {
   BILLING_SNAPSHOT_STALE_MS,
   isBillingSnapshotStale,
-  isExportEntitled,
+  isSubscriptionActive,
   pickTrackedSubscription,
 } from "@/lib/billing/subscription";
 
-describe("isExportEntitled", () => {
+describe("isSubscriptionActive", () => {
   it("returns true for active status", () => {
-    expect(isExportEntitled({ status: "active" })).toBe(true);
+    expect(isSubscriptionActive({ status: "active" })).toBe(true);
   });
 
   it("returns true for trialing status", () => {
-    expect(isExportEntitled({ status: "trialing" })).toBe(true);
+    expect(isSubscriptionActive({ status: "trialing" })).toBe(true);
   });
 
   it("returns false for non-entitled status", () => {
-    expect(isExportEntitled({ status: "inactive" })).toBe(false);
+    expect(isSubscriptionActive({ status: "inactive" })).toBe(false);
   });
 
   it("returns false when snapshot is missing", () => {
-    expect(isExportEntitled(null)).toBe(false);
+    expect(isSubscriptionActive(null)).toBe(false);
   });
 });
 

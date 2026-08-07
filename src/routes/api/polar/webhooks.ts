@@ -18,9 +18,11 @@ export const Route = createFileRoute("/api/polar/webhooks")({
             getCustomerStateExternal,
           },
           { upsertBillingFromPolarState },
+          { withDb },
         ] = await Promise.all([
           import("@/lib/billing/polar"),
           import("@/lib/billing/subscription"),
+          import("@/db/index"),
         ]);
 
         const body = await request.text();
@@ -47,7 +49,7 @@ export const Route = createFileRoute("/api/polar/webhooks")({
           }
 
           const state = await getCustomerStateExternal(externalCustomerId);
-          await upsertBillingFromPolarState(externalCustomerId, state);
+          await withDb((db) => upsertBillingFromPolarState(db, externalCustomerId, state));
 
           return new Response(JSON.stringify({ ok: true }), {
             status: 200,

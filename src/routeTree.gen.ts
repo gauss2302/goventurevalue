@@ -9,72 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AssumptionsRouteImport } from './routes/assumptions'
-import { Route as AcademyRouteImport } from './routes/academy'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PitchDecksIndexRouteImport } from './routes/pitch-decks/index'
-import { Route as ModelsIndexRouteImport } from './routes/models/index'
-import { Route as PitchDecksNewRouteImport } from './routes/pitch-decks/new'
-import { Route as PitchDecksDeckIdRouteImport } from './routes/pitch-decks/$deckId'
-import { Route as ModelsNewRouteImport } from './routes/models/new'
-import { Route as ModelsModelIdRouteImport } from './routes/models/$modelId'
 import { Route as BillingSuccessRouteImport } from './routes/billing/success'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
-import { Route as ModelsModelIdCompareRouteImport } from './routes/models/$modelId/compare'
 import { Route as ApiPolarWebhooksRouteImport } from './routes/api/polar/webhooks'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssumptionsRoute = AssumptionsRouteImport.update({
-  id: '/assumptions',
-  path: '/assumptions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AcademyRoute = AcademyRouteImport.update({
-  id: '/academy',
-  path: '/academy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PitchDecksIndexRoute = PitchDecksIndexRouteImport.update({
-  id: '/pitch-decks/',
-  path: '/pitch-decks/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ModelsIndexRoute = ModelsIndexRouteImport.update({
-  id: '/models/',
-  path: '/models/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PitchDecksNewRoute = PitchDecksNewRouteImport.update({
-  id: '/pitch-decks/new',
-  path: '/pitch-decks/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PitchDecksDeckIdRoute = PitchDecksDeckIdRouteImport.update({
-  id: '/pitch-decks/$deckId',
-  path: '/pitch-decks/$deckId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ModelsNewRoute = ModelsNewRouteImport.update({
-  id: '/models/new',
-  path: '/models/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ModelsModelIdRoute = ModelsModelIdRouteImport.update({
-  id: '/models/$modelId',
-  path: '/models/$modelId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingSuccessRoute = BillingSuccessRouteImport.update({
@@ -97,11 +42,6 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ModelsModelIdCompareRoute = ModelsModelIdCompareRouteImport.update({
-  id: '/compare',
-  path: '/compare',
-  getParentRoute: () => ModelsModelIdRoute,
-} as any)
 const ApiPolarWebhooksRoute = ApiPolarWebhooksRouteImport.update({
   id: '/api/polar/webhooks',
   path: '/api/polar/webhooks',
@@ -115,211 +55,79 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/academy': typeof AcademyRoute
-  '/assumptions': typeof AssumptionsRoute
-  '/dashboard': typeof DashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
-  '/models/$modelId': typeof ModelsModelIdRouteWithChildren
-  '/models/new': typeof ModelsNewRoute
-  '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
-  '/pitch-decks/new': typeof PitchDecksNewRoute
-  '/models': typeof ModelsIndexRoute
-  '/pitch-decks': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
-  '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/academy': typeof AcademyRoute
-  '/assumptions': typeof AssumptionsRoute
-  '/dashboard': typeof DashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
-  '/models/$modelId': typeof ModelsModelIdRouteWithChildren
-  '/models/new': typeof ModelsNewRoute
-  '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
-  '/pitch-decks/new': typeof PitchDecksNewRoute
-  '/models': typeof ModelsIndexRoute
-  '/pitch-decks': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
-  '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/academy': typeof AcademyRoute
-  '/assumptions': typeof AssumptionsRoute
-  '/dashboard': typeof DashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
-  '/models/$modelId': typeof ModelsModelIdRouteWithChildren
-  '/models/new': typeof ModelsNewRoute
-  '/pitch-decks/$deckId': typeof PitchDecksDeckIdRoute
-  '/pitch-decks/new': typeof PitchDecksNewRoute
-  '/models/': typeof ModelsIndexRoute
-  '/pitch-decks/': typeof PitchDecksIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
-  '/models/$modelId/compare': typeof ModelsModelIdCompareRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/academy'
-    | '/assumptions'
-    | '/dashboard'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
-    | '/models/$modelId'
-    | '/models/new'
-    | '/pitch-decks/$deckId'
-    | '/pitch-decks/new'
-    | '/models'
-    | '/pitch-decks'
     | '/api/auth/$'
     | '/api/polar/webhooks'
-    | '/models/$modelId/compare'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/academy'
-    | '/assumptions'
-    | '/dashboard'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
-    | '/models/$modelId'
-    | '/models/new'
-    | '/pitch-decks/$deckId'
-    | '/pitch-decks/new'
-    | '/models'
-    | '/pitch-decks'
     | '/api/auth/$'
     | '/api/polar/webhooks'
-    | '/models/$modelId/compare'
   id:
     | '__root__'
     | '/'
-    | '/academy'
-    | '/assumptions'
-    | '/dashboard'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
-    | '/models/$modelId'
-    | '/models/new'
-    | '/pitch-decks/$deckId'
-    | '/pitch-decks/new'
-    | '/models/'
-    | '/pitch-decks/'
     | '/api/auth/$'
     | '/api/polar/webhooks'
-    | '/models/$modelId/compare'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AcademyRoute: typeof AcademyRoute
-  AssumptionsRoute: typeof AssumptionsRoute
-  DashboardRoute: typeof DashboardRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSigninRoute: typeof AuthSigninRoute
   AuthSignupRoute: typeof AuthSignupRoute
   BillingSuccessRoute: typeof BillingSuccessRoute
-  ModelsModelIdRoute: typeof ModelsModelIdRouteWithChildren
-  ModelsNewRoute: typeof ModelsNewRoute
-  PitchDecksDeckIdRoute: typeof PitchDecksDeckIdRoute
-  PitchDecksNewRoute: typeof PitchDecksNewRoute
-  ModelsIndexRoute: typeof ModelsIndexRoute
-  PitchDecksIndexRoute: typeof PitchDecksIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPolarWebhooksRoute: typeof ApiPolarWebhooksRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assumptions': {
-      id: '/assumptions'
-      path: '/assumptions'
-      fullPath: '/assumptions'
-      preLoaderRoute: typeof AssumptionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/academy': {
-      id: '/academy'
-      path: '/academy'
-      fullPath: '/academy'
-      preLoaderRoute: typeof AcademyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pitch-decks/': {
-      id: '/pitch-decks/'
-      path: '/pitch-decks'
-      fullPath: '/pitch-decks'
-      preLoaderRoute: typeof PitchDecksIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/models/': {
-      id: '/models/'
-      path: '/models'
-      fullPath: '/models'
-      preLoaderRoute: typeof ModelsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pitch-decks/new': {
-      id: '/pitch-decks/new'
-      path: '/pitch-decks/new'
-      fullPath: '/pitch-decks/new'
-      preLoaderRoute: typeof PitchDecksNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pitch-decks/$deckId': {
-      id: '/pitch-decks/$deckId'
-      path: '/pitch-decks/$deckId'
-      fullPath: '/pitch-decks/$deckId'
-      preLoaderRoute: typeof PitchDecksDeckIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/models/new': {
-      id: '/models/new'
-      path: '/models/new'
-      fullPath: '/models/new'
-      preLoaderRoute: typeof ModelsNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/models/$modelId': {
-      id: '/models/$modelId'
-      path: '/models/$modelId'
-      fullPath: '/models/$modelId'
-      preLoaderRoute: typeof ModelsModelIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing/success': {
@@ -350,13 +158,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/models/$modelId/compare': {
-      id: '/models/$modelId/compare'
-      path: '/compare'
-      fullPath: '/models/$modelId/compare'
-      preLoaderRoute: typeof ModelsModelIdCompareRouteImport
-      parentRoute: typeof ModelsModelIdRoute
-    }
     '/api/polar/webhooks': {
       id: '/api/polar/webhooks'
       path: '/api/polar/webhooks'
@@ -374,33 +175,12 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface ModelsModelIdRouteChildren {
-  ModelsModelIdCompareRoute: typeof ModelsModelIdCompareRoute
-}
-
-const ModelsModelIdRouteChildren: ModelsModelIdRouteChildren = {
-  ModelsModelIdCompareRoute: ModelsModelIdCompareRoute,
-}
-
-const ModelsModelIdRouteWithChildren = ModelsModelIdRoute._addFileChildren(
-  ModelsModelIdRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AcademyRoute: AcademyRoute,
-  AssumptionsRoute: AssumptionsRoute,
-  DashboardRoute: DashboardRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSigninRoute: AuthSigninRoute,
   AuthSignupRoute: AuthSignupRoute,
   BillingSuccessRoute: BillingSuccessRoute,
-  ModelsModelIdRoute: ModelsModelIdRouteWithChildren,
-  ModelsNewRoute: ModelsNewRoute,
-  PitchDecksDeckIdRoute: PitchDecksDeckIdRoute,
-  PitchDecksNewRoute: PitchDecksNewRoute,
-  ModelsIndexRoute: ModelsIndexRoute,
-  PitchDecksIndexRoute: PitchDecksIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPolarWebhooksRoute: ApiPolarWebhooksRoute,
 }

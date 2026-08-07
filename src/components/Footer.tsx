@@ -1,4 +1,6 @@
 import { Link } from "@tanstack/react-router";
+
+import { BRAND } from "@/config/brand";
 import {
   BarChart3,
   Brain,
@@ -13,16 +15,12 @@ import {
 
 const footerLinks = {
   company: [
-    { label: "About Us", href: "#solutions" },
+    { label: "About", href: "#" },
     { label: "Contact", href: "#" },
-    { label: "Academy", href: "/academy" },
-    { label: "Careers", href: "#" },
   ],
   product: [
-    { label: "Financial Models", href: "#features" },
-    { label: "Pitch Decks", href: "#features" },
-    { label: "Integrations", href: "#resources" },
-    { label: "Pricing", href: "#pricing" },
+    { label: "For candidates", href: "#" },
+    { label: "For startups", href: "#" },
   ],
 };
 
@@ -59,7 +57,7 @@ export default function Footer() {
                 className="text-lg font-bold tracking-tight text-[var(--brand-ink)]"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Havamind
+                {BRAND.name}
               </span>
             </div>
             <h3
@@ -107,7 +105,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-[var(--border-soft)] pt-6 sm:flex-row">
           <p className="text-xs text-[var(--brand-muted)]">
-            &copy; {new Date().getFullYear()} Havamind &mdash; AI-powered financial modeling &amp; pitch decks. All rights reserved.
+            &copy; {new Date().getFullYear()} {BRAND.name} &mdash; {BRAND.tagline}. All rights reserved.
           </p>
           <div className="flex gap-6">
             <a

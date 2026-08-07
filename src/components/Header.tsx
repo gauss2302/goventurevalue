@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import AuthButton from './AuthButton'
 
+import { BRAND } from '@/config/brand'
+
 export default function Header() {
   return (
     <header
@@ -24,7 +26,7 @@ export default function Header() {
             className="text-lg font-bold tracking-tight text-[var(--brand-ink)]"
             style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
           >
-            Havamind
+            {BRAND.name}
           </span>
         </Link>
         <AuthButton />

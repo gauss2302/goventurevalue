@@ -16,7 +16,7 @@ brand string lives in `src/config/brand.ts`, so renaming is a single edit.
 
 ## Stack
 
-TanStack Start (React 19) on Cloudflare Workers · Neon Postgres via Hyperdrive ·
+TanStack Start (React 19) on Cloudflare Workers · Supabase Postgres via Hyperdrive ·
 Drizzle ORM · pgvector for matching · Better Auth · R2 / KV / Queues / Workers AI
 
 ## Getting started
@@ -47,7 +47,7 @@ locally, so the Vite plugin opens a remote session. See `docs/PHASE_0.md`.
 
 ```bash
 createdb startup_jobs
-psql -d startup_jobs -f drizzle/0000_wise_iron_man.sql
+psql -d startup_jobs -f drizzle/0000_clumsy_starfox.sql
 DATABASE_URL=postgresql://localhost/startup_jobs pnpm vitest run src/db
 ```
 

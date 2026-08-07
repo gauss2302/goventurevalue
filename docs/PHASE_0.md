@@ -12,23 +12,27 @@
 | Как получить env/биндинги в server functions | ✅ **`import { env } from "cloudflare:workers"`**. Это была главная неизвестная. Дополнительно нашёлся `waitUntil` из того же модуля — им закрывается соединение с БД, не задерживая ответ |
 | Биндинги доезжают до собранного воркера | ✅ В `dist/server/wrangler.json` присутствуют `hyperdrive`, `kv_namespaces`, `r2_buckets`, `queues`, `ai`, `triggers.crons`, `compatibility_flags: ["nodejs_compat"]` |
 | Типизация биндингов | ✅ `wrangler types` работает офлайн, без авторизации. `worker-configuration.d.ts` закоммичен, чтобы typecheck и CI были герметичны |
-| Схема Drizzle ↔ сгенерированный SQL | ✅ Миграция применена к живому **Postgres 16.13** с `ON_ERROR_STOP=1`: 28 таблиц, 22 enum'а, 67 индексов |
+| Схема Drizzle ↔ сгенерированный SQL | ✅ Миграция применена к живому **Postgres 16.13** с `ON_ERROR_STOP=1`: **32 таблицы, 28 enum'ов, 51 индекс**, из них 5 частичных |
 | pgvector | ✅ Расширение 0.6.0, колонки `vector(768)`, **HNSW-индексы созданы**. Косинусное ранжирование проверено: расстояние 0 для совпадающего направления, 2 для противоположного |
-| Drizzle + pg читают и пишут | ✅ 4 интеграционных теста в `src/db/schema.integration.test.ts` проходят против реального Postgres, включая запрос «публикуем только при принятом SLA» и срабатывание unique-констрейнта |
+| Drizzle + pg читают и пишут | ✅ **9 интеграционных тестов** в `src/db/schema.integration.test.ts` против реального Postgres: запрос «публикуем только при принятом SLA», мультичленство в компаниях, инварианты одного SLA-контакта и одного членства, вывод SLA из событий |
 | `withDb` / `src/lib/env.ts` на не-Worker пути | ✅ Те же интеграционные тесты идут через `withDb`, то есть fallback-путь на `DATABASE_URL` рабочий |
 | Контракт честности данных (§6.4) | ✅ 28 юнит-тестов, по одному блоку на каждое из шести правил |
-| Typecheck и тесты | ✅ `pnpm typecheck` чист, `pnpm test` — 46 passed, 4 skipped (интеграционные, без БД) |
+| Права и роли (§6.6) | ✅ 23 теста: кумулятивность иерархии без дырок, скоуп по компании, инвариант последнего владельца |
+| Определение ответа и SLA (§6.6) | ✅ 29 тестов: внутренняя смена статуса **не** закрывает SLA, поздний ответ — нарушение, отзыв кандидата — `cancelled` |
+| Канонизация под эмбеддинг (§6.2) | ✅ 17 тестов: симметрия кандидат↔вакансия, отсутствие жёстких ограничений и PII в векторе |
+| Парсинг резюме как предложение (§6.2) | ✅ 30 тестов: парсер не додумывает стадию и размер команды, null не перетирает ручную правку |
+| Typecheck и тесты | ✅ `pnpm typecheck` чист. `pnpm test` — **145 passed, 9 skipped** (интеграционные, без БД); с `DATABASE_URL` — **154 passed** |
 
 ## Не проверено — нужен аккаунт Cloudflare
 
-В этом окружении **нет `CLOUDFLARE_API_TOKEN` и нет базы Neon**, поэтому следующее
+В этом окружении **нет `CLOUDFLARE_API_TOKEN` и нет базы Postgres**, поэтому следующее
 физически невозможно было проверить. Не считать сделанным.
 
 | Пункт | Что именно неизвестно | Как проверить |
 |---|---|---|
 | **Реальный деплой** | `wrangler deploy` не запускался ни разу | `wrangler deploy` после `wrangler login` |
-| **Hyperdrive → Neon** | Проверено соединение с Postgres напрямую, **не через Hyperdrive**. Латентность и поведение пула неизвестны | Создать Hyperdrive-конфиг, замерить p50/p95 запроса |
-| **Латентность pgvector на объёме** | Корректность подтверждена, производительность — нет. Плана §7 требует замера на 50k вакансий | Засеять 50k строк в Neon, замерить HNSW-поиск |
+| **Hyperdrive → Supabase** | Проверено соединение с Postgres напрямую, **не через Hyperdrive**. Латентность и поведение пула неизвестны | Создать Hyperdrive-конфиг на **direct connection** (не Supavisor), замерить p50/p95 |
+| **Латентность pgvector на объёме** | Корректность подтверждена, производительность — нет. Плана §7 требует замера на 50k вакансий | Засеять 50k строк в Supabase, замерить HNSW-поиск |
 | **`pnpm dev`** | Локальный dev **упирается в отсутствие токена**: биндинг `AI` не эмулируется локально, плагин открывает remote-сессию и требует `CLOUDFLARE_API_TOKEN` | Задать токен, либо временно убрать биндинг `ai` для офлайн-разработки |
 | **Better Auth на Workers** | Код переписан на per-request factory, но **ни разу не исполнялся на Workers**. Google OAuth и KV secondaryStorage не проверены | Задеплоить, пройти OAuth-флоу |
 | **Workers AI: эмбеддинги** | Модель и размерность (768) зафиксированы в коде, вызов не выполнялся | Вызвать `env.AI.run(EMBEDDING_MODEL, ...)` на задеплоенном воркере |
@@ -39,7 +43,7 @@
 ## Что нужно от тебя, чтобы закрыть гейт
 
 1. **Аккаунт Cloudflare, план Paid** (§11.2). На Free спайк упрётся в 10 мс CPU и даст неверные выводы.
-2. **База Neon** + `DATABASE_URL`.
+2. **Проект Supabase** + `DATABASE_URL` — строка **direct connection**, не Supavisor (§5.5: Supavisor поверх Hyperdrive даёт двойной пулинг и ломает prepared statements).
 3. `CLOUDFLARE_API_TOKEN` в окружении — без него не работает даже `pnpm dev`.
 
 Команды провижининга после этого:
@@ -49,7 +53,7 @@ wrangler kv namespace create CACHE
 wrangler r2 bucket create startup-jobs-files
 wrangler queues create startup-jobs-work
 wrangler queues create startup-jobs-work-dlq
-wrangler hyperdrive create startup-jobs-db --connection-string="<neon-connection-string>"
+wrangler hyperdrive create startup-jobs-db --connection-string="<supabase-direct-connection-string>"
 # подставить выданные id в wrangler.jsonc вместо REPLACE_WITH_*
 pnpm cf-typegen
 ```
@@ -69,7 +73,7 @@ wrangler secret put POLAR_ACCESS_TOKEN   # опционально, Phase 4.5
 
 ```bash
 createdb startup_jobs
-psql -d startup_jobs -f drizzle/0000_wise_iron_man.sql
+psql -d startup_jobs -f drizzle/0000_clumsy_starfox.sql
 DATABASE_URL=postgresql://localhost/startup_jobs pnpm vitest run src/db
 ```
 

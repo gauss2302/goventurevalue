@@ -23,8 +23,14 @@
   // docs/PHASE_0.md for the provisioning commands that fill them in.
   // ---------------------------------------------------------------------------
 
-  // Postgres (Neon) through Hyperdrive. NOTE: the binding is only readable
-  // inside a request context, which is why db/auth are per-request factories.
+  // Postgres (Supabase) through Hyperdrive.
+  //
+  // Two things to get right (docs/PRODUCT_PLAN.md §5.5):
+  //  - the upstream must be Supabase's DIRECT CONNECTION, not the Supavisor
+  //    pooler: Supavisor behind Hyperdrive is double pooling and loses prepared
+  //    statements;
+  //  - the binding is only readable inside a request context, which is why
+  //    db/auth are per-request factories.
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",

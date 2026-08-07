@@ -15,6 +15,7 @@ CREATE TYPE "public"."company_trust_state" AS ENUM('unreviewed', 'qualified', 'r
 CREATE TYPE "public"."confidence" AS ENUM('high', 'medium', 'low');--> statement-breakpoint
 CREATE TYPE "public"."data_request_kind" AS ENUM('export', 'delete');--> statement-breakpoint
 CREATE TYPE "public"."data_request_state" AS ENUM('pending', 'completed', 'rejected');--> statement-breakpoint
+CREATE TYPE "public"."experience_source" AS ENUM('candidate', 'resume_parse');--> statement-breakpoint
 CREATE TYPE "public"."invite_state" AS ENUM('pending', 'accepted', 'revoked', 'expired');--> statement-breakpoint
 CREATE TYPE "public"."job_status" AS ENUM('prospect', 'pending', 'published', 'archived', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."moderation_kind" AS ENUM('new_company', 'dedupe_ambiguous', 'low_confidence', 'claim', 'user_report', 'sla_breach', 'audit_sample');--> statement-breakpoint
@@ -120,7 +121,10 @@ CREATE TABLE "candidate_experience" (
 	"title" text NOT NULL,
 	"started_at" date,
 	"ended_at" date,
-	"was_first_in_function" boolean
+	"was_first_in_function" boolean,
+	"source" "experience_source" DEFAULT 'candidate' NOT NULL,
+	"confirmed_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "candidate_profile" (
@@ -138,7 +142,11 @@ CREATE TABLE "candidate_profile" (
 	"salary_expectation_min" integer,
 	"preferred_stages" "startup_stage"[],
 	"resume_r2_key" text,
+	"resume_uploaded_at" timestamp,
 	"resume_parsed" jsonb,
+	"resume_parsed_at" timestamp,
+	"resume_parse_model" text,
+	"resume_confirmed_at" timestamp,
 	"visibility" "profile_visibility" DEFAULT 'hidden' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -512,6 +520,7 @@ CREATE UNIQUE INDEX "billing_subscriptions_external_id_idx" ON "billing_subscrip
 CREATE UNIQUE INDEX "blocklist_kind_pattern_idx" ON "blocklist" USING btree ("kind","pattern");--> statement-breakpoint
 CREATE INDEX "candidate_embedding_hnsw_idx" ON "candidate_embedding" USING hnsw ("embedding" vector_cosine_ops);--> statement-breakpoint
 CREATE INDEX "candidate_experience_user_id_idx" ON "candidate_experience" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "candidate_experience_confirmed_idx" ON "candidate_experience" USING btree ("user_id") WHERE "candidate_experience"."confirmed_at" IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "company_domain_idx" ON "company" USING btree ("domain");--> statement-breakpoint
 CREATE INDEX "company_lifecycle_idx" ON "company" USING btree ("lifecycle");--> statement-breakpoint
 CREATE INDEX "company_trust_state_idx" ON "company" USING btree ("trust_state");--> statement-breakpoint

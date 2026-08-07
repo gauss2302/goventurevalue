@@ -270,6 +270,17 @@ export const userReportKindEnum = pgEnum("user_report_kind", [
 export const blocklistKindEnum = pgEnum("blocklist_kind", ["domain", "company_name", "source"]);
 
 /**
+ * Where a piece of candidate history came from.
+ *
+ * `resume_parse` entries are proposals until confirmed (§6.2): a parse is not
+ * truth, and treating it as such is the same error as printing a guessed runway.
+ */
+export const experienceSourceEnum = pgEnum("experience_source", [
+  "candidate",
+  "resume_parse",
+]);
+
+/**
  * A person's capability inside a company.
  *
  * Deliberately *not* a user type. Identity stays in a single `user` row and
@@ -834,8 +845,15 @@ export const candidateProfile = pgTable("candidate_profile", {
   salaryExpectationMin: integer("salary_expectation_min"),
   preferredStages: startupStageEnum("preferred_stages").array(),
   resumeR2Key: text("resume_r2_key"),
+  resumeUploadedAt: timestamp("resume_uploaded_at"),
   /** Output of the unpdf + LLM parse, kept for re-derivation without re-upload. */
   resumeParsed: jsonb("resume_parsed").$type<Record<string, unknown>>(),
+  resumeParsedAt: timestamp("resume_parsed_at"),
+  /** Which model produced the parse, so a proposal from a model we later replace
+   *  can be re-run rather than silently trusted. */
+  resumeParseModel: text("resume_parse_model"),
+  /** Null while the parse is still a proposal awaiting the candidate (§6.2). */
+  resumeConfirmedAt: timestamp("resume_confirmed_at"),
   visibility: profileVisibilityEnum("visibility").default("hidden").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -883,8 +901,24 @@ export const candidateExperience = pgTable(
     startedAt: date("started_at"),
     endedAt: date("ended_at"),
     wasFirstInFunction: boolean("was_first_in_function"),
+
+    source: experienceSourceEnum("source").default("candidate").notNull(),
+    /**
+     * Only confirmed history feeds matching. A parsed entry sits here unconfirmed
+     * until the candidate accepts or corrects it, so an unreviewed parse can
+     * never silently shape who sees which roles.
+     */
+    confirmedAt: timestamp("confirmed_at"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("candidate_experience_user_id_idx").on(table.userId)],
+  (table) => [
+    index("candidate_experience_user_id_idx").on(table.userId),
+    // Drives confirmedExperienceCount in the onboarding status.
+    index("candidate_experience_confirmed_idx")
+      .on(table.userId)
+      .where(sql`${table.confirmedAt} IS NOT NULL`),
+  ],
 );
 
 // ---------------------------------------------------------------------------

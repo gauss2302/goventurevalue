@@ -406,7 +406,7 @@ user, session, account, verification
 ── Компании ──
 company              id, slug, name, domain, description, logo_r2_key, website,
                      hq_location, remote_policy, team_size, team_size_updated_at,
-                     stage, founded_year, is_claimed, claimed_by_user_id,
+                     stage, founded_year,
                      tier ('free'|'growth'|'scale'), ats_provider, ats_external_id,
                      -- квалификация как цели для аутрича, кэшируется навсегда (§6.5)
                      trust_state ('unreviewed'|'qualified'|'rejected'), trust_reason,
@@ -432,8 +432,22 @@ company_estimate     company_id, key ('runway_months'|'burn_rate_usd'|...),
 company_headcount    company_id, observed_at, headcount, source_kind   -- временной ряд
 blocklist            kind ('domain'|'company_name'|'source'), pattern, reason, created_by
 
+── Менеджеры (§6.6) ──
+-- владение НЕ хранится флагом: компания claimed ровно тогда, когда есть
+-- участник с ролью owner. Два флага об одном и том же — способ их рассинхронить
+company_member       id, company_id, user_id, role ('owner'|'admin'|'recruiter'|'viewer'),
+                     title, work_email, work_email_verified_at,
+                     is_sla_contact, notify_on_new_application,
+                     invited_by_user_id, joined_at, removed_at
+                     UNIQUE (company_id, user_id)
+                     UNIQUE (company_id) WHERE is_sla_contact AND removed_at IS NULL
+company_invite       id, company_id, email, role, token, state, invited_by_user_id,
+                     expires_at, accepted_at, accepted_by_user_id
+                     UNIQUE (company_id, email) WHERE state = 'pending'
+
 ── Вакансии ──
 job                  id, company_id, title, role_family, seniority, description_md,
+                     hiring_manager_member_id,   -- кому адресован SLA по этой роли
                      salary_min, salary_max, salary_currency, salary_is_public,
                      equity_min, equity_max, remote_type, timezones text[],
                      locations text[], visa_sponsorship, tech_stack text[],
@@ -462,10 +476,14 @@ user_report          job_id, user_id, kind ('dead'|'wrong_salary'|'not_startup'|
                      note, created_at
 
 ── Кандидаты ──
-candidate_profile    user_id, headline, bio, years_experience, role_families text[],
-                     seniority, tech_stack text[], timezone, locations text[],
-                     needs_visa, open_to ('remote'|'relocate'|'hybrid'),
-                     salary_expectation_min, preferred_stages text[],
+-- role_families и preferred_stages — массивы ENUM, не text[]: они драйвят
+-- жёсткие фильтры матчинга, опечатка должна падать на записи, а не молча
+-- выкидывать кандидата из всей выдачи
+candidate_profile    user_id, headline, bio, years_experience,
+                     role_families role_family[], seniority, tech_stack text[],
+                     timezone, locations text[],
+                     needs_visa, open_to ('remote'|'hybrid'|'onsite'),
+                     salary_expectation_min, preferred_stages startup_stage[],
                      resume_r2_key, resume_parsed jsonb, visibility, updated_at
 candidate_embedding  user_id, embedding vector(768), model, computed_at
 candidate_experience user_id, company_name, company_stage_at_join, team_size_at_join,
@@ -473,10 +491,19 @@ candidate_experience user_id, company_name, company_stage_at_join, team_size_at_
 
 ── Взаимодействие ──
 application          job_id, user_id, status, cover_letter, applied_at,
-                     first_response_at, status_history jsonb,
-                     -- машинерия SLA (§3.2): дедлайн ответа и факт нарушения
-                     sla_due_at, sla_state ('pending'|'answered'|'breached'),
+                     assignee_member_id,   -- кто персонально должен ответить
+                     first_response_at,    -- только из события, видимого кандидату
+                     -- машинерия SLA (§3.2). 'cancelled' — кандидат отозвал отклик,
+                     -- компанию за это не наказываем
+                     sla_due_at,
+                     sla_state ('pending'|'answered'|'breached'|'cancelled'),
                      reminded_at, breached_at
+-- заменила status_history jsonb: по jsonb нельзя ни доказать нарушение,
+-- ни посчитать медиану по компании (§6.6)
+application_event    id, application_id, kind, actor_user_id, actor_member_id,
+                     is_candidate_visible, from_status, to_status, body, occurred_at
+                     INDEX (application_id, occurred_at)
+                       WHERE kind IN ('message_to_candidate','decision')
 -- лимит откликов кандидата (§3.2). Окно недельное, счётчик в БД, а не в KV:
 -- лимит несущий, eventual consistency здесь недопустима
 application_quota    user_id, window_start, used, limit_per_window
@@ -484,6 +511,10 @@ saved_job            user_id, job_id, created_at
 saved_search         user_id, name, filters jsonb, alert_cadence, last_sent_at
 job_view             job_id, user_id?, session_hash, occurred_at   -- аналитика
 company_claim        company_id, user_id, work_email, state, verified_at
+-- GDPR в MVP, не «потом» (§6.3): мы храним резюме и карьерную историю
+data_request         id, user_id, kind ('export'|'delete'), state, export_r2_key,
+                     note, requested_at, completed_at
+                     UNIQUE (user_id, kind) WHERE state = 'pending'
 -- аутрич по prospecting-списку (§3.3) — внутренняя CRM-минималка
 outreach             company_id, state ('queued'|'sent'|'replied'|'declined'|'won'),
                      hiring_intent_score, contacted_at, replied_at, note, owner_id
@@ -659,6 +690,84 @@ precision по sampling audit, доля `user_report` на опубликова�
 **Деградация:** если очередь куратора переполняется (например, всплеск новых компаний),
 система **не** начинает публиковать без ревью. Она сужает гейт 2 и растит очередь — «лучше
 меньше вакансий, чем мусор» согласуется с дифференциатором ② из §1.4.
+
+### 6.6 Модель менеджера, ролей и ответа
+
+> Реализовано: `company_member`, `company_invite`, `application_event`,
+> `src/lib/company/permissions.ts`, `src/lib/application/sla.ts`.
+
+**Менеджер — это членство, а не тип пользователя.** Идентичность остаётся в одном `user`,
+права берутся из `company_member`. Причина практическая: основатели часто сами ищут работу,
+и если заставить выбирать сторону при регистрации, получим дубли аккаунтов и сломанную
+уникальность email. Состояние «есть `candidate_profile` **и** есть членства» — нормальное
+и ожидаемое.
+
+**Один человек — много компаний.** Членство ключуется парой `(company_id, user_id)`, не
+пользователем. Фракционные рекрутеры и основатели-эдвайзеры — норма, не исключение. Отсюда
+жёсткое требование к авторизации: **любая проверка прав обязана называть компанию**, к которой
+относится. `owner` в одной компании не даёт ничего в другой.
+
+**У компании много участников с разными ролями.** Внутри одной компании человек держит
+**ровно одну** роль, и роли — иерархия, а не набор ортогональных прав:
+
+| Роль | Что добавляет к предыдущей |
+|---|---|
+| `viewer` | Смотреть компанию и отклики |
+| `recruiter` | **Отвечать кандидатам**, менять статусы, назначать, вести роли |
+| `admin` | Профиль компании, ATS-фид, приглашения, назначение SLA-контакта |
+| `owner` | **Принятие SLA**, биллинг, передача владения, удаление |
+
+Два решения здесь продуктовые, а не технические:
+
+- **`respondToApplication` лежит на `recruiter`, максимально низко.** Ответ кандидату —
+  ключевое обязательство компании (§3.2). SLA, который может закрыть только админ, — это SLA,
+  который будут пропускать.
+- **`acceptSla` лежит на `owner`.** Принятие обязательства связывает компанию целиком и
+  открывает публикацию, значит принимать его должен тот, кто вправе говорить за компанию.
+
+Иерархия вместо набора прав — сознательное упрощение: на 5–60 человек никто не думает
+«она админ *и* рекрутер», думают «она ведёт найм». Если это перестанет работать, миграция
+аддитивная (таблица `company_member_role`), и менять придётся только `permissions.ts`.
+
+**SLA адресуется человеку.** Цепочка ответственного: `application.assignee_member_id` →
+`job.hiring_manager_member_id` → участник с `is_sla_contact` → любой активный участник,
+который вправе отвечать. Пустой результат означает, что отвечать в компании некому — это
+повод к приостановке, а не то, что можно молча проглотить. «Компания обязана ответить» не
+читает никто; «на тебе три отклика до пятницы» читают.
+
+**Инварианты, зашитые в БД, а не в код приложения:**
+- ровно один SLA-контакт на компанию — частичный unique-индекс `WHERE is_sla_contact AND removed_at IS NULL`;
+- один человек не может дважды состоять в одной компании;
+- одно живое приглашение на адрес в компании;
+- **нельзя снять или понизить последнего владельца** — иначе компания остаётся без того, кто
+  может принять SLA, вести биллинг и передать владение. Несколько co-founder'ов как несколько
+  `owner` — нормально.
+
+Участники удаляются **мягко** (`removed_at`): историю событий нельзя оставить без автора.
+Удалённый участник теряет все права, но остаётся ссылкой в `application_event`.
+
+#### Что считается ответом — определение, от которого зависит вся метрика
+
+`application_event` заменил `status_history jsonb`: по jsonb нельзя ни доказать нарушение
+SLA, ни посчитать медиану по компании — для обоего нужны индексируемые строки.
+
+Ответом компании считаются **только** `message_to_candidate` и `decision`. Явно **не**
+считаются:
+
+| Событие | Почему не ответ |
+|---|---|
+| `status_changed` (`submitted → in_review`) | Кандидат не видит **ничего**. Если это зачесть, компания закрывает SLA нажатием кнопки, и обещание превращается в театр |
+| `internal_note`, `assigned` | Внутренняя работа, кандидату не видна |
+| `candidate_message` | Кандидат видит своё сообщение, но это он говорит, а не ему ответили |
+
+Отдельно про честность в обратную сторону: `sla_state = 'cancelled'`, если кандидат отозвал
+отклик до ответа — наказывать компанию за чужую смену решения значит делать публичный
+response rate недостоверным с другой стороны. И **поздний ответ остаётся нарушением**:
+`answered` означает «ответили в срок», иначе метрика льстила бы тем, кто отвечает «когда-нибудь».
+
+`response_rate` возвращает **null, а не 0**, когда мерить нечего (§6.4 правило 2): у компании
+без разрешённых откликов нет response rate, а «0%» — ложное обвинение. Медиана, а не среднее:
+одно трёхмесячное молчание не должно ни спрятать типичное поведение компании, ни быть им спрятано.
 
 ---
 

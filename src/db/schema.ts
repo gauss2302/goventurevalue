@@ -29,7 +29,7 @@ import {
   uniqueIndex,
   vector,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 import { EMBEDDING_DIMENSIONS } from "@/lib/ai/workersAi";
 
@@ -222,8 +222,19 @@ export const applicationStatusEnum = pgEnum("application_status", [
   "withdrawn",
 ]);
 
-/** Tracks the response promise per application (§3.2). */
-export const slaStateEnum = pgEnum("sla_state", ["pending", "answered", "breached"]);
+/**
+ * Tracks the response promise per application (§3.2).
+ *
+ * `cancelled` exists so a candidate withdrawing does not count against the
+ * company: punishing a company for someone else changing their mind would make
+ * the published response rate dishonest in the other direction.
+ */
+export const slaStateEnum = pgEnum("sla_state", [
+  "pending",
+  "answered",
+  "breached",
+  "cancelled",
+]);
 
 export const outreachStateEnum = pgEnum("outreach_state", [
   "queued",
@@ -258,6 +269,60 @@ export const userReportKindEnum = pgEnum("user_report_kind", [
 
 export const blocklistKindEnum = pgEnum("blocklist_kind", ["domain", "company_name", "source"]);
 
+/**
+ * A person's capability inside a company.
+ *
+ * Deliberately *not* a user type. Identity stays in a single `user` row and
+ * capability comes from membership, because founders are frequently also
+ * candidates — forcing a choice at signup would mean duplicate accounts and a
+ * broken email uniqueness constraint.
+ */
+export const companyRoleEnum = pgEnum("company_role", [
+  "owner",
+  "admin",
+  "recruiter",
+  "viewer",
+]);
+
+export const inviteStateEnum = pgEnum("invite_state", [
+  "pending",
+  "accepted",
+  "revoked",
+  "expired",
+]);
+
+/**
+ * Everything that can happen to an application.
+ *
+ * The distinction that matters commercially is which of these the candidate can
+ * actually see. Only a candidate-visible event may satisfy the response promise
+ * (§3.2) — see `src/lib/application/sla.ts`. Moving an application from
+ * `submitted` to `in_review` changes nothing the candidate perceives, so if it
+ * cleared the SLA a company could discharge its obligation by clicking a button
+ * and the promise would become theatre.
+ */
+export const applicationEventKindEnum = pgEnum("application_event_kind", [
+  // Internal — invisible to the candidate, never satisfies the SLA.
+  "submitted",
+  "status_changed",
+  "internal_note",
+  "assigned",
+  // Candidate-visible — these are what count as a response.
+  "message_to_candidate",
+  "decision",
+  // From the candidate — never counts as the company's response.
+  "candidate_message",
+  "candidate_withdrew",
+]);
+
+export const dataRequestKindEnum = pgEnum("data_request_kind", ["export", "delete"]);
+
+export const dataRequestStateEnum = pgEnum("data_request_state", [
+  "pending",
+  "completed",
+  "rejected",
+]);
+
 // ---------------------------------------------------------------------------
 // Companies
 // ---------------------------------------------------------------------------
@@ -280,10 +345,9 @@ export const company = pgTable(
     stage: startupStageEnum("stage").default("unknown").notNull(),
     foundedYear: integer("founded_year"),
 
-    isClaimed: boolean("is_claimed").default(false).notNull(),
-    claimedByUserId: text("claimed_by_user_id").references(() => user.id, {
-      onDelete: "set null",
-    }),
+    // Ownership is not stored here. A company is "claimed" exactly when it has a
+    // `company_member` with role 'owner'; the funnel position is `lifecycle`.
+    // Two flags saying the same thing is how they end up disagreeing.
     tier: companyTierEnum("tier").default("free").notNull(),
 
     atsProvider: sourceKindEnum("ats_provider"),
@@ -321,6 +385,99 @@ export const company = pgTable(
     index("company_lifecycle_idx").on(table.lifecycle),
     index("company_trust_state_idx").on(table.trustState),
     index("company_stage_idx").on(table.stage),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Company members — the manager model
+// ---------------------------------------------------------------------------
+
+/**
+ * A person acting on behalf of a company.
+ *
+ * This is the entity the response promise is actually enforced against. The SLA
+ * is a commitment made by people, and reminders have to reach someone by name:
+ * "your company owes replies" is ignored, "you owe three replies by Friday" is
+ * not. Hence `job.hiring_manager_member_id`, `application.assignee_member_id`
+ * and `is_sla_contact` as the company-wide fallback.
+ */
+export const companyMember = pgTable(
+  "company_member",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: companyRoleEnum("role").notNull(),
+    /** Job title inside the company, shown to candidates on a reply. */
+    title: text("title"),
+    /** Corporate address used to verify the person belongs to the company. */
+    workEmail: text("work_email"),
+    workEmailVerifiedAt: timestamp("work_email_verified_at"),
+
+    /**
+     * Fallback recipient for SLA reminders when a role or application has no
+     * explicit assignee. At most one per company — enforced by a partial unique
+     * index, not by application code.
+     */
+    isSlaContact: boolean("is_sla_contact").default(false).notNull(),
+    notifyOnNewApplication: boolean("notify_on_new_application").default(true).notNull(),
+
+    invitedByUserId: text("invited_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+    /** Soft removal: past members must stay referenced by historical events. */
+    removedAt: timestamp("removed_at"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("company_member_company_user_idx").on(table.companyId, table.userId),
+    index("company_member_user_id_idx").on(table.userId),
+    index("company_member_company_role_idx").on(table.companyId, table.role),
+    // Exactly one SLA contact per company, at the database level.
+    uniqueIndex("company_member_sla_contact_idx")
+      .on(table.companyId)
+      .where(sql`${table.isSlaContact} AND ${table.removedAt} IS NULL`),
+  ],
+);
+
+export const companyInvite = pgTable(
+  "company_invite",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: companyRoleEnum("role").notNull(),
+    /** Single-use secret from the invitation link. */
+    token: text("token").notNull().unique(),
+    state: inviteStateEnum("state").default("pending").notNull(),
+    invitedByUserId: text("invited_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    expiresAt: timestamp("expires_at").notNull(),
+    acceptedAt: timestamp("accepted_at"),
+    acceptedByUserId: text("accepted_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("company_invite_company_id_idx").on(table.companyId),
+    // One live invitation per address per company; re-inviting revokes the old.
+    uniqueIndex("company_invite_company_email_idx")
+      .on(table.companyId, table.email)
+      .where(sql`${table.state} = 'pending'`),
   ],
 );
 
@@ -460,6 +617,15 @@ export const job = pgTable(
     salaryIsPublic: boolean("salary_is_public").default(false).notNull(),
     equityMin: numeric("equity_min", { precision: 8, scale: 5 }),
     equityMax: numeric("equity_max", { precision: 8, scale: 5 }),
+
+    /**
+     * Who owes candidates a reply for this role. Applications inherit it as
+     * their assignee, so the SLA always has a name attached (§3.2).
+     */
+    hiringManagerMemberId: text("hiring_manager_member_id").references(
+      () => companyMember.id,
+      { onDelete: "set null" },
+    ),
 
     remoteType: remoteTypeEnum("remote_type"),
     timezones: text("timezones").array(),
@@ -655,7 +821,10 @@ export const candidateProfile = pgTable("candidate_profile", {
   headline: text("headline"),
   bio: text("bio"),
   yearsExperience: integer("years_experience"),
-  roleFamilies: text("role_families").array(),
+  // Enum arrays rather than text[]: these drive the hard filters of matching
+  // (§6.2), so a typo must fail at write time, not silently exclude a candidate
+  // from every search.
+  roleFamilies: roleFamilyEnum("role_families").array(),
   seniority: seniorityEnum("seniority"),
   techStack: text("tech_stack").array(),
   timezone: text("timezone"),
@@ -663,7 +832,7 @@ export const candidateProfile = pgTable("candidate_profile", {
   needsVisa: boolean("needs_visa"),
   openTo: remoteTypeEnum("open_to"),
   salaryExpectationMin: integer("salary_expectation_min"),
-  preferredStages: text("preferred_stages").array(),
+  preferredStages: startupStageEnum("preferred_stages").array(),
   resumeR2Key: text("resume_r2_key"),
   /** Output of the unpdf + LLM parse, kept for re-derivation without re-upload. */
   resumeParsed: jsonb("resume_parsed").$type<Record<string, unknown>>(),
@@ -735,8 +904,25 @@ export const application = pgTable(
     status: applicationStatusEnum("status").default("submitted").notNull(),
     coverLetter: text("cover_letter"),
     appliedAt: timestamp("applied_at").defaultNow().notNull(),
+
+    /**
+     * The person accountable for replying. Inherited from
+     * `job.hiring_manager_member_id` at submission, reassignable afterwards, and
+     * falling back to the company's `is_sla_contact` member when null.
+     */
+    assigneeMemberId: text("assignee_member_id").references(() => companyMember.id, {
+      onDelete: "set null",
+    }),
+
+    /**
+     * When the candidate first heard back.
+     *
+     * Derived from `application_event`, and only ever from a candidate-visible
+     * one — an internal status change is not a response (see
+     * src/lib/application/sla.ts). Stored rather than recomputed because the SLA
+     * sweep and the public response-rate query both read it hot.
+     */
     firstResponseAt: timestamp("first_response_at"),
-    statusHistory: jsonb("status_history").$type<unknown[]>(),
 
     // The promise, per application (§3.2).
     slaDueAt: timestamp("sla_due_at").notNull(),
@@ -749,6 +935,64 @@ export const application = pgTable(
     index("application_user_id_idx").on(table.userId),
     // Drives the hourly SLA sweep.
     index("application_sla_state_due_idx").on(table.slaState, table.slaDueAt),
+    // Drives a member's "what do I owe" queue.
+    index("application_assignee_sla_idx").on(table.assigneeMemberId, table.slaState),
+  ],
+);
+
+/**
+ * Append-only history of an application.
+ *
+ * Replaces the `status_history` JSONB column of the first schema draft. JSONB
+ * could not support the two things this table exists for: proving an SLA breach,
+ * and aggregating median response time across a company. Both need indexed,
+ * queryable rows.
+ *
+ * `is_candidate_visible` is denormalised from `kind` on purpose — it is the
+ * single predicate the response promise depends on, so it must be indexable and
+ * auditable rather than recomputed from an enum at read time.
+ */
+export const applicationEvent = pgTable(
+  "application_event",
+  {
+    id: text("id").primaryKey(),
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => application.id, { onDelete: "cascade" }),
+    kind: applicationEventKindEnum("kind").notNull(),
+
+    /** Null for system-generated events (SLA sweep, ingest). */
+    actorUserId: text("actor_user_id").references(() => user.id, { onDelete: "set null" }),
+    /** Set when the actor acted as a company member, for per-member metrics. */
+    actorMemberId: text("actor_member_id").references(() => companyMember.id, {
+      onDelete: "set null",
+    }),
+
+    /**
+     * Whether the candidate perceives this event, i.e. whether it belongs in the
+     * timeline they see. Necessary for satisfying the SLA but not sufficient:
+     * the event must also come from the company. See
+     * `countsAsCompanyResponse` in src/lib/application/sla.ts.
+     */
+    isCandidateVisible: boolean("is_candidate_visible").notNull(),
+
+    fromStatus: applicationStatusEnum("from_status"),
+    toStatus: applicationStatusEnum("to_status"),
+    /** Message text or internal note, depending on `kind`. */
+    body: text("body"),
+
+    occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("application_event_application_idx").on(table.applicationId, table.occurredAt),
+    // Finding the first company response is the hottest read in the SLA
+    // machinery. The predicate is the response definition itself, not plain
+    // visibility — a candidate's own message is visible to them but is not an
+    // answer from the company.
+    index("application_event_response_idx")
+      .on(table.applicationId, table.occurredAt)
+      .where(sql`${table.kind} IN ('message_to_candidate', 'decision')`),
+    index("application_event_actor_member_idx").on(table.actorMemberId, table.occurredAt),
   ],
 );
 
@@ -818,6 +1062,37 @@ export const jobView = pgTable(
   (table) => [index("job_view_job_id_occurred_idx").on(table.jobId, table.occurredAt)],
 );
 
+/**
+ * GDPR export and deletion requests.
+ *
+ * In the MVP by decision, not deferred (docs/PRODUCT_PLAN.md §6.3): we hold
+ * résumés and career histories, so the right to export and erase has to exist
+ * from the first candidate onward rather than being retrofitted.
+ */
+export const dataRequest = pgTable(
+  "data_request",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: dataRequestKindEnum("kind").notNull(),
+    state: dataRequestStateEnum("state").default("pending").notNull(),
+    /** Where the generated export archive lives in R2, for `kind = 'export'`. */
+    exportR2Key: text("export_r2_key"),
+    note: text("note"),
+    requestedAt: timestamp("requested_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => [
+    index("data_request_state_idx").on(table.state, table.requestedAt),
+    // One open request per kind per user; repeated clicks must not queue work.
+    uniqueIndex("data_request_user_kind_open_idx")
+      .on(table.userId, table.kind)
+      .where(sql`${table.state} = 'pending'`),
+  ],
+);
+
 export const companyClaim = pgTable(
   "company_claim",
   {
@@ -878,10 +1153,46 @@ export const userRelations = relations(user, ({ many, one }) => ({
   savedJobs: many(savedJob),
   savedSearches: many(savedSearch),
   experience: many(candidateExperience),
+  dataRequests: many(dataRequest),
+  // A user can hold both sides at once: `profile` present and `memberships`
+  // non-empty is a valid, expected state for a founder who is also job-hunting.
+  memberships: many(companyMember),
   profile: one(candidateProfile, {
     fields: [user.id],
     references: [candidateProfile.userId],
   }),
+}));
+
+export const companyMemberRelations = relations(companyMember, ({ one, many }) => ({
+  company: one(company, {
+    fields: [companyMember.companyId],
+    references: [company.id],
+  }),
+  user: one(user, { fields: [companyMember.userId], references: [user.id] }),
+  managedJobs: many(job),
+  assignedApplications: many(application),
+}));
+
+export const companyInviteRelations = relations(companyInvite, ({ one }) => ({
+  company: one(company, {
+    fields: [companyInvite.companyId],
+    references: [company.id],
+  }),
+}));
+
+export const applicationEventRelations = relations(applicationEvent, ({ one }) => ({
+  application: one(application, {
+    fields: [applicationEvent.applicationId],
+    references: [application.id],
+  }),
+  actorMember: one(companyMember, {
+    fields: [applicationEvent.actorMemberId],
+    references: [companyMember.id],
+  }),
+}));
+
+export const dataRequestRelations = relations(dataRequest, ({ one }) => ({
+  user: one(user, { fields: [dataRequest.userId], references: [user.id] }),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -894,6 +1205,8 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 export const companyRelations = relations(company, ({ many, one }) => ({
   jobs: many(job),
+  members: many(companyMember),
+  invites: many(companyInvite),
   funding: many(companyFunding),
   headcount: many(companyHeadcount),
   estimates: many(companyEstimate),
@@ -910,6 +1223,10 @@ export const companyRelations = relations(company, ({ many, one }) => ({
 
 export const jobRelations = relations(job, ({ one, many }) => ({
   company: one(company, { fields: [job.companyId], references: [company.id] }),
+  hiringManager: one(companyMember, {
+    fields: [job.hiringManagerMemberId],
+    references: [companyMember.id],
+  }),
   source: one(source, { fields: [job.sourceId], references: [source.id] }),
   embedding: one(jobEmbedding, {
     fields: [job.id],
@@ -919,9 +1236,14 @@ export const jobRelations = relations(job, ({ one, many }) => ({
   reports: many(userReport),
 }));
 
-export const applicationRelations = relations(application, ({ one }) => ({
+export const applicationRelations = relations(application, ({ one, many }) => ({
   job: one(job, { fields: [application.jobId], references: [job.id] }),
   user: one(user, { fields: [application.userId], references: [user.id] }),
+  assignee: one(companyMember, {
+    fields: [application.assigneeMemberId],
+    references: [companyMember.id],
+  }),
+  events: many(applicationEvent),
 }));
 
 export const candidateProfileRelations = relations(candidateProfile, ({ one }) => ({

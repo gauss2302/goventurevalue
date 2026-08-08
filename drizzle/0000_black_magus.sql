@@ -177,6 +177,8 @@ CREATE TABLE "company" (
 	"sla_response_days" integer,
 	"sla_accepted_at" timestamp,
 	"sla_accepted_by_user_id" text,
+	"sla_terms_version" text,
+	"domain_verified_at" timestamp,
 	"response_rate_30d" numeric(5, 4),
 	"median_first_response_hours" integer,
 	"sla_breach_count" integer DEFAULT 0 NOT NULL,

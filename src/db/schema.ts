@@ -380,6 +380,17 @@ export const company = pgTable(
     slaAcceptedByUserId: text("sla_accepted_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
+    /**
+     * Which version of the terms this company actually agreed to.
+     *
+     * Without it, changing SLA_RESPONSE_DAYS would silently restate every
+     * existing company's public promise as something they never accepted. The
+     * accepted `sla_response_days` above stays authoritative for their
+     * applications; this records the wording behind it.
+     */
+    slaTermsVersion: text("sla_terms_version"),
+    /** Corporate-domain proof that this company is really theirs. */
+    domainVerifiedAt: timestamp("domain_verified_at"),
     responseRate30d: numeric("response_rate_30d", { precision: 5, scale: 4 }),
     medianFirstResponseHours: integer("median_first_response_hours"),
     slaBreachCount: integer("sla_breach_count").default(0).notNull(),

@@ -36,6 +36,17 @@ export const BRAND = {
 export const SLA_RESPONSE_DAYS = 7;
 
 /**
+ * Version of the SLA terms a company accepts at onboarding.
+ *
+ * Stored per company in `company.sla_terms_version`. Bump it whenever the terms
+ * change in substance — the window, what counts as a reply, or the consequence
+ * of breaching. Companies keep the version they agreed to; restating their
+ * public promise as something they never accepted would be dishonest, and the
+ * promise is the product (§3.2).
+ */
+export const SLA_TERMS_VERSION = "2026-08-v1";
+
+/**
  * Weekly application cap per candidate.
  *
  * Load-bearing, not a paywall: it is what makes the SLA physically achievable

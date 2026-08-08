@@ -8,6 +8,7 @@ import { loadActor, ForbiddenError, type Actor } from "@/lib/company/context";
 import {
   acceptInvite,
   acceptSla,
+  CompanyAlreadyExistsError,
   changeMemberRole,
   createCompany,
   emailDomain,
@@ -64,7 +65,7 @@ describe.skipIf(!hasDatabase)("company side, end to end", () => {
       founder = await loadActor(db, uid("founder"));
       const created = await createCompany(db, founder, {
         name: "Acme AI",
-        domain: "acme.dev",
+        domain: `${P}acme.dev`,
         website: "https://acme.dev",
       });
       companyId = created.companyId;
@@ -75,7 +76,7 @@ describe.skipIf(!hasDatabase)("company side, end to end", () => {
   afterAll(async () => {
     if (!hasDatabase) return;
     await withDb(async (db) => {
-      await db.delete(company).where(sql`${company.id} = ${companyId}`);
+      await db.delete(company).where(sql`${company.domain} LIKE ${`${P}%`}`);
       await db.delete(user).where(sql`${user.id} LIKE ${`${P}%`}`);
     });
   });
@@ -138,7 +139,7 @@ describe.skipIf(!hasDatabase)("company side, end to end", () => {
       await withDb(async (db) => {
         const outcome = await verifyCompanyDomain(db, founder, {
           companyId,
-          workEmail: "ann@acme.dev",
+          workEmail: `ann@${P}acme.dev`,
         });
 
         expect(outcome.state).toBe("verified");
@@ -169,6 +170,22 @@ describe.skipIf(!hasDatabase)("company side, end to end", () => {
     it("rejects an absurd response window", async () => {
       await withDb(async (db) => {
         await expect(acceptSla(db, founder, { companyId, responseDays: 90 })).rejects.toThrow();
+      });
+    });
+
+    it("explains a duplicate domain instead of failing on the constraint", async () => {
+      // Regression: this surfaced a raw SQL insert error to the user. The domain
+      // is unique by design — it is the dedupe and claim key — so hitting it
+      // means the company already exists and the useful action is to join it.
+      await withDb(async (db) => {
+        const error = await createCompany(db, founder, {
+          name: "Acme Copy",
+          domain: `${P}acme.dev`,
+        }).catch((e) => e);
+
+        expect(error).toBeInstanceOf(CompanyAlreadyExistsError);
+        expect((error as CompanyAlreadyExistsError).existingCompanyId).toBe(companyId);
+        expect((error as Error).message).not.toMatch(/insert into/i);
       });
     });
 

@@ -119,6 +119,24 @@ export const withAuth = async <T>(fn: (auth: Auth) => Promise<T>): Promise<T> =>
   }
 };
 
+/**
+ * Runs `fn` with both an auth instance and the database handle behind it.
+ *
+ * Exists so a request that needs the session *and* then queries data opens one
+ * connection rather than two — `withAuth` and `withDb` each open their own, and
+ * Supabase direct connections are counted in tens (docs/PRODUCT_PLAN.md §5.6).
+ */
+export const withAuthDb = async <T>(
+  fn: (ctx: { auth: Auth; db: Database }) => Promise<T>,
+): Promise<T> => {
+  const { db, close } = await openDb();
+  try {
+    return await fn({ auth: createAuth(db), db });
+  } finally {
+    await close();
+  }
+};
+
 export const getServerSession = async (headers?: Headers) =>
   withAuth((auth) => auth.api.getSession({ headers: headers ?? new Headers() }));
 

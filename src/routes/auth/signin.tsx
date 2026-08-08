@@ -39,7 +39,7 @@ function SignIn() {
   useEffect(() => {
     if (session) {
       const next = getNextFromLocation();
-      router.navigate({ to: next || "/dashboard" });
+      router.navigate({ to: next || "/company" });
     }
   }, [session, router]);
 
@@ -67,7 +67,7 @@ function SignIn() {
         setError(result.error.message || "Invalid email or password");
       } else {
         const next = getNextFromLocation();
-        router.navigate({ to: next || "/dashboard" });
+        router.navigate({ to: next || "/company" });
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -81,7 +81,7 @@ function SignIn() {
     setIsGoogleLoading(true);
 
     try {
-      const next = getNextFromLocation() || "/dashboard";
+      const next = getNextFromLocation() || "/company";
       const result = await authClient.signIn.social({
         provider: "google",
         callbackURL: next,

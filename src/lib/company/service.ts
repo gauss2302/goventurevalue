@@ -41,6 +41,24 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
 
 const INVITE_TTL_DAYS = 14;
 
+/**
+ * Raised when the domain already belongs to a company here.
+ *
+ * Carries the existing company so the interface can offer to request access
+ * instead of showing a dead end — the person is almost always a colleague of
+ * whoever registered it first.
+ */
+export class CompanyAlreadyExistsError extends Error {
+  constructor(
+    readonly existingCompanyId: string,
+    readonly existingCompanyName: string,
+    readonly domain: string,
+  ) {
+    super(`${existingCompanyName} is already on the platform with the domain ${domain}`);
+    this.name = "CompanyAlreadyExistsError";
+  }
+}
+
 export const emailDomain = (email: string): string | null => {
   const at = email.lastIndexOf("@");
   if (at < 0 || at === email.length - 1) {
@@ -91,6 +109,21 @@ export const createCompany = async (
   }
 
   const domain = input.domain?.trim().toLowerCase() || null;
+
+  // Domain is the dedupe and claim key, so it is unique by design. Hitting that
+  // constraint is not an error the user caused — it means their company already
+  // exists here and the useful action is to join it, not to create a second one.
+  if (domain) {
+    const existing = await db.query.company.findFirst({
+      where: eq(company.domain, domain),
+      columns: { id: true, name: true },
+    });
+
+    if (existing) {
+      throw new CompanyAlreadyExistsError(existing.id, existing.name, domain);
+    }
+  }
+
   const companyId = newId();
   const memberId = newId();
 

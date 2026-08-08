@@ -45,7 +45,7 @@ function AuthCallback() {
       if (session) {
         // Successfully authenticated, redirect to dashboard
         const next = getNextFromLocation();
-        router.navigate({ to: next || "/dashboard" });
+        router.navigate({ to: next || "/company" });
       } else {
         // No session after callback, might be an error
         setError("Authentication failed. Please try again.");

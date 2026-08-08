@@ -46,7 +46,7 @@ export const getSessionForLoader = async (): Promise<LoaderSession> => {
 export const requireAuthForLoader = async (location: ParsedLocation) => {
   const session = await getSessionForLoader();
   if (!session?.user) {
-    const next = getNextFromLocation(location) || "/dashboard";
+    const next = getNextFromLocation(location) || "/company";
     throw redirect({ to: "/auth/signin", search: { next } });
   }
   return session;

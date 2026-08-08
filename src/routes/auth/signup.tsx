@@ -40,7 +40,7 @@ function SignUp() {
   useEffect(() => {
     if (session) {
       const next = getNextFromLocation();
-      router.navigate({ to: next || "/dashboard" });
+      router.navigate({ to: next || "/company" });
     }
   }, [session, router]);
 
@@ -81,7 +81,7 @@ function SignUp() {
       } else if (result.data) {
         await new Promise((resolve) => setTimeout(resolve, 100));
         const next = getNextFromLocation();
-        router.navigate({ to: next || "/dashboard" });
+        router.navigate({ to: next || "/company" });
       } else {
         setError("Unexpected response from server");
       }
@@ -103,7 +103,7 @@ function SignUp() {
     setIsGoogleLoading(true);
 
     try {
-      const next = getNextFromLocation() || "/dashboard";
+      const next = getNextFromLocation() || "/company";
       const result = await authClient.signIn.social({
         provider: "google",
         callbackURL: next,

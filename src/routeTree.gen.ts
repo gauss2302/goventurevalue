@@ -10,16 +10,35 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CompanyIndexRouteImport } from './routes/company/index'
+import { Route as CompanyNewRouteImport } from './routes/company/new'
 import { Route as BillingSuccessRouteImport } from './routes/billing/success'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as CompanyCompanyIdRouteRouteImport } from './routes/company/$companyId/route'
+import { Route as CompanyCompanyIdIndexRouteImport } from './routes/company/$companyId/index'
+import { Route as CompanyCompanyIdTeamRouteImport } from './routes/company/$companyId/team'
+import { Route as CompanyCompanyIdRolesRouteImport } from './routes/company/$companyId/roles'
+import { Route as CompanyCompanyIdApplicationsRouteImport } from './routes/company/$companyId/applications'
 import { Route as ApiPolarWebhooksRouteImport } from './routes/api/polar/webhooks'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as CompanyCompanyIdApplicationsIndexRouteImport } from './routes/company/$companyId/applications.index'
+import { Route as CompanyCompanyIdApplicationsApplicationIdRouteImport } from './routes/company/$companyId/applications.$applicationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompanyIndexRoute = CompanyIndexRouteImport.update({
+  id: '/company/',
+  path: '/company/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompanyNewRoute = CompanyNewRouteImport.update({
+  id: '/company/new',
+  path: '/company/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingSuccessRoute = BillingSuccessRouteImport.update({
@@ -42,6 +61,32 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyCompanyIdRouteRoute = CompanyCompanyIdRouteRouteImport.update({
+  id: '/company/$companyId',
+  path: '/company/$companyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompanyCompanyIdIndexRoute = CompanyCompanyIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CompanyCompanyIdRouteRoute,
+} as any)
+const CompanyCompanyIdTeamRoute = CompanyCompanyIdTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => CompanyCompanyIdRouteRoute,
+} as any)
+const CompanyCompanyIdRolesRoute = CompanyCompanyIdRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => CompanyCompanyIdRouteRoute,
+} as any)
+const CompanyCompanyIdApplicationsRoute =
+  CompanyCompanyIdApplicationsRouteImport.update({
+    id: '/applications',
+    path: '/applications',
+    getParentRoute: () => CompanyCompanyIdRouteRoute,
+  } as any)
 const ApiPolarWebhooksRoute = ApiPolarWebhooksRouteImport.update({
   id: '/api/polar/webhooks',
   path: '/api/polar/webhooks',
@@ -52,15 +97,36 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyCompanyIdApplicationsIndexRoute =
+  CompanyCompanyIdApplicationsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => CompanyCompanyIdApplicationsRoute,
+  } as any)
+const CompanyCompanyIdApplicationsApplicationIdRoute =
+  CompanyCompanyIdApplicationsApplicationIdRouteImport.update({
+    id: '/$applicationId',
+    path: '/$applicationId',
+    getParentRoute: () => CompanyCompanyIdApplicationsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/company/new': typeof CompanyNewRoute
+  '/company/': typeof CompanyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
+  '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsRouteWithChildren
+  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRoute
+  '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
+  '/company/$companyId/': typeof CompanyCompanyIdIndexRoute
+  '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
+  '/company/$companyId/applications/': typeof CompanyCompanyIdApplicationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -68,29 +134,54 @@ export interface FileRoutesByTo {
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/company/new': typeof CompanyNewRoute
+  '/company': typeof CompanyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
+  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRoute
+  '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
+  '/company/$companyId': typeof CompanyCompanyIdIndexRoute
+  '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
+  '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/company/new': typeof CompanyNewRoute
+  '/company/': typeof CompanyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
+  '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsRouteWithChildren
+  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRoute
+  '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
+  '/company/$companyId/': typeof CompanyCompanyIdIndexRoute
+  '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
+  '/company/$companyId/applications/': typeof CompanyCompanyIdApplicationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/company/$companyId'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
+    | '/company/new'
+    | '/company/'
     | '/api/auth/$'
     | '/api/polar/webhooks'
+    | '/company/$companyId/applications'
+    | '/company/$companyId/roles'
+    | '/company/$companyId/team'
+    | '/company/$companyId/'
+    | '/company/$companyId/applications/$applicationId'
+    | '/company/$companyId/applications/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -98,25 +189,44 @@ export interface FileRouteTypes {
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
+    | '/company/new'
+    | '/company'
     | '/api/auth/$'
     | '/api/polar/webhooks'
+    | '/company/$companyId/roles'
+    | '/company/$companyId/team'
+    | '/company/$companyId'
+    | '/company/$companyId/applications/$applicationId'
+    | '/company/$companyId/applications'
   id:
     | '__root__'
     | '/'
+    | '/company/$companyId'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
+    | '/company/new'
+    | '/company/'
     | '/api/auth/$'
     | '/api/polar/webhooks'
+    | '/company/$companyId/applications'
+    | '/company/$companyId/roles'
+    | '/company/$companyId/team'
+    | '/company/$companyId/'
+    | '/company/$companyId/applications/$applicationId'
+    | '/company/$companyId/applications/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CompanyCompanyIdRouteRoute: typeof CompanyCompanyIdRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSigninRoute: typeof AuthSigninRoute
   AuthSignupRoute: typeof AuthSignupRoute
   BillingSuccessRoute: typeof BillingSuccessRoute
+  CompanyNewRoute: typeof CompanyNewRoute
+  CompanyIndexRoute: typeof CompanyIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPolarWebhooksRoute: typeof ApiPolarWebhooksRoute
 }
@@ -128,6 +238,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/company/': {
+      id: '/company/'
+      path: '/company'
+      fullPath: '/company/'
+      preLoaderRoute: typeof CompanyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/company/new': {
+      id: '/company/new'
+      path: '/company/new'
+      fullPath: '/company/new'
+      preLoaderRoute: typeof CompanyNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing/success': {
@@ -158,6 +282,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company/$companyId': {
+      id: '/company/$companyId'
+      path: '/company/$companyId'
+      fullPath: '/company/$companyId'
+      preLoaderRoute: typeof CompanyCompanyIdRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/company/$companyId/': {
+      id: '/company/$companyId/'
+      path: '/'
+      fullPath: '/company/$companyId/'
+      preLoaderRoute: typeof CompanyCompanyIdIndexRouteImport
+      parentRoute: typeof CompanyCompanyIdRouteRoute
+    }
+    '/company/$companyId/team': {
+      id: '/company/$companyId/team'
+      path: '/team'
+      fullPath: '/company/$companyId/team'
+      preLoaderRoute: typeof CompanyCompanyIdTeamRouteImport
+      parentRoute: typeof CompanyCompanyIdRouteRoute
+    }
+    '/company/$companyId/roles': {
+      id: '/company/$companyId/roles'
+      path: '/roles'
+      fullPath: '/company/$companyId/roles'
+      preLoaderRoute: typeof CompanyCompanyIdRolesRouteImport
+      parentRoute: typeof CompanyCompanyIdRouteRoute
+    }
+    '/company/$companyId/applications': {
+      id: '/company/$companyId/applications'
+      path: '/applications'
+      fullPath: '/company/$companyId/applications'
+      preLoaderRoute: typeof CompanyCompanyIdApplicationsRouteImport
+      parentRoute: typeof CompanyCompanyIdRouteRoute
+    }
     '/api/polar/webhooks': {
       id: '/api/polar/webhooks'
       path: '/api/polar/webhooks'
@@ -172,15 +331,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company/$companyId/applications/': {
+      id: '/company/$companyId/applications/'
+      path: '/'
+      fullPath: '/company/$companyId/applications/'
+      preLoaderRoute: typeof CompanyCompanyIdApplicationsIndexRouteImport
+      parentRoute: typeof CompanyCompanyIdApplicationsRoute
+    }
+    '/company/$companyId/applications/$applicationId': {
+      id: '/company/$companyId/applications/$applicationId'
+      path: '/$applicationId'
+      fullPath: '/company/$companyId/applications/$applicationId'
+      preLoaderRoute: typeof CompanyCompanyIdApplicationsApplicationIdRouteImport
+      parentRoute: typeof CompanyCompanyIdApplicationsRoute
+    }
   }
 }
 
+interface CompanyCompanyIdApplicationsRouteChildren {
+  CompanyCompanyIdApplicationsApplicationIdRoute: typeof CompanyCompanyIdApplicationsApplicationIdRoute
+  CompanyCompanyIdApplicationsIndexRoute: typeof CompanyCompanyIdApplicationsIndexRoute
+}
+
+const CompanyCompanyIdApplicationsRouteChildren: CompanyCompanyIdApplicationsRouteChildren =
+  {
+    CompanyCompanyIdApplicationsApplicationIdRoute:
+      CompanyCompanyIdApplicationsApplicationIdRoute,
+    CompanyCompanyIdApplicationsIndexRoute:
+      CompanyCompanyIdApplicationsIndexRoute,
+  }
+
+const CompanyCompanyIdApplicationsRouteWithChildren =
+  CompanyCompanyIdApplicationsRoute._addFileChildren(
+    CompanyCompanyIdApplicationsRouteChildren,
+  )
+
+interface CompanyCompanyIdRouteRouteChildren {
+  CompanyCompanyIdApplicationsRoute: typeof CompanyCompanyIdApplicationsRouteWithChildren
+  CompanyCompanyIdRolesRoute: typeof CompanyCompanyIdRolesRoute
+  CompanyCompanyIdTeamRoute: typeof CompanyCompanyIdTeamRoute
+  CompanyCompanyIdIndexRoute: typeof CompanyCompanyIdIndexRoute
+}
+
+const CompanyCompanyIdRouteRouteChildren: CompanyCompanyIdRouteRouteChildren = {
+  CompanyCompanyIdApplicationsRoute:
+    CompanyCompanyIdApplicationsRouteWithChildren,
+  CompanyCompanyIdRolesRoute: CompanyCompanyIdRolesRoute,
+  CompanyCompanyIdTeamRoute: CompanyCompanyIdTeamRoute,
+  CompanyCompanyIdIndexRoute: CompanyCompanyIdIndexRoute,
+}
+
+const CompanyCompanyIdRouteRouteWithChildren =
+  CompanyCompanyIdRouteRoute._addFileChildren(
+    CompanyCompanyIdRouteRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CompanyCompanyIdRouteRoute: CompanyCompanyIdRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSigninRoute: AuthSigninRoute,
   AuthSignupRoute: AuthSignupRoute,
   BillingSuccessRoute: BillingSuccessRoute,
+  CompanyNewRoute: CompanyNewRoute,
+  CompanyIndexRoute: CompanyIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPolarWebhooksRoute: ApiPolarWebhooksRoute,
 }

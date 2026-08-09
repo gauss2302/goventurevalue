@@ -1,6 +1,7 @@
 import {
   SIGNAL_TTL_DAYS,
   type Confidence,
+  type EstimateInput,
   type Estimated,
   type Measured,
   type NoData,
@@ -27,7 +28,7 @@ export const measured = <T>(value: T, provenance: Provenance): Measured<T> => ({
 export const estimated = <T>(input: {
   value: T;
   method: string;
-  inputs: Record<string, unknown>;
+  inputs: Record<string, EstimateInput>;
   confidence: Confidence;
   provenance: Provenance;
 }): Estimated<T> => ({

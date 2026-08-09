@@ -52,13 +52,22 @@ export type Measured<T> = {
   provenance: Provenance;
 };
 
+/**
+ * A value an estimate was computed from.
+ *
+ * Narrowed to primitives deliberately: inputs are persisted as JSON and travel
+ * to the browser so the method can be shown, so anything unserializable here
+ * would break reproducibility — the very thing they exist for.
+ */
+export type EstimateInput = string | number | boolean | null;
+
 export type Estimated<T> = {
   kind: "estimated";
   value: T;
   /** Human-readable description of how the value was derived (rule 3). */
   method: string;
   /** Exact inputs, so any estimate can be reproduced and audited. */
-  inputs: Record<string, unknown>;
+  inputs: Record<string, EstimateInput>;
   confidence: Confidence;
   provenance: Provenance;
 };

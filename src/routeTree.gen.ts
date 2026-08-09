@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompanyIndexRouteImport } from './routes/company/index'
+import { Route as JobsJobIdRouteImport } from './routes/jobs/$jobId'
 import { Route as CompanyNewRouteImport } from './routes/company/new'
+import { Route as CompaniesSlugRouteImport } from './routes/companies/$slug'
 import { Route as BillingSuccessRouteImport } from './routes/billing/success'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
@@ -27,6 +29,8 @@ import { Route as CompanyCompanyIdRolesIndexRouteImport } from './routes/company
 import { Route as CompanyCompanyIdApplicationsIndexRouteImport } from './routes/company/$companyId/applications.index'
 import { Route as CompanyCompanyIdRolesJobIdRouteImport } from './routes/company/$companyId/roles.$jobId'
 import { Route as CompanyCompanyIdApplicationsApplicationIdRouteImport } from './routes/company/$companyId/applications.$applicationId'
+import { Route as CompanyCompanyIdRolesJobIdIndexRouteImport } from './routes/company/$companyId/roles.$jobId.index'
+import { Route as CompanyCompanyIdRolesJobIdPreviewRouteImport } from './routes/company/$companyId/roles.$jobId.preview'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -38,9 +42,19 @@ const CompanyIndexRoute = CompanyIndexRouteImport.update({
   path: '/company/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JobsJobIdRoute = JobsJobIdRouteImport.update({
+  id: '/jobs/$jobId',
+  path: '/jobs/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompanyNewRoute = CompanyNewRouteImport.update({
   id: '/company/new',
   path: '/company/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompaniesSlugRoute = CompaniesSlugRouteImport.update({
+  id: '/companies/$slug',
+  path: '/companies/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingSuccessRoute = BillingSuccessRouteImport.update({
@@ -123,6 +137,18 @@ const CompanyCompanyIdApplicationsApplicationIdRoute =
     path: '/$applicationId',
     getParentRoute: () => CompanyCompanyIdApplicationsRoute,
   } as any)
+const CompanyCompanyIdRolesJobIdIndexRoute =
+  CompanyCompanyIdRolesJobIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => CompanyCompanyIdRolesJobIdRoute,
+  } as any)
+const CompanyCompanyIdRolesJobIdPreviewRoute =
+  CompanyCompanyIdRolesJobIdPreviewRouteImport.update({
+    id: '/preview',
+    path: '/preview',
+    getParentRoute: () => CompanyCompanyIdRolesJobIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,7 +157,9 @@ export interface FileRoutesByFullPath {
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/companies/$slug': typeof CompaniesSlugRoute
   '/company/new': typeof CompanyNewRoute
+  '/jobs/$jobId': typeof JobsJobIdRoute
   '/company/': typeof CompanyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
@@ -140,9 +168,11 @@ export interface FileRoutesByFullPath {
   '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
   '/company/$companyId/': typeof CompanyCompanyIdIndexRoute
   '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
-  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRoute
+  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRouteWithChildren
   '/company/$companyId/applications/': typeof CompanyCompanyIdApplicationsIndexRoute
   '/company/$companyId/roles/': typeof CompanyCompanyIdRolesIndexRoute
+  '/company/$companyId/roles/$jobId/preview': typeof CompanyCompanyIdRolesJobIdPreviewRoute
+  '/company/$companyId/roles/$jobId/': typeof CompanyCompanyIdRolesJobIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -150,16 +180,19 @@ export interface FileRoutesByTo {
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/companies/$slug': typeof CompaniesSlugRoute
   '/company/new': typeof CompanyNewRoute
+  '/jobs/$jobId': typeof JobsJobIdRoute
   '/company': typeof CompanyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
   '/company/$companyId': typeof CompanyCompanyIdIndexRoute
   '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
-  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRoute
   '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsIndexRoute
   '/company/$companyId/roles': typeof CompanyCompanyIdRolesIndexRoute
+  '/company/$companyId/roles/$jobId/preview': typeof CompanyCompanyIdRolesJobIdPreviewRoute
+  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -169,7 +202,9 @@ export interface FileRoutesById {
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/companies/$slug': typeof CompaniesSlugRoute
   '/company/new': typeof CompanyNewRoute
+  '/jobs/$jobId': typeof JobsJobIdRoute
   '/company/': typeof CompanyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
@@ -178,9 +213,11 @@ export interface FileRoutesById {
   '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
   '/company/$companyId/': typeof CompanyCompanyIdIndexRoute
   '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
-  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRoute
+  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRouteWithChildren
   '/company/$companyId/applications/': typeof CompanyCompanyIdApplicationsIndexRoute
   '/company/$companyId/roles/': typeof CompanyCompanyIdRolesIndexRoute
+  '/company/$companyId/roles/$jobId/preview': typeof CompanyCompanyIdRolesJobIdPreviewRoute
+  '/company/$companyId/roles/$jobId/': typeof CompanyCompanyIdRolesJobIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,7 +228,9 @@ export interface FileRouteTypes {
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
+    | '/companies/$slug'
     | '/company/new'
+    | '/jobs/$jobId'
     | '/company/'
     | '/api/auth/$'
     | '/api/polar/webhooks'
@@ -203,6 +242,8 @@ export interface FileRouteTypes {
     | '/company/$companyId/roles/$jobId'
     | '/company/$companyId/applications/'
     | '/company/$companyId/roles/'
+    | '/company/$companyId/roles/$jobId/preview'
+    | '/company/$companyId/roles/$jobId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,16 +251,19 @@ export interface FileRouteTypes {
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
+    | '/companies/$slug'
     | '/company/new'
+    | '/jobs/$jobId'
     | '/company'
     | '/api/auth/$'
     | '/api/polar/webhooks'
     | '/company/$companyId/team'
     | '/company/$companyId'
     | '/company/$companyId/applications/$applicationId'
-    | '/company/$companyId/roles/$jobId'
     | '/company/$companyId/applications'
     | '/company/$companyId/roles'
+    | '/company/$companyId/roles/$jobId/preview'
+    | '/company/$companyId/roles/$jobId'
   id:
     | '__root__'
     | '/'
@@ -228,7 +272,9 @@ export interface FileRouteTypes {
     | '/auth/signin'
     | '/auth/signup'
     | '/billing/success'
+    | '/companies/$slug'
     | '/company/new'
+    | '/jobs/$jobId'
     | '/company/'
     | '/api/auth/$'
     | '/api/polar/webhooks'
@@ -240,6 +286,8 @@ export interface FileRouteTypes {
     | '/company/$companyId/roles/$jobId'
     | '/company/$companyId/applications/'
     | '/company/$companyId/roles/'
+    | '/company/$companyId/roles/$jobId/preview'
+    | '/company/$companyId/roles/$jobId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -249,7 +297,9 @@ export interface RootRouteChildren {
   AuthSigninRoute: typeof AuthSigninRoute
   AuthSignupRoute: typeof AuthSignupRoute
   BillingSuccessRoute: typeof BillingSuccessRoute
+  CompaniesSlugRoute: typeof CompaniesSlugRoute
   CompanyNewRoute: typeof CompanyNewRoute
+  JobsJobIdRoute: typeof JobsJobIdRoute
   CompanyIndexRoute: typeof CompanyIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPolarWebhooksRoute: typeof ApiPolarWebhooksRoute
@@ -271,11 +321,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompanyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/jobs/$jobId': {
+      id: '/jobs/$jobId'
+      path: '/jobs/$jobId'
+      fullPath: '/jobs/$jobId'
+      preLoaderRoute: typeof JobsJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/company/new': {
       id: '/company/new'
       path: '/company/new'
       fullPath: '/company/new'
       preLoaderRoute: typeof CompanyNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/companies/$slug': {
+      id: '/companies/$slug'
+      path: '/companies/$slug'
+      fullPath: '/companies/$slug'
+      preLoaderRoute: typeof CompaniesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing/success': {
@@ -383,6 +447,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompanyCompanyIdApplicationsApplicationIdRouteImport
       parentRoute: typeof CompanyCompanyIdApplicationsRoute
     }
+    '/company/$companyId/roles/$jobId/': {
+      id: '/company/$companyId/roles/$jobId/'
+      path: '/'
+      fullPath: '/company/$companyId/roles/$jobId/'
+      preLoaderRoute: typeof CompanyCompanyIdRolesJobIdIndexRouteImport
+      parentRoute: typeof CompanyCompanyIdRolesJobIdRoute
+    }
+    '/company/$companyId/roles/$jobId/preview': {
+      id: '/company/$companyId/roles/$jobId/preview'
+      path: '/preview'
+      fullPath: '/company/$companyId/roles/$jobId/preview'
+      preLoaderRoute: typeof CompanyCompanyIdRolesJobIdPreviewRouteImport
+      parentRoute: typeof CompanyCompanyIdRolesJobIdRoute
+    }
   }
 }
 
@@ -404,13 +482,30 @@ const CompanyCompanyIdApplicationsRouteWithChildren =
     CompanyCompanyIdApplicationsRouteChildren,
   )
 
+interface CompanyCompanyIdRolesJobIdRouteChildren {
+  CompanyCompanyIdRolesJobIdPreviewRoute: typeof CompanyCompanyIdRolesJobIdPreviewRoute
+  CompanyCompanyIdRolesJobIdIndexRoute: typeof CompanyCompanyIdRolesJobIdIndexRoute
+}
+
+const CompanyCompanyIdRolesJobIdRouteChildren: CompanyCompanyIdRolesJobIdRouteChildren =
+  {
+    CompanyCompanyIdRolesJobIdPreviewRoute:
+      CompanyCompanyIdRolesJobIdPreviewRoute,
+    CompanyCompanyIdRolesJobIdIndexRoute: CompanyCompanyIdRolesJobIdIndexRoute,
+  }
+
+const CompanyCompanyIdRolesJobIdRouteWithChildren =
+  CompanyCompanyIdRolesJobIdRoute._addFileChildren(
+    CompanyCompanyIdRolesJobIdRouteChildren,
+  )
+
 interface CompanyCompanyIdRolesRouteChildren {
-  CompanyCompanyIdRolesJobIdRoute: typeof CompanyCompanyIdRolesJobIdRoute
+  CompanyCompanyIdRolesJobIdRoute: typeof CompanyCompanyIdRolesJobIdRouteWithChildren
   CompanyCompanyIdRolesIndexRoute: typeof CompanyCompanyIdRolesIndexRoute
 }
 
 const CompanyCompanyIdRolesRouteChildren: CompanyCompanyIdRolesRouteChildren = {
-  CompanyCompanyIdRolesJobIdRoute: CompanyCompanyIdRolesJobIdRoute,
+  CompanyCompanyIdRolesJobIdRoute: CompanyCompanyIdRolesJobIdRouteWithChildren,
   CompanyCompanyIdRolesIndexRoute: CompanyCompanyIdRolesIndexRoute,
 }
 
@@ -446,7 +541,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSigninRoute: AuthSigninRoute,
   AuthSignupRoute: AuthSignupRoute,
   BillingSuccessRoute: BillingSuccessRoute,
+  CompaniesSlugRoute: CompaniesSlugRoute,
   CompanyNewRoute: CompanyNewRoute,
+  JobsJobIdRoute: JobsJobIdRoute,
   CompanyIndexRoute: CompanyIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPolarWebhooksRoute: ApiPolarWebhooksRoute,

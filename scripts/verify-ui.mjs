@@ -137,14 +137,62 @@ try {
     "a live role must be pausable",
   );
 
+  // The company preview and the public page must be the same render — a preview
+  // that drifts is a preview that lies.
+  const roleUrl = page.url();
+  const roleId = roleUrl.split("/roles/")[1].split("/")[0];
+
+  await page.goto(`${BASE}/company/${companyId}/roles/${roleId}/preview`, {
+    waitUntil: "networkidle",
+  });
+  await shot("07-candidate-preview");
+  const previewText = await page.locator("body").innerText();
+  expect(previewText.includes("Preview"), "the preview must say it is a preview");
+  expect(
+    previewText.includes("You will get an answer"),
+    "the response promise must lead the candidate view",
+  );
+
+  // Signed out, as a candidate arrives.
+  const anon = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await anon.goto(`${BASE}/jobs/${roleId}`, { waitUntil: "networkidle" });
+  await anon.screenshot({ path: `${SHOTS}/08-public-role.png`, fullPage: true });
+  log("screenshot: 08-public-role");
+
+  const publicText = await anon.locator("body").innerText();
+  expect(publicText.includes("You will get an answer"), "the promise must be public too");
+  expect(
+    publicText.includes("No replies measured yet"),
+    'an unmeasured response rate must not render as 0%',
+  );
+  expect(
+    publicText.includes("Not disclosed") || publicText.includes("$"),
+    "the salary must be stated or explicitly withheld",
+  );
+  expect(
+    publicText.includes("No data"),
+    "unknown company signals must be shown as absent, not hidden",
+  );
+  // Regression: the editor's visa checkbox defaulted to false, so a question the
+  // company never answered reached candidates as an explicit "No".
+  expect(
+    publicText.includes("Not stated"),
+    "an unanswered visa question must read as unstated, not as a refusal",
+  );
+
+  await anon.goto(`${BASE}/companies/acme-ai`, { waitUntil: "networkidle" });
+  await anon.screenshot({ path: `${SHOTS}/09-public-company.png`, fullPage: true });
+  log("screenshot: 09-public-company");
+  await anon.close();
+
   await page.goto(`${BASE}/company/${companyId}/roles`, { waitUntil: "networkidle" });
-  await shot("07-roles-list");
+  await shot("10-roles-list");
 
   await page.goto(`${BASE}/company/${companyId}/applications`, { waitUntil: "networkidle" });
-  await shot("08-inbox");
+  await shot("11-inbox");
 
   await page.goto(`${BASE}/company/${companyId}/team`, { waitUntil: "networkidle" });
-  await shot("09-team");
+  await shot("12-team");
 
   // A duplicate domain must explain itself, not leak a SQL error.
   await page.goto(`${BASE}/company/new`, { waitUntil: "networkidle" });
@@ -152,7 +200,7 @@ try {
   await page.fill('input[placeholder="acme.dev"]', domain);
   await page.click('button[type="submit"]');
   await page.waitForTimeout(3000);
-  await shot("10-duplicate-domain");
+  await shot("13-duplicate-domain");
 
   const body = await page.locator("body").innerText();
   expect(!body.includes("Failed query"), "a duplicate domain must not surface raw SQL");

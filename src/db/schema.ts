@@ -576,7 +576,7 @@ export const companyEstimate = pgTable(
     /** Human-readable description of how the value was derived. */
     method: text("method").notNull(),
     /** The exact inputs used, so an estimate is always reproducible. */
-    inputs: jsonb("inputs").$type<Record<string, unknown>>().notNull(),
+    inputs: jsonb("inputs").$type<Record<string, string | number | boolean | null>>().notNull(),
     confidence: confidenceEnum("confidence").notNull(),
     asOf: timestamp("as_of").notNull(),
     isDisputed: boolean("is_disputed").default(false).notNull(),

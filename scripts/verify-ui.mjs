@@ -95,25 +95,56 @@ try {
     'an unmeasurable response rate must read "No data yet", never 0%',
   );
 
-  // Create and publish a role.
+  // Create a draft, which opens the editor.
   await page.goto(`${BASE}/company/${companyId}/roles`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /new role/i }).click();
-  await page.waitForTimeout(500);
   await page.fill('input[placeholder="Senior Backend Engineer"]', "Senior Backend Engineer");
-  await page.fill('input[placeholder="120000"]', "140000");
-  await page.fill('input[placeholder="160000"]', "180000");
-  await page.getByRole("button", { name: /save draft/i }).click();
-  await page.waitForTimeout(3000);
+  await page.getByRole("button", { name: /create draft/i }).click();
+  await page.waitForTimeout(4000);
+  expect(/\/roles\/[0-9a-f-]{36}$/.test(page.url()), `expected the editor, got ${page.url()}`);
+  await shot("04-role-editor-incomplete");
 
-  await page.getByRole("button", { name: /^publish$/i }).first().click();
-  await page.waitForTimeout(3000);
-  await shot("04-roles-published");
+  // A thin role must not be publishable — the checklist explains why.
+  const checklist = await page.locator("body").innerText();
+  expect(checklist.includes("Before this can go live"), "the publish checklist must be shown");
+  expect(
+    await page.getByRole("button", { name: /^publish$/i }).isDisabled(),
+    "publish must stay disabled while the role is too thin to judge",
+  );
+
+  // Fill what matching and a reader actually need.
+  await page.locator("textarea").first().fill(
+    "You will own our ingestion pipeline end to end, working directly with the two founders. " +
+      "Expect to shape the architecture, not just implement it, and to be the first person on call for it.",
+  );
+  await page.selectOption('select >> nth=0', "backend");
+  await page.selectOption('select >> nth=1', "senior");
+  await page.selectOption('select >> nth=2', "remote");
+  await page.waitForTimeout(500);
+  await shot("05-role-editor-ready");
+
+  expect(
+    !(await page.getByRole("button", { name: /^publish$/i }).isDisabled()),
+    "publish must become available once the role is complete",
+  );
+
+  await page.getByRole("button", { name: /^publish$/i }).click();
+  await page.waitForTimeout(4000);
+  await shot("06-role-published");
+
+  // Unpublish must be offered, and must return the role to draft rather than archive.
+  expect(
+    await page.getByRole("button", { name: /unpublish/i }).isVisible(),
+    "a live role must be pausable",
+  );
+
+  await page.goto(`${BASE}/company/${companyId}/roles`, { waitUntil: "networkidle" });
+  await shot("07-roles-list");
 
   await page.goto(`${BASE}/company/${companyId}/applications`, { waitUntil: "networkidle" });
-  await shot("05-inbox");
+  await shot("08-inbox");
 
   await page.goto(`${BASE}/company/${companyId}/team`, { waitUntil: "networkidle" });
-  await shot("06-team");
+  await shot("09-team");
 
   // A duplicate domain must explain itself, not leak a SQL error.
   await page.goto(`${BASE}/company/new`, { waitUntil: "networkidle" });
@@ -121,7 +152,7 @@ try {
   await page.fill('input[placeholder="acme.dev"]', domain);
   await page.click('button[type="submit"]');
   await page.waitForTimeout(3000);
-  await shot("07-duplicate-domain");
+  await shot("10-duplicate-domain");
 
   const body = await page.locator("body").innerText();
   expect(!body.includes("Failed query"), "a duplicate domain must not surface raw SQL");

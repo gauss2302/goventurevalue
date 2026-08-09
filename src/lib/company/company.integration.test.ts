@@ -20,7 +20,18 @@ import {
   slugify,
   verifyCompanyDomain,
 } from "@/lib/company/service";
-import { createRole, listRoles, publishRole } from "@/lib/job/service";
+import {
+  archiveRole,
+  createRole,
+  duplicateRole,
+  getRole,
+  listRoles,
+  publishRole,
+  restoreRole,
+  unpublishRole,
+  updateRole,
+} from "@/lib/job/service";
+import { MIN_DESCRIPTION_LENGTH } from "@/lib/job/publishRequirements";
 import {
   changeApplicationStatus,
   companySlaDashboard,
@@ -42,6 +53,12 @@ import { computeSlaDueAt } from "@/lib/application/sla";
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const P = "cit-";
+
+/** Long enough to clear the publish bar without saying anything meaningful. */
+const DESCRIPTION =
+  "You will own our ingestion pipeline end to end, working directly with the two founders. ".repeat(
+    2,
+  ) + "x".repeat(MIN_DESCRIPTION_LENGTH);
 
 const uid = (suffix: string) => `${P}${suffix}`;
 
@@ -189,16 +206,148 @@ describe.skipIf(!hasDatabase)("company side, end to end", () => {
       });
     });
 
-    it("publishes once both gates are satisfied", async () => {
+    it("still refuses a role too thin for a candidate to judge", async () => {
+      // Company gates are satisfied by now, so this is the role-level bar:
+      // publishing an empty listing is the noise we position against.
       await withDb(async (db) => {
         const roles = await listRoles(db, founder, companyId);
         const outcome = await publishRole(db, founder, roles[0].id);
 
+        expect(outcome.published).toBe(false);
+        if (outcome.published) throw new Error("unreachable");
+        expect(outcome.missing).toContain("description");
+        expect(outcome.missing).toContain("remoteType");
+      });
+    });
+
+    it("publishes once the role itself is complete", async () => {
+      await withDb(async (db) => {
+        const roles = await listRoles(db, founder, companyId);
+
+        await updateRole(db, founder, roles[0].id, {
+          title: "Senior Backend Engineer",
+          descriptionMd: DESCRIPTION,
+          remoteType: "remote",
+        });
+
+        const outcome = await publishRole(db, founder, roles[0].id);
         expect(outcome.published).toBe(true);
 
         const row = await db.query.job.findFirst({ where: eq(job.id, roles[0].id) });
         expect(row?.status).toBe("published");
         expect(row?.publishedAt).not.toBeNull();
+      });
+    });
+  });
+
+  describe("managing a role", () => {
+    let roleId: string;
+
+    beforeAll(async () => {
+      await withDb(async (db) => {
+        const created = await createRole(db, founder, companyId, {
+          title: "Staff ML Engineer",
+          descriptionMd: DESCRIPTION,
+          roleFamily: "ml_ai",
+          seniority: "staff",
+          remoteType: "remote",
+        });
+        roleId = created.jobId;
+      });
+    });
+
+    it("edits fields without touching the ones left out", async () => {
+      await withDb(async (db) => {
+        await updateRole(db, founder, roleId, { seniority: "principal" });
+
+        const row = await db.query.job.findFirst({ where: eq(job.id, roleId) });
+        expect(row?.seniority).toBe("principal");
+        // Omitted fields must survive a partial update.
+        expect(row?.roleFamily).toBe("ml_ai");
+        expect(row?.descriptionMd).toBe(DESCRIPTION);
+      });
+    });
+
+    it("refreshes the content hash when the candidate-visible text changes", async () => {
+      await withDb(async (db) => {
+        const before = await db.query.job.findFirst({ where: eq(job.id, roleId) });
+        await updateRole(db, founder, roleId, { title: "Principal ML Engineer" });
+        const after = await db.query.job.findFirst({ where: eq(job.id, roleId) });
+
+        expect(after?.contentHash).not.toBe(before?.contentHash);
+      });
+    });
+
+    it("rejects a salary band that runs backwards", async () => {
+      await withDb(async (db) => {
+        await expect(
+          updateRole(db, founder, roleId, { salaryMin: 200_000, salaryMax: 100_000 }),
+        ).rejects.toThrow(/cannot exceed/i);
+      });
+    });
+
+    it("refuses a hiring manager from another company", async () => {
+      await withDb(async (db) => {
+        await expect(
+          updateRole(db, founder, roleId, { hiringManagerMemberId: "not-a-member" }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+      });
+    });
+
+    it("unpublishes back to a draft rather than archiving", async () => {
+      // Pausing and closing are different things; conflating them would make
+      // "archived" mean two things and break any later count of closed roles.
+      await withDb(async (db) => {
+        await publishRole(db, founder, roleId);
+        await unpublishRole(db, founder, roleId);
+
+        const row = await db.query.job.findFirst({ where: eq(job.id, roleId) });
+        expect(row?.status).toBe("pending");
+        expect(row?.publishedAt).toBeNull();
+      });
+    });
+
+    it("restores an archived role as a draft, never straight to live", async () => {
+      await withDb(async (db) => {
+        await archiveRole(db, founder, roleId);
+        expect(
+          (await db.query.job.findFirst({ where: eq(job.id, roleId) }))?.status,
+        ).toBe("archived");
+
+        await restoreRole(db, founder, roleId);
+        const row = await db.query.job.findFirst({ where: eq(job.id, roleId) });
+
+        expect(row?.status).toBe("pending");
+        expect(row?.archivedAt).toBeNull();
+      });
+    });
+
+    it("duplicates a role as a fresh draft", async () => {
+      await withDb(async (db) => {
+        const { jobId: copyId } = await duplicateRole(db, founder, roleId);
+        const copy = await db.query.job.findFirst({ where: eq(job.id, copyId) });
+
+        expect(copy?.title).toMatch(/\(copy\)$/);
+        expect(copy?.descriptionMd).toBe(DESCRIPTION);
+        // A copy must never inherit published state.
+        expect(copy?.status).toBe("pending");
+        expect(copy?.publishedAt).toBeNull();
+      });
+    });
+
+    it("reports readiness alongside the role", async () => {
+      await withDb(async (db) => {
+        const { readiness } = await getRole(db, founder, roleId);
+        expect(readiness.ready).toBe(true);
+      });
+    });
+
+    it("denies a viewer the ability to change a role", async () => {
+      await withDb(async (db) => {
+        const outsider = await loadActor(db, uid("outsider"));
+        await expect(
+          updateRole(db, outsider, roleId, { title: "Hijacked" }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
       });
     });
   });

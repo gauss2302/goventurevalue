@@ -16,8 +16,13 @@ import {
 import {
   archiveRole,
   createRole,
+  duplicateRole,
+  getRole,
   listRoles,
   publishRole,
+  restoreRole,
+  unpublishRole,
+  updateRole,
 } from "@/lib/job/service";
 import {
   changeApplicationStatus,
@@ -193,31 +198,45 @@ export const listRolesFn = createServerFn({ method: "GET" })
     ),
   );
 
+/** Shape shared by create and update, so the two forms cannot drift apart. */
+const roleFieldsSchema = z.object({
+  title: z.string().min(1).max(200),
+  descriptionMd: z.string().max(20_000).optional().nullable(),
+  roleFamily: z.enum(roleFamilyEnum.enumValues).optional().nullable(),
+  seniority: z.enum(seniorityEnum.enumValues).optional().nullable(),
+  remoteType: z.enum(remoteTypeEnum.enumValues).optional().nullable(),
+  salaryMin: z.number().int().min(0).optional().nullable(),
+  salaryMax: z.number().int().min(0).optional().nullable(),
+  salaryCurrency: z.string().max(8).optional().nullable(),
+  salaryIsPublic: z.boolean().optional(),
+  techStack: z.array(z.string().max(60)).max(40).optional().nullable(),
+  timezones: z.array(z.string().max(60)).max(20).optional().nullable(),
+  locations: z.array(z.string().max(80)).max(20).optional().nullable(),
+  visaSponsorship: z.boolean().optional().nullable(),
+  hiringManagerMemberId: z.string().optional().nullable(),
+});
+
 export const createRoleFn = createServerFn({ method: "POST" })
-  .inputValidator(
-    validate(
-      z.object({
-        companyId: z.string(),
-        title: z.string().min(1).max(200),
-        descriptionMd: z.string().max(20_000).optional().nullable(),
-        roleFamily: z.enum(roleFamilyEnum.enumValues).optional().nullable(),
-        seniority: z.enum(seniorityEnum.enumValues).optional().nullable(),
-        remoteType: z.enum(remoteTypeEnum.enumValues).optional().nullable(),
-        salaryMin: z.number().int().min(0).optional().nullable(),
-        salaryMax: z.number().int().min(0).optional().nullable(),
-        salaryCurrency: z.string().max(8).optional().nullable(),
-        salaryIsPublic: z.boolean().optional(),
-        techStack: z.array(z.string().max(60)).max(40).optional().nullable(),
-        timezones: z.array(z.string().max(60)).max(20).optional().nullable(),
-        locations: z.array(z.string().max(80)).max(20).optional().nullable(),
-        visaSponsorship: z.boolean().optional().nullable(),
-      }),
-    ),
-  )
+  .inputValidator(validate(roleFieldsSchema.extend({ companyId: z.string() })))
   .handler(async ({ data }) =>
     withRequestContext(({ db, actor }) => {
       const { companyId, ...role } = data;
       return createRole(db, actor, companyId, role);
+    }),
+  );
+
+export const getRoleFn = createServerFn({ method: "GET" })
+  .inputValidator(validate(z.object({ jobId: z.string() })))
+  .handler(async ({ data }) =>
+    withRequestContext(({ db, actor }) => getRole(db, actor, data.jobId)),
+  );
+
+export const updateRoleFn = createServerFn({ method: "POST" })
+  .inputValidator(validate(roleFieldsSchema.partial().extend({ jobId: z.string() })))
+  .handler(async ({ data }) =>
+    withRequestContext(({ db, actor }) => {
+      const { jobId, ...fields } = data;
+      return updateRole(db, actor, jobId, fields);
     }),
   );
 
@@ -227,10 +246,28 @@ export const publishRoleFn = createServerFn({ method: "POST" })
     withRequestContext(({ db, actor }) => publishRole(db, actor, data.jobId)),
   );
 
+export const unpublishRoleFn = createServerFn({ method: "POST" })
+  .inputValidator(validate(z.object({ jobId: z.string() })))
+  .handler(async ({ data }) =>
+    withRequestContext(({ db, actor }) => unpublishRole(db, actor, data.jobId)),
+  );
+
 export const archiveRoleFn = createServerFn({ method: "POST" })
   .inputValidator(validate(z.object({ jobId: z.string() })))
   .handler(async ({ data }) =>
     withRequestContext(({ db, actor }) => archiveRole(db, actor, data.jobId)),
+  );
+
+export const restoreRoleFn = createServerFn({ method: "POST" })
+  .inputValidator(validate(z.object({ jobId: z.string() })))
+  .handler(async ({ data }) =>
+    withRequestContext(({ db, actor }) => restoreRole(db, actor, data.jobId)),
+  );
+
+export const duplicateRoleFn = createServerFn({ method: "POST" })
+  .inputValidator(validate(z.object({ jobId: z.string() })))
+  .handler(async ({ data }) =>
+    withRequestContext(({ db, actor }) => duplicateRole(db, actor, data.jobId)),
   );
 
 // ---------------------------------------------------------------------------

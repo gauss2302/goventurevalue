@@ -23,7 +23,9 @@ import { Route as CompanyCompanyIdRolesRouteImport } from './routes/company/$com
 import { Route as CompanyCompanyIdApplicationsRouteImport } from './routes/company/$companyId/applications'
 import { Route as ApiPolarWebhooksRouteImport } from './routes/api/polar/webhooks'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as CompanyCompanyIdRolesIndexRouteImport } from './routes/company/$companyId/roles.index'
 import { Route as CompanyCompanyIdApplicationsIndexRouteImport } from './routes/company/$companyId/applications.index'
+import { Route as CompanyCompanyIdRolesJobIdRouteImport } from './routes/company/$companyId/roles.$jobId'
 import { Route as CompanyCompanyIdApplicationsApplicationIdRouteImport } from './routes/company/$companyId/applications.$applicationId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -97,11 +99,23 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompanyCompanyIdRolesIndexRoute =
+  CompanyCompanyIdRolesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => CompanyCompanyIdRolesRoute,
+  } as any)
 const CompanyCompanyIdApplicationsIndexRoute =
   CompanyCompanyIdApplicationsIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => CompanyCompanyIdApplicationsRoute,
+  } as any)
+const CompanyCompanyIdRolesJobIdRoute =
+  CompanyCompanyIdRolesJobIdRouteImport.update({
+    id: '/$jobId',
+    path: '/$jobId',
+    getParentRoute: () => CompanyCompanyIdRolesRoute,
   } as any)
 const CompanyCompanyIdApplicationsApplicationIdRoute =
   CompanyCompanyIdApplicationsApplicationIdRouteImport.update({
@@ -122,11 +136,13 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsRouteWithChildren
-  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRoute
+  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRouteWithChildren
   '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
   '/company/$companyId/': typeof CompanyCompanyIdIndexRoute
   '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
+  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRoute
   '/company/$companyId/applications/': typeof CompanyCompanyIdApplicationsIndexRoute
+  '/company/$companyId/roles/': typeof CompanyCompanyIdRolesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -138,11 +154,12 @@ export interface FileRoutesByTo {
   '/company': typeof CompanyIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
-  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRoute
   '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
   '/company/$companyId': typeof CompanyCompanyIdIndexRoute
   '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
+  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRoute
   '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsIndexRoute
+  '/company/$companyId/roles': typeof CompanyCompanyIdRolesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -157,11 +174,13 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsRouteWithChildren
-  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRoute
+  '/company/$companyId/roles': typeof CompanyCompanyIdRolesRouteWithChildren
   '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
   '/company/$companyId/': typeof CompanyCompanyIdIndexRoute
   '/company/$companyId/applications/$applicationId': typeof CompanyCompanyIdApplicationsApplicationIdRoute
+  '/company/$companyId/roles/$jobId': typeof CompanyCompanyIdRolesJobIdRoute
   '/company/$companyId/applications/': typeof CompanyCompanyIdApplicationsIndexRoute
+  '/company/$companyId/roles/': typeof CompanyCompanyIdRolesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,7 +200,9 @@ export interface FileRouteTypes {
     | '/company/$companyId/team'
     | '/company/$companyId/'
     | '/company/$companyId/applications/$applicationId'
+    | '/company/$companyId/roles/$jobId'
     | '/company/$companyId/applications/'
+    | '/company/$companyId/roles/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -193,11 +214,12 @@ export interface FileRouteTypes {
     | '/company'
     | '/api/auth/$'
     | '/api/polar/webhooks'
-    | '/company/$companyId/roles'
     | '/company/$companyId/team'
     | '/company/$companyId'
     | '/company/$companyId/applications/$applicationId'
+    | '/company/$companyId/roles/$jobId'
     | '/company/$companyId/applications'
+    | '/company/$companyId/roles'
   id:
     | '__root__'
     | '/'
@@ -215,7 +237,9 @@ export interface FileRouteTypes {
     | '/company/$companyId/team'
     | '/company/$companyId/'
     | '/company/$companyId/applications/$applicationId'
+    | '/company/$companyId/roles/$jobId'
     | '/company/$companyId/applications/'
+    | '/company/$companyId/roles/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -331,12 +355,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/company/$companyId/roles/': {
+      id: '/company/$companyId/roles/'
+      path: '/'
+      fullPath: '/company/$companyId/roles/'
+      preLoaderRoute: typeof CompanyCompanyIdRolesIndexRouteImport
+      parentRoute: typeof CompanyCompanyIdRolesRoute
+    }
     '/company/$companyId/applications/': {
       id: '/company/$companyId/applications/'
       path: '/'
       fullPath: '/company/$companyId/applications/'
       preLoaderRoute: typeof CompanyCompanyIdApplicationsIndexRouteImport
       parentRoute: typeof CompanyCompanyIdApplicationsRoute
+    }
+    '/company/$companyId/roles/$jobId': {
+      id: '/company/$companyId/roles/$jobId'
+      path: '/$jobId'
+      fullPath: '/company/$companyId/roles/$jobId'
+      preLoaderRoute: typeof CompanyCompanyIdRolesJobIdRouteImport
+      parentRoute: typeof CompanyCompanyIdRolesRoute
     }
     '/company/$companyId/applications/$applicationId': {
       id: '/company/$companyId/applications/$applicationId'
@@ -366,9 +404,24 @@ const CompanyCompanyIdApplicationsRouteWithChildren =
     CompanyCompanyIdApplicationsRouteChildren,
   )
 
+interface CompanyCompanyIdRolesRouteChildren {
+  CompanyCompanyIdRolesJobIdRoute: typeof CompanyCompanyIdRolesJobIdRoute
+  CompanyCompanyIdRolesIndexRoute: typeof CompanyCompanyIdRolesIndexRoute
+}
+
+const CompanyCompanyIdRolesRouteChildren: CompanyCompanyIdRolesRouteChildren = {
+  CompanyCompanyIdRolesJobIdRoute: CompanyCompanyIdRolesJobIdRoute,
+  CompanyCompanyIdRolesIndexRoute: CompanyCompanyIdRolesIndexRoute,
+}
+
+const CompanyCompanyIdRolesRouteWithChildren =
+  CompanyCompanyIdRolesRoute._addFileChildren(
+    CompanyCompanyIdRolesRouteChildren,
+  )
+
 interface CompanyCompanyIdRouteRouteChildren {
   CompanyCompanyIdApplicationsRoute: typeof CompanyCompanyIdApplicationsRouteWithChildren
-  CompanyCompanyIdRolesRoute: typeof CompanyCompanyIdRolesRoute
+  CompanyCompanyIdRolesRoute: typeof CompanyCompanyIdRolesRouteWithChildren
   CompanyCompanyIdTeamRoute: typeof CompanyCompanyIdTeamRoute
   CompanyCompanyIdIndexRoute: typeof CompanyCompanyIdIndexRoute
 }
@@ -376,7 +429,7 @@ interface CompanyCompanyIdRouteRouteChildren {
 const CompanyCompanyIdRouteRouteChildren: CompanyCompanyIdRouteRouteChildren = {
   CompanyCompanyIdApplicationsRoute:
     CompanyCompanyIdApplicationsRouteWithChildren,
-  CompanyCompanyIdRolesRoute: CompanyCompanyIdRolesRoute,
+  CompanyCompanyIdRolesRoute: CompanyCompanyIdRolesRouteWithChildren,
   CompanyCompanyIdTeamRoute: CompanyCompanyIdTeamRoute,
   CompanyCompanyIdIndexRoute: CompanyCompanyIdIndexRoute,
 }

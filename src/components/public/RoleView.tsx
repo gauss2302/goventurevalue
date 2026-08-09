@@ -2,8 +2,8 @@ import { Link } from "@tanstack/react-router";
 import Markdown from "react-markdown";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ApplyPanel, type ApplyState } from "@/components/public/ApplyPanel";
 import { CompanySignalPanel } from "@/components/public/CompanySignalPanel";
 import { ResponsePromise } from "@/components/public/ResponsePromise";
 import { formatSalaryBand } from "@/lib/company/publicProfile";
@@ -16,7 +16,13 @@ import type { RoleView as RoleViewData } from "@/lib/server/publicFns";
  * on purpose. Two renderers would drift, and a preview that drifts is a preview
  * that lies about what candidates will read.
  */
-export function RoleView({ data }: { data: RoleViewData }) {
+export function RoleView({
+  data,
+  applyState,
+}: {
+  data: RoleViewData;
+  applyState?: ApplyState;
+}) {
   const { role, company, signals, responseRecord, preview } = data;
 
   const facts = [
@@ -157,15 +163,13 @@ export function RoleView({ data }: { data: RoleViewData }) {
 
           <CompanySignalPanel signals={signals} companyName={company.name} />
 
-          {!preview && (
-            <Card className="p-6">
-              <p className="text-sm text-[var(--brand-ink)]">
-                Applying takes one click and {company.name} has committed to replying.
-              </p>
-              <Button asChild variant="brand" className="mt-4 w-full">
-                <Link to="/auth/signup">Create a profile to apply</Link>
-              </Button>
-            </Card>
+          {!preview && applyState && (
+            <ApplyPanel
+              jobId={role.id}
+              companyName={company.name}
+              slaResponseDays={responseRecord.slaResponseDays ?? 7}
+              apply={applyState}
+            />
           )}
         </aside>
       </div>

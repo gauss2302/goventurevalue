@@ -9,7 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as JobsIndexRouteImport } from './routes/jobs/index'
 import { Route as CompanyIndexRouteImport } from './routes/company/index'
 import { Route as JobsJobIdRouteImport } from './routes/jobs/$jobId'
 import { Route as CompanyNewRouteImport } from './routes/company/new'
@@ -32,9 +35,24 @@ import { Route as CompanyCompanyIdApplicationsApplicationIdRouteImport } from '.
 import { Route as CompanyCompanyIdRolesJobIdIndexRouteImport } from './routes/company/$companyId/roles.$jobId.index'
 import { Route as CompanyCompanyIdRolesJobIdPreviewRouteImport } from './routes/company/$companyId/roles.$jobId.preview'
 
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApplicationsRoute = ApplicationsRouteImport.update({
+  id: '/applications',
+  path: '/applications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsIndexRoute = JobsIndexRouteImport.update({
+  id: '/jobs/',
+  path: '/jobs/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompanyIndexRoute = CompanyIndexRouteImport.update({
@@ -152,6 +170,8 @@ const CompanyCompanyIdRolesJobIdPreviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/applications': typeof ApplicationsRoute
+  '/profile': typeof ProfileRoute
   '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
@@ -161,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/company/new': typeof CompanyNewRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/company/': typeof CompanyIndexRoute
+  '/jobs/': typeof JobsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsRouteWithChildren
@@ -176,6 +197,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/applications': typeof ApplicationsRoute
+  '/profile': typeof ProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -184,6 +207,7 @@ export interface FileRoutesByTo {
   '/company/new': typeof CompanyNewRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/company': typeof CompanyIndexRoute
+  '/jobs': typeof JobsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/company/$companyId/team': typeof CompanyCompanyIdTeamRoute
@@ -197,6 +221,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/applications': typeof ApplicationsRoute
+  '/profile': typeof ProfileRoute
   '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
@@ -206,6 +232,7 @@ export interface FileRoutesById {
   '/company/new': typeof CompanyNewRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
   '/company/': typeof CompanyIndexRoute
+  '/jobs/': typeof JobsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/polar/webhooks': typeof ApiPolarWebhooksRoute
   '/company/$companyId/applications': typeof CompanyCompanyIdApplicationsRouteWithChildren
@@ -223,6 +250,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/applications'
+    | '/profile'
     | '/company/$companyId'
     | '/auth/callback'
     | '/auth/signin'
@@ -232,6 +261,7 @@ export interface FileRouteTypes {
     | '/company/new'
     | '/jobs/$jobId'
     | '/company/'
+    | '/jobs/'
     | '/api/auth/$'
     | '/api/polar/webhooks'
     | '/company/$companyId/applications'
@@ -247,6 +277,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/applications'
+    | '/profile'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
@@ -255,6 +287,7 @@ export interface FileRouteTypes {
     | '/company/new'
     | '/jobs/$jobId'
     | '/company'
+    | '/jobs'
     | '/api/auth/$'
     | '/api/polar/webhooks'
     | '/company/$companyId/team'
@@ -267,6 +300,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/applications'
+    | '/profile'
     | '/company/$companyId'
     | '/auth/callback'
     | '/auth/signin'
@@ -276,6 +311,7 @@ export interface FileRouteTypes {
     | '/company/new'
     | '/jobs/$jobId'
     | '/company/'
+    | '/jobs/'
     | '/api/auth/$'
     | '/api/polar/webhooks'
     | '/company/$companyId/applications'
@@ -292,6 +328,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApplicationsRoute: typeof ApplicationsRoute
+  ProfileRoute: typeof ProfileRoute
   CompanyCompanyIdRouteRoute: typeof CompanyCompanyIdRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSigninRoute: typeof AuthSigninRoute
@@ -301,17 +339,39 @@ export interface RootRouteChildren {
   CompanyNewRoute: typeof CompanyNewRoute
   JobsJobIdRoute: typeof JobsJobIdRoute
   CompanyIndexRoute: typeof CompanyIndexRoute
+  JobsIndexRoute: typeof JobsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPolarWebhooksRoute: typeof ApiPolarWebhooksRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications': {
+      id: '/applications'
+      path: '/applications'
+      fullPath: '/applications'
+      preLoaderRoute: typeof ApplicationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs/': {
+      id: '/jobs/'
+      path: '/jobs'
+      fullPath: '/jobs/'
+      preLoaderRoute: typeof JobsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/company/': {
@@ -536,6 +596,8 @@ const CompanyCompanyIdRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApplicationsRoute: ApplicationsRoute,
+  ProfileRoute: ProfileRoute,
   CompanyCompanyIdRouteRoute: CompanyCompanyIdRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSigninRoute: AuthSigninRoute,
@@ -545,6 +607,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompanyNewRoute: CompanyNewRoute,
   JobsJobIdRoute: JobsJobIdRoute,
   CompanyIndexRoute: CompanyIndexRoute,
+  JobsIndexRoute: JobsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPolarWebhooksRoute: ApiPolarWebhooksRoute,
 }

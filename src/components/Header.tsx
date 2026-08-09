@@ -29,7 +29,41 @@ export default function Header() {
             {BRAND.name}
           </span>
         </Link>
-        <AuthButton />
+        <div className="flex items-center gap-5">
+          {/* Both sides reachable from one place: a founder is often also job
+              hunting, and membership is what separates the two (§6.6). */}
+          <nav className="hidden items-center gap-4 text-sm sm:flex">
+            <Link
+              to="/jobs"
+              className="text-[var(--brand-muted)] transition-colors hover:text-[var(--brand-ink)]"
+              activeProps={{ className: 'font-medium text-[var(--brand-ink)]' }}
+            >
+              Roles
+            </Link>
+            <Link
+              to="/applications"
+              className="text-[var(--brand-muted)] transition-colors hover:text-[var(--brand-ink)]"
+              activeProps={{ className: 'font-medium text-[var(--brand-ink)]' }}
+            >
+              Applications
+            </Link>
+            <Link
+              to="/profile"
+              className="text-[var(--brand-muted)] transition-colors hover:text-[var(--brand-ink)]"
+              activeProps={{ className: 'font-medium text-[var(--brand-ink)]' }}
+            >
+              Profile
+            </Link>
+            <Link
+              to="/company"
+              className="text-[var(--brand-muted)] transition-colors hover:text-[var(--brand-ink)]"
+              activeProps={{ className: 'font-medium text-[var(--brand-ink)]' }}
+            >
+              Hiring
+            </Link>
+          </nav>
+          <AuthButton />
+        </div>
       </div>
     </header>
   )

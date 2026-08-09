@@ -3,19 +3,26 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { RoleView } from "@/components/public/RoleView";
 import { getPublicRole } from "@/lib/server/publicFns";
+import { getApplyState } from "@/lib/server/candidateFns";
 
 export const Route = createFileRoute("/jobs/$jobId")({
   // Public on purpose: candidates read a role before they have an account.
-  loader: async ({ params }) => getPublicRole({ data: { jobId: params.jobId } }),
+  loader: async ({ params }) => {
+    const [role, applyState] = await Promise.all([
+      getPublicRole({ data: { jobId: params.jobId } }),
+      getApplyState({ data: { jobId: params.jobId } }),
+    ]);
+    return { role, applyState };
+  },
   head: ({ loaderData }) =>
-    loaderData
+    loaderData?.role
       ? {
           meta: [
-            { title: `${loaderData.role.title} at ${loaderData.company.name}` },
+            { title: `${loaderData.role.role.title} at ${loaderData.role.company.name}` },
             {
               name: "description",
-              content: `${loaderData.company.name} replies to every applicant within ${
-                loaderData.responseRecord.slaResponseDays ?? 7
+              content: `${loaderData.role.company.name} replies to every applicant within ${
+                loaderData.role.responseRecord.slaResponseDays ?? 7
               } days.`,
             },
           ],
@@ -25,9 +32,9 @@ export const Route = createFileRoute("/jobs/$jobId")({
 });
 
 function PublicRole() {
-  const data = Route.useLoaderData();
+  const { role, applyState } = Route.useLoaderData();
 
-  if (!data) {
+  if (!role) {
     // A closed, draft or archived role is indistinguishable from one that never
     // existed — the candidate side must fail closed.
     return (
@@ -50,5 +57,5 @@ function PublicRole() {
     );
   }
 
-  return <RoleView data={data} />;
+  return <RoleView data={role} applyState={applyState} />;
 }

@@ -33,6 +33,16 @@ import { relations, sql } from "drizzle-orm";
 
 import { EMBEDDING_DIMENSIONS } from "@/lib/ai/workersAi";
 
+/**
+ * What a jsonb column can actually hold.
+ *
+ * `unknown` was wrong on two counts: jsonb stores JSON by definition, and these
+ * values cross the server-function boundary to the browser, where anything
+ * unserializable would fail at runtime rather than at compile time.
+ */
+export type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject;
+export type JsonObject = { [key: string]: JsonValue };
+
 // ---------------------------------------------------------------------------
 // Better Auth — required tables, unchanged from the previous product.
 // ---------------------------------------------------------------------------
@@ -718,7 +728,7 @@ export const source = pgTable(
     id: text("id").primaryKey(),
     kind: sourceKindEnum("kind").notNull(),
     /** Board token, feed URL, and any adapter-specific settings. */
-    config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+    config: jsonb("config").$type<JsonObject>().notNull(),
     isEnabled: boolean("is_enabled").default(true).notNull(),
     lastRunAt: timestamp("last_run_at"),
     health: text("health"),
@@ -740,7 +750,7 @@ export const ingestRun = pgTable(
     created: integer("created").default(0).notNull(),
     updated: integer("updated").default(0).notNull(),
     archived: integer("archived").default(0).notNull(),
-    errors: jsonb("errors").$type<unknown[]>(),
+    errors: jsonb("errors").$type<JsonValue[]>(),
   },
   (table) => [index("ingest_run_source_id_idx").on(table.sourceId)],
 );
@@ -775,7 +785,7 @@ export const moderationItem = pgTable(
     kind: moderationKindEnum("kind").notNull(),
     companyId: text("company_id").references(() => company.id, { onDelete: "cascade" }),
     jobId: text("job_id").references(() => job.id, { onDelete: "cascade" }),
-    payload: jsonb("payload").$type<Record<string, unknown>>(),
+    payload: jsonb("payload").$type<JsonObject>(),
     priority: integer("priority").default(0).notNull(),
     state: moderationStateEnum("state").default("open").notNull(),
     resolution: text("resolution"),
@@ -858,7 +868,7 @@ export const candidateProfile = pgTable("candidate_profile", {
   resumeR2Key: text("resume_r2_key"),
   resumeUploadedAt: timestamp("resume_uploaded_at"),
   /** Output of the unpdf + LLM parse, kept for re-derivation without re-upload. */
-  resumeParsed: jsonb("resume_parsed").$type<Record<string, unknown>>(),
+  resumeParsed: jsonb("resume_parsed").$type<JsonObject>(),
   resumeParsedAt: timestamp("resume_parsed_at"),
   /** Which model produced the parse, so a proposal from a model we later replace
    *  can be re-run rather than silently trusted. */
@@ -1084,7 +1094,7 @@ export const savedSearch = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    filters: jsonb("filters").$type<Record<string, unknown>>().notNull(),
+    filters: jsonb("filters").$type<JsonObject>().notNull(),
     alertCadence: alertCadenceEnum("alert_cadence").default("off").notNull(),
     lastSentAt: timestamp("last_sent_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1174,7 +1184,7 @@ export const billingSubscriptions = pgTable(
     status: text("status").notNull(),
     currentPeriodEnd: timestamp("current_period_end"),
     cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
-    raw: jsonb("raw").$type<Record<string, unknown>>(),
+    raw: jsonb("raw").$type<JsonObject>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

@@ -62,6 +62,11 @@ export function ResponsePromise({
           <dd className="text-sm font-medium text-[var(--brand-ink)]">
             {record.medianFirstResponseHours === null ? (
               <span className="italic text-[var(--brand-muted)]">No data yet</span>
+            ) : record.medianFirstResponseHours < 1 ? (
+              // The figure is stored rounded to whole hours, so a fast company
+              // would otherwise read as "0 hours", which looks broken rather
+              // than fast. We say what we actually know.
+              "Under an hour"
             ) : record.medianFirstResponseHours < 48 ? (
               `${record.medianFirstResponseHours} hours`
             ) : (

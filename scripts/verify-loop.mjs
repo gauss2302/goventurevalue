@@ -141,7 +141,7 @@ try {
     "the candidate must see the deadline the company is working to",
   );
 
-  // --- Company: reply ------------------------------------------------------
+  // --- Company: an internal move, which the candidate must not see ---------
   await company.goto(`${BASE}/company/${companyId}/applications`, {
     waitUntil: "networkidle",
   });
@@ -152,7 +152,7 @@ try {
   await company.locator('a[href*="/applications/"]').first().click();
   await company.waitForTimeout(3000);
 
-  // An internal status change must not satisfy the promise.
+  // The internal status control, which is the first select on the page.
   await company.selectOption("select >> nth=0", "in_review");
   await company.waitForTimeout(2500);
   text = await company.locator("body").innerText();
@@ -162,16 +162,98 @@ try {
   );
   await shot(company, "loop-07-status-changed-still-pending");
 
+  // The candidate's flow, before anything has been said to them.
+  await candidate.goto(`${BASE}/applications`, { waitUntil: "networkidle" });
+  await candidate.locator('a[href*="/applications/"]').first().click();
+  await candidate.waitForTimeout(3000);
+  const flowUrl = candidate.url();
+  await shot(candidate, "loop-08-flow-before-reply");
+  text = await candidate.locator("body").innerText();
+  expect(
+    !text.includes("Moved to Under review"),
+    "an internal stage move must not leak into the candidate's flow",
+  );
+  expect(
+    text.includes("committed to replying by"),
+    "the flow must show the commitment as a recorded fact",
+  );
+  expect(
+    text.includes("do not show their internal pipeline"),
+    "the flow must say what the stage rail does and does not mean",
+  );
+  expect(
+    text.includes("Opens once"),
+    "the candidate must be told why they cannot write back yet",
+  );
+
+  // --- Company: reply, and tell them the stage -----------------------------
   await company.locator("textarea").first().fill("Thanks — we would like to talk next week.");
+  // The second select shares a stage as part of the reply.
+  await company.selectOption("select >> nth=1", "interviewing");
   await company.getByRole("button", { name: /send reply/i }).click();
   await company.waitForTimeout(4000);
-  await shot(company, "loop-08-replied");
+  await shot(company, "loop-09-replied");
+  text = await company.locator("body").innerText();
+  expect(
+    text.includes("Told them:"),
+    "the company must be able to see which stage move the candidate was told about",
+  );
 
-  // --- Candidate: sees the reply ------------------------------------------
+  // --- Candidate: the full update -----------------------------------------
   await candidate.goto(`${BASE}/applications`, { waitUntil: "networkidle" });
-  await shot(candidate, "loop-09-tracker-answered");
+  await shot(candidate, "loop-10-tracker-answered");
   text = await candidate.locator("body").innerText();
   expect(text.includes("Answered"), "the candidate must see that the promise was kept");
+  expect(text.includes("Interviewing"), "the tracker must show the stage they were told");
+  expect(text.includes("New"), "an unread reply must be marked as new");
+
+  await candidate.goto(flowUrl, { waitUntil: "networkidle" });
+  await candidate.waitForTimeout(1500);
+  await shot(candidate, "loop-11-flow-answered");
+  text = await candidate.locator("body").innerText();
+  expect(
+    text.includes("Thanks — we would like to talk next week."),
+    "the candidate must read the reply itself, not only a badge",
+  );
+  expect(
+    text.includes("Moved to Interviewing"),
+    "a stage shared with the reply must reach the candidate",
+  );
+  expect(
+    text.includes("reply that met their commitment"),
+    "the flow must say which message settled the promise",
+  );
+  expect(
+    !text.includes("No replies measured yet"),
+    "a page showing a reply must not also claim the company has no measured replies",
+  );
+
+  // --- Candidate: writes back ---------------------------------------------
+  await candidate.locator("textarea").first().fill("Thanks — Tuesday works for me.");
+  await candidate.getByRole("button", { name: /^send$/i }).click();
+  await candidate.waitForTimeout(4000);
+  await shot(candidate, "loop-12-flow-candidate-replied");
+  text = await candidate.locator("body").innerText();
+  expect(text.includes("You replied"), "the candidate's own message must appear in the flow");
+  expect(
+    text.includes("Tuesday works for me"),
+    "the candidate's message must be stored and shown",
+  );
+
+  // Opening the flow clears the unread marker for the next visit.
+  await candidate.goto(`${BASE}/applications`, { waitUntil: "networkidle" });
+  text = await candidate.locator("body").innerText();
+  expect(!text.includes("New"), "reading the flow must clear the unread marker");
+
+  // --- Company: sees the candidate's message ------------------------------
+  await company.reload({ waitUntil: "networkidle" });
+  await company.waitForTimeout(1500);
+  await shot(company, "loop-13-company-sees-candidate-message");
+  text = await company.locator("body").innerText();
+  expect(
+    text.includes("Candidate wrote") && text.includes("Tuesday works for me"),
+    "the company must see what the candidate wrote back",
+  );
 
   console.log(JSON.stringify({ ok: true, companyId, jobId }, null, 2));
 } catch (error) {

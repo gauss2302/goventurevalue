@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { WEEKLY_APPLICATION_LIMIT } from "@/config/brand";
 import { computeSlaDueAt } from "@/lib/application/sla";
+import { recomputeSla } from "@/lib/application/service";
 import {
   checkEligibility,
   currentQuotaWindow,
@@ -24,6 +25,8 @@ import {
 } from "@/lib/matching/eligibility";
 import { REQUIREMENT_REASONS } from "@/lib/candidate/onboarding";
 import { getProfileStatus } from "@/lib/candidate/service";
+import { buildFlow, summariseFlow, type FlowSourceEvent } from "@/lib/candidate/flow";
+import type { ResponseRecord } from "@/lib/company/publicProfile";
 
 /**
  * Searching and applying, from the candidate's side
@@ -49,7 +52,8 @@ export class ApplyError extends Error {
       | "not_eligible"
       | "quota_exhausted"
       | "already_applied"
-      | "role_unavailable",
+      | "role_unavailable"
+      | "thread_closed",
     readonly details?: unknown,
   ) {
     super(message);
@@ -396,9 +400,16 @@ export const applyToRole = async (
 /**
  * Withdraws an application.
  *
- * Releases the company from its obligation rather than counting against it:
- * blaming a company for someone else changing their mind would make the
- * published response rate dishonest in the other direction (§6.6).
+ * Releases the company from an obligation it has not yet discharged rather than
+ * counting against it: blaming a company for someone else changing their mind
+ * would make the published response rate dishonest in the other direction
+ * (§6.6).
+ *
+ * The SLA state is re-derived from the events rather than set to `cancelled`
+ * outright, because a withdrawal after a reply must not erase the reply. A
+ * company that answered in two days and then had the candidate withdraw earned
+ * that answer, and hard-writing `cancelled` here would quietly delete it from
+ * the rate we publish about them.
  */
 export const withdrawApplication = async (
   db: Database,
@@ -425,14 +436,67 @@ export const withdrawApplication = async (
 
     await tx
       .update(application)
-      .set({ status: "withdrawn", slaState: "cancelled" })
+      .set({ status: "withdrawn" })
       .where(eq(application.id, applicationId));
+
+    await recomputeSla(tx, applicationId);
   });
 };
 
-/** The candidate's own applications, with what each company owes them. */
-export const listMyApplications = async (db: Database, userId: string) =>
-  db
+// ---------------------------------------------------------------------------
+// The flow: what happened to an application after it was sent
+// ---------------------------------------------------------------------------
+
+/**
+ * Loads the events a candidate is entitled to see.
+ *
+ * Filtered on the stored `is_candidate_visible` column, which is written from the
+ * event kind and never from a caller (see recordApplicationEvent). `buildFlow`
+ * filters again on the way out — this is the seam where a company's internal
+ * notes would become someone else's reading material, so it does not rest on one
+ * check.
+ */
+type CandidateVisibleEvent = FlowSourceEvent & { applicationId: string };
+
+const loadCandidateVisibleEvents = (
+  db: Database,
+  applicationIds: string[],
+): Promise<CandidateVisibleEvent[]> =>
+  applicationIds.length === 0
+    ? Promise.resolve([])
+    : db
+        .select({
+          id: applicationEvent.id,
+          applicationId: applicationEvent.applicationId,
+          kind: applicationEvent.kind,
+          body: applicationEvent.body,
+          fromStatus: applicationEvent.fromStatus,
+          toStatus: applicationEvent.toStatus,
+          occurredAt: applicationEvent.occurredAt,
+        })
+        .from(applicationEvent)
+        .where(
+          and(
+            inArray(applicationEvent.applicationId, applicationIds),
+            eq(applicationEvent.isCandidateVisible, true),
+          ),
+        )
+        .orderBy(asc(applicationEvent.occurredAt));
+
+/**
+ * The candidate's own applications, each summarised the same way the detail
+ * screen derives it.
+ *
+ * Two queries rather than one per row: the events are fetched in a single
+ * `IN (...)` and grouped in memory, because a tracker with twenty applications
+ * on a Worker cannot afford twenty round trips through Hyperdrive.
+ */
+export const listMyApplications = async (
+  db: Database,
+  userId: string,
+  now: Date = new Date(),
+) => {
+  const rows = await db
     .select({
       id: application.id,
       jobId: application.jobId,
@@ -444,6 +508,7 @@ export const listMyApplications = async (db: Database, userId: string) =>
       slaDueAt: application.slaDueAt,
       slaState: application.slaState,
       firstResponseAt: application.firstResponseAt,
+      candidateLastSeenAt: application.candidateLastSeenAt,
     })
     .from(application)
     .innerJoin(job, eq(job.id, application.jobId))
@@ -451,39 +516,184 @@ export const listMyApplications = async (db: Database, userId: string) =>
     .where(eq(application.userId, userId))
     .orderBy(desc(application.appliedAt));
 
-/** What the candidate has been told, in order. */
-export const getMyApplicationThread = async (
+  const events = await loadCandidateVisibleEvents(
+    db,
+    rows.map((row) => row.id),
+  );
+
+  const byApplication = new Map<string, FlowSourceEvent[]>();
+  for (const item of events) {
+    const bucket = byApplication.get(item.applicationId);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      byApplication.set(item.applicationId, [item]);
+    }
+  }
+
+  // Built explicitly rather than spread. The row carries `status`, the company's
+  // internal stage, and spreading it would ship that to the candidate's browser
+  // even though nothing renders it — a leak in the payload is still a leak. The
+  // stage the candidate may see comes from the derivation instead.
+  return rows.map((row) => ({
+    id: row.id,
+    jobId: row.jobId,
+    jobTitle: row.jobTitle,
+    companyName: row.companyName,
+    companySlug: row.companySlug,
+    appliedAt: row.appliedAt,
+    slaDueAt: row.slaDueAt,
+    firstResponseAt: row.firstResponseAt,
+    ...summariseFlow({
+      companyName: row.companyName,
+      appliedAt: row.appliedAt,
+      slaDueAt: row.slaDueAt,
+      slaState: row.slaState,
+      candidateLastSeenAt: row.candidateLastSeenAt,
+      events: byApplication.get(row.id) ?? [],
+      now,
+    }),
+  }));
+};
+
+/**
+ * One application, in full: the stage, the timeline, and where the promise
+ * stands.
+ *
+ * The company's public response record travels with it deliberately. A candidate
+ * reading "no reply yet, four days left" deserves the context of whether this
+ * company usually answers — and that number is measured, not claimed (§6.4).
+ */
+export const getMyApplicationFlow = async (
   db: Database,
   userId: string,
   applicationId: string,
+  now: Date = new Date(),
 ) => {
-  const app = await db.query.application.findFirst({
-    where: and(eq(application.id, applicationId), eq(application.userId, userId)),
-  });
+  const rows = await db
+    .select({
+      application,
+      job: {
+        id: job.id,
+        title: job.title,
+        roleFamily: job.roleFamily,
+        seniority: job.seniority,
+        remoteType: job.remoteType,
+      },
+      company: {
+        name: company.name,
+        slug: company.slug,
+        stage: company.stage,
+        slaResponseDays: company.slaResponseDays,
+        responseRate30d: company.responseRate30d,
+        medianFirstResponseHours: company.medianFirstResponseHours,
+      },
+    })
+    .from(application)
+    .innerJoin(job, eq(job.id, application.jobId))
+    .innerJoin(company, eq(company.id, job.companyId))
+    .where(and(eq(application.id, applicationId), eq(application.userId, userId)))
+    .limit(1);
 
-  if (!app) {
+  if (rows.length === 0) {
+    // Indistinguishable from someone else's application on purpose.
     throw new ApplyError("Application not found", "role_unavailable");
   }
 
-  // Only candidate-visible events: internal notes and triage are the company's
-  // business, and showing them would imply the candidate had been told.
-  const events = await db
-    .select({
-      id: applicationEvent.id,
-      kind: applicationEvent.kind,
-      body: applicationEvent.body,
-      occurredAt: applicationEvent.occurredAt,
-    })
-    .from(applicationEvent)
-    .where(
-      and(
-        eq(applicationEvent.applicationId, applicationId),
-        eq(applicationEvent.isCandidateVisible, true),
-      ),
-    )
-    .orderBy(asc(applicationEvent.occurredAt));
+  const { application: app, job: role, company: companyRow } = rows[0];
+  const events = await loadCandidateVisibleEvents(db, [app.id]);
 
-  return { application: app, events };
+  const flow = buildFlow({
+    companyName: companyRow.name,
+    appliedAt: app.appliedAt,
+    slaDueAt: app.slaDueAt,
+    slaState: app.slaState,
+    candidateLastSeenAt: app.candidateLastSeenAt,
+    events,
+    now,
+  });
+
+  return {
+    applicationId: app.id,
+    coverLetter: app.coverLetter,
+    role,
+    company: { name: companyRow.name, slug: companyRow.slug, stage: companyRow.stage },
+    // Same shape the public role page uses, so the record a candidate saw before
+    // applying is the record they see afterwards.
+    responseRecord: {
+      responseRate:
+        companyRow.responseRate30d === null ? null : Number(companyRow.responseRate30d),
+      medianFirstResponseHours: companyRow.medianFirstResponseHours,
+      slaResponseDays: companyRow.slaResponseDays,
+    } satisfies ResponseRecord,
+    flow,
+  };
+};
+
+/**
+ * The candidate writes back.
+ *
+ * Gated on the company having written first (`flow.canMessage`), for two
+ * reasons: an unopened thread has nobody reading it, and an open one would be a
+ * way around the weekly cap (§3.2). Recorded as `candidate_message`, which never
+ * counts as the company's response — being answered is the company's act, and
+ * letting a candidate's own message touch the promise would corrupt the number we
+ * publish about companies.
+ */
+export const sendCandidateMessage = async (
+  db: Database,
+  userId: string,
+  input: { applicationId: string; body: string },
+  now: Date = new Date(),
+): Promise<{ eventId: string }> => {
+  const body = input.body.trim();
+
+  if (body.length === 0) {
+    throw new ApplyError("A message cannot be empty", "thread_closed");
+  }
+
+  const { flow } = await getMyApplicationFlow(db, userId, input.applicationId, now);
+
+  if (!flow.canMessage) {
+    throw new ApplyError(
+      flow.outcome.kind === "withdrawn"
+        ? "You withdrew this application, so the thread is closed"
+        : "You can write back once they have replied to you",
+      "thread_closed",
+    );
+  }
+
+  const eventId = newId();
+
+  await db.insert(applicationEvent).values({
+    id: eventId,
+    applicationId: input.applicationId,
+    kind: "candidate_message",
+    actorUserId: userId,
+    isCandidateVisible: true,
+    body,
+    occurredAt: now,
+  });
+
+  return { eventId };
+};
+
+/**
+ * Records that the candidate has read the flow.
+ *
+ * Deliberately a separate write rather than a side effect of reading it, so the
+ * detail screen can still highlight what was new at the moment it was opened.
+ */
+export const markApplicationSeen = async (
+  db: Database,
+  userId: string,
+  applicationId: string,
+  now: Date = new Date(),
+): Promise<void> => {
+  await db
+    .update(application)
+    .set({ candidateLastSeenAt: now })
+    .where(and(eq(application.id, applicationId), eq(application.userId, userId)));
 };
 
 export const toggleSavedJob = async (

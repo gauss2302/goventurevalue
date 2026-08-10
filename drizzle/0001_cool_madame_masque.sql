@@ -1,0 +1,1 @@
+ALTER TABLE "application" ADD COLUMN "candidate_last_seen_at" timestamp;

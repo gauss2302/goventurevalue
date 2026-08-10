@@ -25,10 +25,12 @@ import {
 } from "@/lib/candidate/service";
 import {
   applyToRole,
-  getMyApplicationThread,
+  getMyApplicationFlow,
   getQuota,
   listMyApplications,
+  markApplicationSeen,
   searchRoles,
+  sendCandidateMessage,
   toggleSavedJob,
   withdrawApplication,
 } from "@/lib/candidate/applyService";
@@ -263,7 +265,29 @@ export const getMyApplicationFn = createServerFn({ method: "GET" })
   .inputValidator(validate(z.object({ applicationId: z.string() })))
   .handler(async ({ data }) =>
     withRequestContext(({ db, user }) =>
-      getMyApplicationThread(db, user.id, data.applicationId),
+      getMyApplicationFlow(db, user.id, data.applicationId),
+    ),
+  );
+
+export const sendCandidateMessageFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    validate(z.object({ applicationId: z.string(), body: z.string().min(1).max(5000) })),
+  )
+  .handler(async ({ data }) =>
+    withRequestContext(({ db, user }) => sendCandidateMessage(db, user.id, data)),
+  );
+
+/**
+ * Marks the flow as read.
+ *
+ * Separate from loading it so the screen can still show what arrived since the
+ * last visit while the candidate is looking at it.
+ */
+export const markApplicationSeenFn = createServerFn({ method: "POST" })
+  .inputValidator(validate(z.object({ applicationId: z.string() })))
+  .handler(async ({ data }) =>
+    withRequestContext(({ db, user }) =>
+      markApplicationSeen(db, user.id, data.applicationId),
     ),
   );
 

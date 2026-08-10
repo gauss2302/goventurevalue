@@ -8,6 +8,13 @@
       "when": 1786217674882,
       "tag": "0000_black_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786338673892,
+      "tag": "0001_cool_madame_masque",
+      "breakpoints": true
     }
   ]
 }

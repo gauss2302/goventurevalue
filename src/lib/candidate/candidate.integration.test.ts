@@ -16,12 +16,18 @@ import {
 import {
   ApplyError,
   applyToRole,
+  getMyApplicationFlow,
   getQuota,
   listMyApplications,
+  markApplicationSeen,
   searchRoles,
+  sendCandidateMessage,
   withdrawApplication,
 } from "@/lib/candidate/applyService";
-import { respondToApplication } from "@/lib/application/service";
+import {
+  changeApplicationStatus,
+  respondToApplication,
+} from "@/lib/application/service";
 
 /**
  * The candidate side end to end, and the full loop with the company side.
@@ -316,7 +322,7 @@ describe.skipIf(!hasDatabase)("candidate side", () => {
         // The company sees the candidate's application in its inbox.
         const mine = await listMyApplications(db, uid("cand"));
         const target = mine.find((entry) => entry.jobId === jobId)!;
-        expect(target.slaState).toBe("pending");
+        expect(target.replyState).toBe("pending");
 
         // It replies, which is the only thing that satisfies the promise.
         const result = await respondToApplication(db, founder, {
@@ -328,8 +334,211 @@ describe.skipIf(!hasDatabase)("candidate side", () => {
 
         const after = await listMyApplications(db, uid("cand"));
         const updated = after.find((entry) => entry.id === target.id)!;
-        expect(updated.slaState).toBe("answered");
+        expect(updated.replyState).toBe("answered");
         expect(updated.firstResponseAt).not.toBeNull();
+      });
+    });
+
+    /**
+     * The flow, on real rows.
+     *
+     * The unit tests in flow.test.ts prove the derivation; these prove the two
+     * boundaries it depends on hold against the database: that an internal stage
+     * move really is stored invisibly, and that a stage attached to a reply
+     * really does travel to the candidate.
+     */
+    describe("the flow the candidate sees", () => {
+      let flowJobId: string;
+      let flowApplicationId: string;
+      let quietJobId: string;
+      let quietApplicationId: string;
+
+      beforeAll(async () => {
+        await withDb(async (db) => {
+          await db
+            .insert(user)
+            .values([
+              { id: uid("flow"), name: "Flow", email: `${P}flow@mail.dev` },
+              { id: uid("quiet"), name: "Quiet", email: `${P}quiet@mail.dev` },
+            ])
+            .onConflictDoNothing();
+
+          for (const id of [uid("flow"), uid("quiet")]) {
+            await saveProfile(db, id, {
+              roleFamilies: ["backend"],
+              seniority: "senior",
+              timezone: "UTC",
+              openTo: "remote",
+            });
+            await addExperience(db, id, { companyName: "Before", title: "Engineer" });
+          }
+
+          const created = await createRole(db, founder, companyId, {
+            title: "Platform Engineer",
+            descriptionMd: DESCRIPTION,
+            roleFamily: "backend",
+            seniority: "senior",
+            remoteType: "remote",
+          });
+          flowJobId = created.jobId;
+          await publishRole(db, founder, flowJobId);
+
+          const quiet = await createRole(db, founder, companyId, {
+            title: "Data Engineer",
+            descriptionMd: DESCRIPTION,
+            roleFamily: "backend",
+            seniority: "senior",
+            remoteType: "remote",
+          });
+          quietJobId = quiet.jobId;
+          await publishRole(db, founder, quietJobId);
+
+          flowApplicationId = (await applyToRole(db, uid("flow"), { jobId: flowJobId }))
+            .applicationId;
+          quietApplicationId = (await applyToRole(db, uid("quiet"), { jobId: quietJobId }))
+            .applicationId;
+        });
+      });
+
+      it("starts with what the candidate did and what was promised", async () => {
+        await withDb(async (db) => {
+          const { flow } = await getMyApplicationFlow(db, uid("flow"), flowApplicationId);
+
+          expect(flow.stage).toBe("received");
+          expect(flow.entries.map((entry) => entry.kind)).toEqual(["applied", "commitment"]);
+          expect(flow.canWithdraw).toBe(true);
+          expect(flow.canMessage).toBe(false);
+          expect(flow.unreadCount).toBe(0);
+        });
+      });
+
+      it("hides an internal stage move completely", async () => {
+        await withDb(async (db) => {
+          await changeApplicationStatus(db, founder, {
+            applicationId: flowApplicationId,
+            toStatus: "in_review",
+          });
+
+          const { flow } = await getMyApplicationFlow(db, uid("flow"), flowApplicationId);
+
+          // The row moved; the candidate was told nothing, so nothing moved here.
+          expect(flow.stage).toBe("received");
+          expect(flow.entries).toHaveLength(2);
+          expect(flow.unreadCount).toBe(0);
+        });
+      });
+
+      it("refuses a message before the company has said anything", async () => {
+        await withDb(async (db) => {
+          const error = await sendCandidateMessage(db, uid("quiet"), {
+            applicationId: quietApplicationId,
+            body: "Any news?",
+          }).catch((e) => e);
+
+          expect(error).toBeInstanceOf(ApplyError);
+          expect((error as ApplyError).code).toBe("thread_closed");
+        });
+      });
+
+      it("carries a stage the company attached to its reply", async () => {
+        await withDb(async (db) => {
+          await respondToApplication(db, founder, {
+            applicationId: flowApplicationId,
+            body: "We would like to talk next week.",
+            toStatus: "interviewing",
+          });
+
+          const { flow } = await getMyApplicationFlow(db, uid("flow"), flowApplicationId);
+          const reply = flow.entries.find((entry) => entry.kind === "message")!;
+
+          expect(flow.stage).toBe("interviewing");
+          expect(reply.body).toBe("We would like to talk next week.");
+          expect(reply.stage?.to).toBe("interviewing");
+          expect(reply.satisfiedPromise).toBe(true);
+          expect(flow.reply.state).toBe("answered");
+          expect(flow.unreadCount).toBe(1);
+          expect(flow.canMessage).toBe(true);
+        });
+      });
+
+      it("lets the candidate write back without touching the company's record", async () => {
+        await withDb(async (db) => {
+          const before = await db.query.application.findFirst({
+            where: eq(application.id, flowApplicationId),
+          });
+
+          await sendCandidateMessage(db, uid("flow"), {
+            applicationId: flowApplicationId,
+            body: "Thanks — Tuesday works.",
+          });
+
+          const { flow } = await getMyApplicationFlow(db, uid("flow"), flowApplicationId);
+          const mine = flow.entries.find((entry) => entry.kind === "candidate_reply")!;
+          const after = await db.query.application.findFirst({
+            where: eq(application.id, flowApplicationId),
+          });
+
+          expect(mine.body).toBe("Thanks — Tuesday works.");
+          // The candidate talking is not the company answering.
+          expect(mine.satisfiedPromise).toBe(false);
+          expect(after?.firstResponseAt).toEqual(before?.firstResponseAt);
+          expect(after?.slaState).toBe("answered");
+        });
+      });
+
+      it("clears what is new once the candidate has opened it", async () => {
+        await withDb(async (db) => {
+          await markApplicationSeen(db, uid("flow"), flowApplicationId);
+
+          const { flow } = await getMyApplicationFlow(db, uid("flow"), flowApplicationId);
+          expect(flow.unreadCount).toBe(0);
+        });
+      });
+
+      it("summarises the same state in the tracker list", async () => {
+        await withDb(async (db) => {
+          const entries = await listMyApplications(db, uid("flow"));
+          const target = entries.find((entry) => entry.id === flowApplicationId)!;
+
+          expect(target.stageLabel).toBe("Interviewing");
+          expect(target.replyState).toBe("answered");
+          expect(target.unreadCount).toBe(0);
+          expect(target.lastUpdate?.title).toBe("You replied");
+        });
+      });
+
+      it("does not hand one candidate another's application", async () => {
+        await withDb(async (db) => {
+          const error = await getMyApplicationFlow(
+            db,
+            uid("quiet"),
+            flowApplicationId,
+          ).catch((e) => e);
+
+          expect((error as ApplyError).code).toBe("role_unavailable");
+        });
+      });
+
+      it("closes the thread on withdrawal without erasing a reply already earned", async () => {
+        await withDb(async (db) => {
+          await withdrawApplication(db, uid("flow"), flowApplicationId);
+
+          const { flow } = await getMyApplicationFlow(db, uid("flow"), flowApplicationId);
+          const row = await db.query.application.findFirst({
+            where: eq(application.id, flowApplicationId),
+          });
+
+          expect(flow.outcome.kind).toBe("withdrawn");
+          expect(flow.canMessage).toBe(false);
+          expect(flow.canWithdraw).toBe(false);
+
+          // This company answered in time and then the candidate changed their
+          // mind. Writing `cancelled` here would delete an answer they earned
+          // from the rate we publish about them.
+          expect(flow.reply.state).toBe("answered");
+          expect(row?.slaState).toBe("answered");
+          expect(row?.status).toBe("withdrawn");
+        });
       });
     });
 

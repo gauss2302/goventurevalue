@@ -75,7 +75,7 @@ const loadApplicationWithCompany = async (db: Database, applicationId: string) =
  * disagreeing with the events it claims to summarise — and that number is what
  * we publish about a company.
  */
-const recomputeSla = async (
+export const recomputeSla = async (
   tx: DbOrTx,
   applicationId: string,
 ): Promise<{ slaState: SlaState; firstResponseAt: Date | null }> => {
@@ -163,7 +163,13 @@ export type RespondInput = {
   body: string;
   /** A rejection or an offer is a decision; anything else is a message. */
   decision?: boolean;
-  /** Optional status change applied alongside the reply. */
+  /**
+   * Stage to move to as part of this reply.
+   *
+   * Recorded on the reply itself rather than as a separate `status_changed`
+   * event, which is what makes it a stage the candidate was *told* about. See
+   * the note on stage visibility below.
+   */
   toStatus?: ApplicationStatus;
 };
 
@@ -172,6 +178,19 @@ export type RespondInput = {
  *
  * Available to `recruiter` and above deliberately (§6.6): an obligation only
  * admins can discharge is one that gets missed.
+ *
+ * Stage visibility, which is the subtle part. There are exactly two ways a stage
+ * move is recorded, and they mean different things:
+ *
+ *   - a `status_changed` event — internal triage. The candidate is not told, and
+ *     the company UI says as much. Leaking these into the candidate's timeline
+ *     would break the promise we made to companies when we called the field
+ *     internal, and would push them into not recording stages at all.
+ *   - `from_status`/`to_status` carried on this reply — a stage the candidate was
+ *     deliberately told about, in the same act as the message explaining it.
+ *
+ * So a stage cannot reach a candidate without a message attached. A bare stage
+ * says nothing, and saying nothing is what the response promise exists to stop.
  */
 export const respondToApplication = async (
   db: Database,
@@ -191,24 +210,14 @@ export const respondToApplication = async (
   const respondedAt = new Date();
   const kind: ApplicationEventKind = input.decision ? "decision" : "message_to_candidate";
 
+  const movesStage = Boolean(input.toStatus && input.toStatus !== app.status);
+
   const { slaState } = await db.transaction(async (tx) => {
-    if (input.toStatus && input.toStatus !== app.status) {
+    if (movesStage) {
       await tx
         .update(application)
         .set({ status: input.toStatus })
         .where(eq(application.id, input.applicationId));
-
-      await tx.insert(applicationEvent).values({
-        id: newId(),
-        applicationId: input.applicationId,
-        kind: "status_changed",
-        actorUserId: actor.userId,
-        actorMemberId: membership.memberId,
-        isCandidateVisible: false,
-        fromStatus: app.status,
-        toStatus: input.toStatus,
-        occurredAt: respondedAt,
-      });
     }
 
     await tx.insert(applicationEvent).values({
@@ -218,12 +227,24 @@ export const respondToApplication = async (
       actorUserId: actor.userId,
       actorMemberId: membership.memberId,
       isCandidateVisible: true,
+      // One event, not two: the message and the stage were the same act, so
+      // splitting them would leave the candidate's timeline unable to say which
+      // stage they were actually told about.
+      fromStatus: movesStage ? app.status : null,
+      toStatus: movesStage ? input.toStatus : null,
       body,
       occurredAt: respondedAt,
     });
 
     return recomputeSla(tx, input.applicationId);
   });
+
+  // Refresh the company's published figures now rather than waiting for the
+  // hourly sweep. A reply is a rare, human-paced action, and the candidate is
+  // about to look at a page that shows both this reply and the company's record
+  // — leaving the record an hour stale makes the two contradict each other. The
+  // sweep stays the owner of breaches, which have no action to hang off.
+  await refreshCompanyResponseStats(db, app.companyId);
 
   return { slaState, respondedAt };
 };

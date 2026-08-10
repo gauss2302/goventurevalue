@@ -10,10 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as JobsIndexRouteImport } from './routes/jobs/index'
 import { Route as CompanyIndexRouteImport } from './routes/company/index'
+import { Route as ApplicationsIndexRouteImport } from './routes/applications/index'
 import { Route as JobsJobIdRouteImport } from './routes/jobs/$jobId'
 import { Route as CompanyNewRouteImport } from './routes/company/new'
 import { Route as CompaniesSlugRouteImport } from './routes/companies/$slug'
@@ -21,6 +21,7 @@ import { Route as BillingSuccessRouteImport } from './routes/billing/success'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthSigninRouteImport } from './routes/auth/signin'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as ApplicationsApplicationIdRouteImport } from './routes/applications/$applicationId'
 import { Route as CompanyCompanyIdRouteRouteImport } from './routes/company/$companyId/route'
 import { Route as CompanyCompanyIdIndexRouteImport } from './routes/company/$companyId/index'
 import { Route as CompanyCompanyIdTeamRouteImport } from './routes/company/$companyId/team'
@@ -40,11 +41,6 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApplicationsRoute = ApplicationsRouteImport.update({
-  id: '/applications',
-  path: '/applications',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -58,6 +54,11 @@ const JobsIndexRoute = JobsIndexRouteImport.update({
 const CompanyIndexRoute = CompanyIndexRouteImport.update({
   id: '/company/',
   path: '/company/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApplicationsIndexRoute = ApplicationsIndexRouteImport.update({
+  id: '/applications/',
+  path: '/applications/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsJobIdRoute = JobsJobIdRouteImport.update({
@@ -95,6 +96,12 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApplicationsApplicationIdRoute =
+  ApplicationsApplicationIdRouteImport.update({
+    id: '/applications/$applicationId',
+    path: '/applications/$applicationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CompanyCompanyIdRouteRoute = CompanyCompanyIdRouteRouteImport.update({
   id: '/company/$companyId',
   path: '/company/$companyId',
@@ -170,9 +177,9 @@ const CompanyCompanyIdRolesJobIdPreviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/applications': typeof ApplicationsRoute
   '/profile': typeof ProfileRoute
   '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -180,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/companies/$slug': typeof CompaniesSlugRoute
   '/company/new': typeof CompanyNewRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/applications/': typeof ApplicationsIndexRoute
   '/company/': typeof CompanyIndexRoute
   '/jobs/': typeof JobsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -197,8 +205,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/applications': typeof ApplicationsRoute
   '/profile': typeof ProfileRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -206,6 +214,7 @@ export interface FileRoutesByTo {
   '/companies/$slug': typeof CompaniesSlugRoute
   '/company/new': typeof CompanyNewRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/applications': typeof ApplicationsIndexRoute
   '/company': typeof CompanyIndexRoute
   '/jobs': typeof JobsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -221,9 +230,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/applications': typeof ApplicationsRoute
   '/profile': typeof ProfileRoute
   '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
+  '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -231,6 +240,7 @@ export interface FileRoutesById {
   '/companies/$slug': typeof CompaniesSlugRoute
   '/company/new': typeof CompanyNewRoute
   '/jobs/$jobId': typeof JobsJobIdRoute
+  '/applications/': typeof ApplicationsIndexRoute
   '/company/': typeof CompanyIndexRoute
   '/jobs/': typeof JobsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -250,9 +260,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/applications'
     | '/profile'
     | '/company/$companyId'
+    | '/applications/$applicationId'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/companies/$slug'
     | '/company/new'
     | '/jobs/$jobId'
+    | '/applications/'
     | '/company/'
     | '/jobs/'
     | '/api/auth/$'
@@ -277,8 +288,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/applications'
     | '/profile'
+    | '/applications/$applicationId'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/companies/$slug'
     | '/company/new'
     | '/jobs/$jobId'
+    | '/applications'
     | '/company'
     | '/jobs'
     | '/api/auth/$'
@@ -300,9 +312,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/applications'
     | '/profile'
     | '/company/$companyId'
+    | '/applications/$applicationId'
     | '/auth/callback'
     | '/auth/signin'
     | '/auth/signup'
@@ -310,6 +322,7 @@ export interface FileRouteTypes {
     | '/companies/$slug'
     | '/company/new'
     | '/jobs/$jobId'
+    | '/applications/'
     | '/company/'
     | '/jobs/'
     | '/api/auth/$'
@@ -328,9 +341,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApplicationsRoute: typeof ApplicationsRoute
   ProfileRoute: typeof ProfileRoute
   CompanyCompanyIdRouteRoute: typeof CompanyCompanyIdRouteRouteWithChildren
+  ApplicationsApplicationIdRoute: typeof ApplicationsApplicationIdRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthSigninRoute: typeof AuthSigninRoute
   AuthSignupRoute: typeof AuthSignupRoute
@@ -338,6 +351,7 @@ export interface RootRouteChildren {
   CompaniesSlugRoute: typeof CompaniesSlugRoute
   CompanyNewRoute: typeof CompanyNewRoute
   JobsJobIdRoute: typeof JobsJobIdRoute
+  ApplicationsIndexRoute: typeof ApplicationsIndexRoute
   CompanyIndexRoute: typeof CompanyIndexRoute
   JobsIndexRoute: typeof JobsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -351,13 +365,6 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/applications': {
-      id: '/applications'
-      path: '/applications'
-      fullPath: '/applications'
-      preLoaderRoute: typeof ApplicationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -379,6 +386,13 @@ declare module '@tanstack/react-router' {
       path: '/company'
       fullPath: '/company/'
       preLoaderRoute: typeof CompanyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/': {
+      id: '/applications/'
+      path: '/applications'
+      fullPath: '/applications/'
+      preLoaderRoute: typeof ApplicationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jobs/$jobId': {
@@ -428,6 +442,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/$applicationId': {
+      id: '/applications/$applicationId'
+      path: '/applications/$applicationId'
+      fullPath: '/applications/$applicationId'
+      preLoaderRoute: typeof ApplicationsApplicationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/company/$companyId': {
@@ -596,9 +617,9 @@ const CompanyCompanyIdRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApplicationsRoute: ApplicationsRoute,
   ProfileRoute: ProfileRoute,
   CompanyCompanyIdRouteRoute: CompanyCompanyIdRouteRouteWithChildren,
+  ApplicationsApplicationIdRoute: ApplicationsApplicationIdRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthSigninRoute: AuthSigninRoute,
   AuthSignupRoute: AuthSignupRoute,
@@ -606,6 +627,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompaniesSlugRoute: CompaniesSlugRoute,
   CompanyNewRoute: CompanyNewRoute,
   JobsJobIdRoute: JobsJobIdRoute,
+  ApplicationsIndexRoute: ApplicationsIndexRoute,
   CompanyIndexRoute: CompanyIndexRoute,
   JobsIndexRoute: JobsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

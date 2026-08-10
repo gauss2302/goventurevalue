@@ -984,6 +984,17 @@ export const application = pgTable(
     slaState: slaStateEnum("sla_state").default("pending").notNull(),
     remindedAt: timestamp("reminded_at"),
     breachedAt: timestamp("breached_at"),
+
+    /**
+     * When the candidate last opened this application's flow.
+     *
+     * Only ever compared against candidate-visible events, so it answers one
+     * question: is there something here the candidate has not read yet. Null
+     * means they have never opened it, which is not the same as nothing being
+     * new — an application with no company events yet has nothing unread either
+     * way, and the derivation in src/lib/candidate/flow.ts keeps those apart.
+     */
+    candidateLastSeenAt: timestamp("candidate_last_seen_at"),
   },
   (table) => [
     uniqueIndex("application_job_user_idx").on(table.jobId, table.userId),

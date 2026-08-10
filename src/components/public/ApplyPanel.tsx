@@ -75,10 +75,16 @@ export function ApplyPanel({
       <Card className="p-6">
         <Badge variant="success">Applied</Badge>
         <p className="mt-3 text-sm text-[var(--brand-ink)]">
-          You have applied to this role. You can follow it in your applications.
+          You have applied to this role. Everything {companyName} tells you appears in one
+          place, along with the deadline they are working to.
         </p>
         <Button asChild variant="outline" className="mt-4 w-full">
-          <Link to="/applications">See your applications</Link>
+          <Link
+            to="/applications/$applicationId"
+            params={{ applicationId: apply.applicationId }}
+          >
+            Follow this application
+          </Link>
         </Button>
       </Card>
     );

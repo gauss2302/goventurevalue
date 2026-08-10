@@ -39,6 +39,7 @@ function ApplicationThread() {
   const router = useRouter();
 
   const [body, setBody] = useState("");
+  const [shareStage, setShareStage] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
   const answered = app.slaState === "answered" || app.slaState === "breached";
@@ -52,7 +53,9 @@ function ApplicationThread() {
           applicationId: app.id,
           body: body.trim(),
           decision,
-          toStatus: decision ? "rejected" : undefined,
+          // A stage attached to a reply is one the candidate is told about. On
+          // its own it would be internal triage, which tells them nothing.
+          toStatus: decision ? "rejected" : ((shareStage || undefined) as never),
         },
       });
 
@@ -62,6 +65,7 @@ function ApplicationThread() {
           : "Reply sent — it was past the deadline",
       );
       setBody("");
+      setShareStage("");
       await router.invalidate();
     } catch (error) {
       toast.error((error as Error).message);
@@ -121,7 +125,8 @@ function ApplicationThread() {
             ))}
           </select>
           <span className="text-xs text-[var(--brand-muted)]">
-            Internal only — this does not count as a reply.
+            Internal only — the candidate is not told, and this does not count as a reply.
+            To move the stage <em>and</em> tell them, use the reply box below.
           </span>
         </div>
       </Card>
@@ -150,6 +155,12 @@ function ApplicationThread() {
                   {!event.isCandidateVisible && (
                     <Badge variant="neutral">Not visible to candidate</Badge>
                   )}
+                  {event.toStatus && (
+                    <Badge variant={event.isCandidateVisible ? "info" : "neutral"}>
+                      {event.isCandidateVisible ? "Told them: " : "Internal move: "}
+                      {event.toStatus.replace(/_/g, " ")}
+                    </Badge>
+                  )}
                 </div>
                 {event.body && event.kind !== "assigned" && (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--brand-muted)]">
@@ -177,7 +188,30 @@ function ApplicationThread() {
           className="mt-3 w-full rounded-[var(--radius-sm)] border border-[var(--surface-muted-border)] bg-[var(--page)] p-3 text-sm text-[var(--brand-ink)] outline-none focus-visible:border-[var(--brand-primary)]"
         />
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        {/* Sharing a stage requires a message, deliberately: a stage on its own
+            says nothing, and saying nothing is what the promise exists to stop.
+            Attaching it here is what makes it visible to the candidate — the
+            status control above stays internal. */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--brand-muted)]">Move to stage, and tell them:</span>
+          <select
+            value={shareStage}
+            disabled={busy}
+            onChange={(event) => setShareStage(event.target.value)}
+            className="h-8 rounded-[var(--radius-sm)] border border-[var(--surface-muted-border)] bg-[var(--page)] px-2 text-sm text-[var(--brand-ink)]"
+          >
+            <option value="">Don't change the stage</option>
+            {applicationStatusEnum.enumValues
+              .filter((value) => value !== "withdrawn" && value !== app.status)
+              .map((value) => (
+                <option key={value} value={value}>
+                  {value.replace(/_/g, " ")}
+                </option>
+              ))}
+          </select>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button
             variant="brand"
             disabled={busy || body.trim().length === 0}

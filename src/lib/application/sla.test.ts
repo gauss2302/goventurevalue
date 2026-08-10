@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { applicationEventKindEnum } from "@/db/schema";
 import {
   computeMedianResponseHours,
   computeResponseRate,
@@ -48,6 +49,29 @@ describe("what counts as a response", () => {
     expect(isCandidateVisibleKind("candidate_message")).toBe(true);
     expect(countsAsCompanyResponse("candidate_message")).toBe(false);
   });
+
+  it("keeps the two predicates nested, never crossing", () => {
+    // Anything that satisfies the promise must be something the candidate can
+    // see. A response the candidate cannot perceive is the exact failure this
+    // module exists to prevent, so the relationship is asserted rather than
+    // left to the two sets happening to agree.
+    for (const kind of applicationEventKindEnum.enumValues) {
+      if (countsAsCompanyResponse(kind)) {
+        expect(isCandidateVisibleKind(kind)).toBe(true);
+      }
+    }
+  });
+
+  it.each<ApplicationEventKind>(["internal_note", "assigned"])(
+    "keeps %s out of the candidate's sight entirely",
+    (kind) => {
+      // The candidate flow is built from these predicates
+      // (src/lib/candidate/flow.ts), so a company's private notes staying
+      // private is a property of this list.
+      expect(isCandidateVisibleKind(kind)).toBe(false);
+      expect(countsAsCompanyResponse(kind)).toBe(false);
+    },
+  );
 });
 
 describe("computeSlaDueAt", () => {

@@ -61,6 +61,15 @@ export default function Header() {
             >
               Hiring
             </Link>
+            {/* One inbox for both sides of the product: a founder is often also
+                job hunting (§6.6), and splitting it would hide half of it. */}
+            <Link
+              to="/notifications"
+              className="text-[var(--brand-muted)] transition-colors hover:text-[var(--brand-ink)]"
+              activeProps={{ className: 'font-medium text-[var(--brand-ink)]' }}
+            >
+              Updates
+            </Link>
           </nav>
           <AuthButton />
         </div>

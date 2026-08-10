@@ -56,21 +56,25 @@
     }
   ],
 
-  // Background work: normalize, embed, parse-resume, email, SLA timers.
+  // Producer only.
+  //
+  // The consumers and the cron schedules live in workers/tasks (§5.4). Declaring
+  // them here would not work even if we wanted it to: TanStack Start's
+  // `createServerEntry` returns `{ fetch }` and drops anything else, so a
+  // `scheduled` or `queue` handler exported from this worker is silently
+  // discarded — the schedule would look configured and never run.
+  //
+  // Two queues, split by latency: `tasks` carries single-row work that somebody
+  // is waiting on, `work` carries resume parsing and embeddings.
   "queues": {
     "producers": [
       {
+        "binding": "TASKS_QUEUE",
+        "queue": "startup-jobs-tasks"
+      },
+      {
         "binding": "JOBS_QUEUE",
         "queue": "startup-jobs-work"
-      }
-    ],
-    "consumers": [
-      {
-        "queue": "startup-jobs-work",
-        "max_batch_size": 10,
-        "max_batch_timeout": 30,
-        "max_retries": 3,
-        "dead_letter_queue": "startup-jobs-work-dlq"
       }
     ]
   },
@@ -88,17 +92,8 @@
   // weekly application cap does not depend on it — that lives in Postgres
   // because it must be transactional (§3.2).
 
-  // Daily ingest of prospect sources, role reverification, SLA sweeps, digests.
-  "triggers": {
-    "crons": [
-      // Ingest prospect sources — 03:00 UTC.
-      "0 3 * * *",
-      // Reverify published roles and archive vanished ones — 04:00 UTC.
-      "0 4 * * *",
-      // SLA sweep: remind, escalate, recompute response rates — hourly.
-      "0 * * * *"
-    ]
-  },
+  // No `triggers` here: the schedules belong to workers/tasks for the reason
+  // given above the queue block.
 
   "vars": {
     "APP_ENV": "development"

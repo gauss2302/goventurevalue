@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as JobsIndexRouteImport } from './routes/jobs/index'
 import { Route as CompanyIndexRouteImport } from './routes/company/index'
@@ -39,6 +40,11 @@ import { Route as CompanyCompanyIdRolesJobIdPreviewRouteImport } from './routes/
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -177,6 +183,7 @@ const CompanyCompanyIdRolesJobIdPreviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -230,6 +238,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/notifications': typeof NotificationsRoute
   '/profile': typeof ProfileRoute
   '/company/$companyId': typeof CompanyCompanyIdRouteRouteWithChildren
   '/applications/$applicationId': typeof ApplicationsApplicationIdRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/notifications'
     | '/profile'
     | '/company/$companyId'
     | '/applications/$applicationId'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/notifications'
     | '/profile'
     | '/applications/$applicationId'
     | '/auth/callback'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/notifications'
     | '/profile'
     | '/company/$companyId'
     | '/applications/$applicationId'
@@ -341,6 +353,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NotificationsRoute: typeof NotificationsRoute
   ProfileRoute: typeof ProfileRoute
   CompanyCompanyIdRouteRoute: typeof CompanyCompanyIdRouteRouteWithChildren
   ApplicationsApplicationIdRoute: typeof ApplicationsApplicationIdRoute
@@ -365,6 +378,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -617,6 +637,7 @@ const CompanyCompanyIdRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NotificationsRoute: NotificationsRoute,
   ProfileRoute: ProfileRoute,
   CompanyCompanyIdRouteRoute: CompanyCompanyIdRouteRouteWithChildren,
   ApplicationsApplicationIdRoute: ApplicationsApplicationIdRoute,

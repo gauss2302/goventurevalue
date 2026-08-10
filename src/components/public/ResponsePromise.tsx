@@ -1,18 +1,21 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { describeMark } from "@/lib/company/slaPolicy";
 import type { ResponseRecord } from "@/lib/company/publicProfile";
 
 /**
  * The promise, and how well this company keeps it
- * (docs/PRODUCT_PLAN.md §1.4 ②, §3.2).
+ * (docs/PRODUCT_PLAN.md §1.4 ②, §3.2, §6.7).
  *
  * The one differentiator competitors cannot copy without changing their business
  * model, so it gets prime position rather than a footnote.
  *
- * A company with nothing resolved shows "no replies measured yet" instead of 0%.
- * Zero would read as an accusation, and accusing a company of ignoring people it
- * has never heard from is exactly the kind of confident wrongness the honesty
- * contract exists to prevent (§6.4 rule 2).
+ * Three states, and telling them apart is the whole job:
+ *   - nothing resolved yet → "no replies measured yet". Not 0%, which would be an
+ *     accusation about a company we have never measured.
+ *   - some resolved, but too few → the count, and that it is too few. Not "100%",
+ *     which is an equally confident claim in the flattering direction.
+ *   - enough resolved → the figure, with its denominator next to it.
  */
 export function ResponsePromise({
   record,
@@ -22,6 +25,35 @@ export function ResponsePromise({
   companyName: string;
 }) {
   const percent = record.responseRate === null ? null : Math.round(record.responseRate * 100);
+  const mark = describeMark({
+    level: record.warningLevel,
+    breached: record.breached,
+    measured: record.measured,
+    companyName,
+  });
+
+  // A marked company does not get to lead with the promise. What we know about
+  // them replacing it is the honest ordering.
+  if (mark) {
+    return (
+      <Card className="border-[var(--destructive)]/30 bg-[var(--destructive)]/5 p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="danger">Missed deadlines</Badge>
+          {record.markedAt && (
+            <span className="text-xs text-[var(--brand-muted)]">
+              since {new Date(record.markedAt).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        <h2 className="mt-3 text-sm font-semibold text-[var(--brand-ink)]">{mark.headline}</h2>
+        <p className="mt-2 text-sm text-[var(--brand-ink)]">{mark.detail}</p>
+        <p className="mt-3 text-xs text-[var(--brand-muted)]">
+          They still committed to replying within {record.slaResponseDays ?? 7} days. We show
+          this because you are about to spend one of your applications.
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-[var(--success)]/30 bg-[var(--success)]/5 p-6">
@@ -41,12 +73,17 @@ export function ResponsePromise({
           <dd className="text-right">
             {percent === null ? (
               <span className="text-sm italic text-[var(--brand-muted)]">
-                No replies measured yet
+                {record.measured === 0
+                  ? "No replies measured yet"
+                  : `Only ${record.measured} measured so far — too few to publish`}
               </span>
             ) : (
               <span className="flex items-center gap-2">
                 <span className="text-[var(--text-title2)] font-semibold text-[var(--brand-ink)]">
                   {percent}%
+                </span>
+                <span className="text-xs text-[var(--brand-muted)]">
+                  of {record.measured}
                 </span>
                 {percent >= 90 && <Badge variant="success">Excellent</Badge>}
                 {percent < 60 && <Badge variant="warning">Below our bar</Badge>}

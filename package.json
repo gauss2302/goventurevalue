@@ -9,13 +9,16 @@
     "deploy": "vite build && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv worker-configuration.d.ts",
     "typecheck": "tsc --noEmit",
-    "check:prod": "pnpm typecheck && pnpm test && pnpm build",
+    "check:prod": "pnpm typecheck && pnpm test && pnpm build && pnpm tasks:check",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:auto": "pnpm db:generate && pnpm db:migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "tasks:check": "wrangler deploy --dry-run -c workers/tasks/wrangler.jsonc",
+    "tasks:dev": "wrangler dev -c workers/tasks/wrangler.jsonc",
+    "tasks:deploy": "wrangler deploy -c workers/tasks/wrangler.jsonc"
   },
   "dependencies": {
     "@polar-sh/better-auth": "^1.8.1",

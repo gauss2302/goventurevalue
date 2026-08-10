@@ -24,6 +24,11 @@ import {
   saveProfile,
 } from "@/lib/candidate/service";
 import {
+  countUnread,
+  listNotifications,
+  markNotificationsRead,
+} from "@/lib/notify/service";
+import {
   applyToRole,
   getMyApplicationFlow,
   getQuota,
@@ -290,6 +295,27 @@ export const markApplicationSeenFn = createServerFn({ method: "POST" })
       markApplicationSeen(db, user.id, data.applicationId),
     ),
   );
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/**
+ * Everything we have told this person, on both sides of the product.
+ *
+ * One list, not two: a founder is often also job hunting (§6.6), and splitting
+ * the inbox by which hat they were wearing would hide half of it.
+ */
+export const listMyNotifications = createServerFn({ method: "GET" }).handler(async () =>
+  withRequestContext(async ({ db, user }) => ({
+    notifications: await listNotifications(db, user.id),
+    unread: await countUnread(db, user.id),
+  })),
+);
+
+export const markNotificationsReadFn = createServerFn({ method: "POST" }).handler(async () =>
+  withRequestContext(({ db, user }) => markNotificationsRead(db, user.id)),
+);
 
 export const toggleSavedJobFn = createServerFn({ method: "POST" })
   .inputValidator(validate(z.object({ jobId: z.string() })))

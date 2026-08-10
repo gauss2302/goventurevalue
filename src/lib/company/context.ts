@@ -8,6 +8,7 @@ import {
   type Capability,
   type CompanyRole,
 } from "@/lib/company/permissions";
+import { publishBlockedReason } from "@/lib/company/slaPolicy";
 
 /**
  * Who is acting, and on behalf of which company.
@@ -116,10 +117,26 @@ export const loadCompany = async (db: Database, companyId: string): Promise<Comp
  * stops someone publishing roles in a company that is not theirs.
  */
 export const canCompanyPublish = (
-  row: Pick<CompanyRow, "lifecycle" | "slaAcceptedAt" | "domainVerifiedAt" | "suspendedForSlaAt">,
+  row: Pick<
+    CompanyRow,
+    | "lifecycle"
+    | "slaAcceptedAt"
+    | "domainVerifiedAt"
+    | "suspendedForSlaAt"
+    | "slaWarningLevel"
+  >,
 ): { allowed: boolean; reason?: string } => {
   if (row.suspendedForSlaAt) {
     return { allowed: false, reason: "Suspended for repeatedly missing the response commitment" };
+  }
+
+  // Enforced here rather than only announced in a warning email. Adding
+  // inventory while failing to answer the applicants you already have is the
+  // exact behaviour the ladder exists to stop (§6.7), so the block lives in the
+  // one gate every publish path goes through.
+  const blocked = publishBlockedReason(row);
+  if (blocked) {
+    return { allowed: false, reason: blocked };
   }
   if (!row.domainVerifiedAt) {
     return { allowed: false, reason: "Company domain is not verified yet" };

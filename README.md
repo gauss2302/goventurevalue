@@ -42,6 +42,20 @@ locally, so the Vite plugin opens a remote session. See `docs/PHASE_0.md`.
 | `pnpm cf-typegen` | Regenerate `worker-configuration.d.ts` — run after editing `wrangler.jsonc` |
 | `pnpm db:generate` | Generate a migration from the Drizzle schema |
 | `pnpm db:migrate` | Apply migrations |
+| `pnpm tasks:check` | Build the cron/queue worker without deploying |
+| `pnpm tasks:dev` | Run the cron/queue worker locally |
+| `pnpm tasks:deploy` | Deploy the cron/queue worker |
+
+## Two workers
+
+`wrangler.jsonc` is the app: SSR, server functions, queue **producers**.
+`workers/tasks/` is the cron and queue **consumer** worker.
+
+The split is not optional. TanStack Start's `createServerEntry` returns `{ fetch }` and
+silently discards anything else, so a `scheduled` or `queue` handler exported from the app
+would look configured and never run. Everything the tasks worker calls takes a `Database`
+and is tested against a real Postgres without a Worker — see
+`src/lib/application/sweep.ts`.
 
 ## Database
 

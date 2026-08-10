@@ -37,7 +37,9 @@
 | **`pnpm dev`** | Локальный dev **упирается в отсутствие токена**: биндинг `AI` не эмулируется локально, плагин открывает remote-сессию и требует `CLOUDFLARE_API_TOKEN` | Задать токен, либо временно убрать биндинг `ai` для офлайн-разработки |
 | **Better Auth на Workers** | Код переписан на per-request factory, но **ни разу не исполнялся на Workers**. Google OAuth и KV secondaryStorage не проверены | Задеплоить, пройти OAuth-флоу |
 | **Workers AI: эмбеддинги** | Модель и размерность (768) зафиксированы в коде, вызов не выполнялся | Вызвать `env.AI.run(EMBEDDING_MODEL, ...)` на задеплоенном воркере |
-| **Queues producer → consumer** | Биндинг объявлен, обработчик не написан | Phase 2 |
+| **Queues producer → consumer** | Обработчики написаны (`workers/tasks/index.ts`) и **их логика покрыта интеграционными тестами против реального Postgres**, но ни одно сообщение не проходило через настоящую очередь. Неизвестно: что реально приходит в `batch.messages`, поведение ретраев и DLQ, работает ли `queue`-обработчик в `wrangler dev` | `wrangler queues create startup-jobs-tasks` + `-dlq`, затем `pnpm tasks:dev` и отправка сообщения |
+| **Cron trigger** | `pnpm tasks:check` собирает воркер и биндинги резолвятся (проверено), но `scheduled` ни разу не вызывался. Неизвестно, приходит ли `event.cron` строкой ровно как в конфиге — от этого зависит диспатч | `pnpm tasks:dev`, затем `curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"` |
+| **Второй воркер в проде** | Два `wrangler.jsonc` в одном репозитории собираются по отдельности; `.wrangler/deploy/config.json`, который пишет vite-плагин, конфликтует с запуском wrangler из подкаталога — поэтому `-c` передаётся из корня. Как это ведёт себя в CI, не проверено | `pnpm tasks:deploy` из корня |
 | **`unpdf` внутри Worker** | Пакет установлен, **парсинг не запускался**. По документации нужны полифилы (`FinalizationRegistry`) и инлайн воркера pdf.js — это может потребовать правок сборки | Написать пробный Queue consumer, прогнать реальное PDF-резюме |
 | **Polar SDK на Workers** | Код адаптирован (убран модульный кэш клиента, `process.env` → `optionalEnv`), но SDK на Workers не исполнялся. По плану §7 решение о переходе на Stripe принимается **здесь**, а не позже | Задеплоить и вызвать checkout в sandbox |
 
@@ -52,6 +54,8 @@
 ```bash
 wrangler kv namespace create CACHE
 wrangler r2 bucket create startup-jobs-files
+wrangler queues create startup-jobs-tasks
+wrangler queues create startup-jobs-tasks-dlq
 wrangler queues create startup-jobs-work
 wrangler queues create startup-jobs-work-dlq
 wrangler hyperdrive create startup-jobs-db --connection-string="<supabase-direct-connection-string>"

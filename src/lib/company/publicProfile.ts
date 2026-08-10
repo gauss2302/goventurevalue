@@ -34,10 +34,22 @@ export type CompanySignals = {
 };
 
 export type ResponseRecord = {
-  /** Null when nothing is measurable — never 0, which reads as an accusation. */
+  /**
+   * Null when nothing is publishable.
+   *
+   * Two different nulls, which is why `measured` travels with it: nothing
+   * resolved yet, or too little resolved to publish (§6.4, MIN_MEASURED_APPLICATIONS).
+   * The reader is told which.
+   */
   responseRate: number | null;
   medianFirstResponseHours: number | null;
   slaResponseDays: number | null;
+  /** Resolved applications behind the figures — the denominator. */
+  measured: number;
+  breached: number;
+  /** Warnings for missing deadlines. Drives the public mark from level 2. */
+  warningLevel: number;
+  markedAt: Date | null;
 };
 
 export const buildCompanySignals = (input: {
@@ -123,9 +135,16 @@ export const buildCompanySignals = (input: {
 };
 
 export const buildResponseRecord = (row: CompanyRow): ResponseRecord => ({
+  // Already withheld at write time by `publishableRecord`, so a non-null value
+  // here has passed the minimum-sample rule; the counts come along so the
+  // interface can distinguish "nothing yet" from "not enough yet".
   responseRate: row.responseRate30d === null ? null : Number(row.responseRate30d),
   medianFirstResponseHours: row.medianFirstResponseHours,
   slaResponseDays: row.slaResponseDays,
+  measured: row.slaMeasuredCount,
+  breached: row.slaBreachCount,
+  warningLevel: row.slaWarningLevel,
+  markedAt: row.slaMarkedAt,
 });
 
 /**

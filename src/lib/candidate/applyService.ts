@@ -26,7 +26,7 @@ import {
 import { REQUIREMENT_REASONS } from "@/lib/candidate/onboarding";
 import { getProfileStatus } from "@/lib/candidate/service";
 import { buildFlow, summariseFlow, type FlowSourceEvent } from "@/lib/candidate/flow";
-import type { ResponseRecord } from "@/lib/company/publicProfile";
+import { buildResponseRecord, type ResponseRecord } from "@/lib/company/publicProfile";
 
 /**
  * Searching and applying, from the candidate's side
@@ -580,14 +580,7 @@ export const getMyApplicationFlow = async (
         seniority: job.seniority,
         remoteType: job.remoteType,
       },
-      company: {
-        name: company.name,
-        slug: company.slug,
-        stage: company.stage,
-        slaResponseDays: company.slaResponseDays,
-        responseRate30d: company.responseRate30d,
-        medianFirstResponseHours: company.medianFirstResponseHours,
-      },
+      company,
     })
     .from(application)
     .innerJoin(job, eq(job.id, application.jobId))
@@ -618,14 +611,10 @@ export const getMyApplicationFlow = async (
     coverLetter: app.coverLetter,
     role,
     company: { name: companyRow.name, slug: companyRow.slug, stage: companyRow.stage },
-    // Same shape the public role page uses, so the record a candidate saw before
-    // applying is the record they see afterwards.
-    responseRecord: {
-      responseRate:
-        companyRow.responseRate30d === null ? null : Number(companyRow.responseRate30d),
-      medianFirstResponseHours: companyRow.medianFirstResponseHours,
-      slaResponseDays: companyRow.slaResponseDays,
-    } satisfies ResponseRecord,
+    // Built by the same function the public role page uses, so the record a
+    // candidate saw before applying is the record they see afterwards — including
+    // the mark, if the company has since earned one.
+    responseRecord: buildResponseRecord(companyRow) satisfies ResponseRecord,
     flow,
   };
 };

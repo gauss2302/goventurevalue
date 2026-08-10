@@ -9,12 +9,15 @@ import {
   type Actor,
 } from "@/lib/company/context";
 import {
+  computeMedianResponseHours,
   countsAsCompanyResponse,
   deriveSlaVerdict,
   isCandidateVisibleKind,
   type ApplicationEventKind,
   type SlaState,
 } from "@/lib/application/sla";
+import { publishableRecord } from "@/lib/company/slaPolicy";
+import { recordNotification } from "@/lib/notify/service";
 import type { applicationStatusEnum } from "@/db/schema";
 
 /**
@@ -45,6 +48,7 @@ const loadApplicationWithCompany = async (db: Database, applicationId: string) =
     .select({
       id: application.id,
       jobId: application.jobId,
+      jobTitle: job.title,
       userId: application.userId,
       status: application.status,
       appliedAt: application.appliedAt,
@@ -53,10 +57,12 @@ const loadApplicationWithCompany = async (db: Database, applicationId: string) =
       firstResponseAt: application.firstResponseAt,
       assigneeMemberId: application.assigneeMemberId,
       companyId: job.companyId,
+      companyName: company.name,
       hiringManagerMemberId: job.hiringManagerMemberId,
     })
     .from(application)
     .innerJoin(job, eq(job.id, application.jobId))
+    .innerJoin(company, eq(company.id, job.companyId))
     .where(eq(application.id, applicationId))
     .limit(1);
 
@@ -108,7 +114,12 @@ export const recomputeSla = async (
     .set({
       firstResponseAt: verdict.firstResponseAt,
       slaState: verdict.state,
-      breachedAt: verdict.state === "breached" ? new Date() : null,
+      // The deadline, not the moment we noticed it had passed. Two reasons: the
+      // breach happened when the promise ran out, whatever time the sweep
+      // happened to run; and the enforcement ladder buckets breaches into the
+      // week they belong to, so stamping "now" would file a month of missed
+      // deadlines under whichever week the cron recovered in.
+      breachedAt: verdict.state === "breached" ? current[0].slaDueAt : null,
     })
     .where(eq(application.id, applicationId));
 
@@ -211,6 +222,7 @@ export const respondToApplication = async (
   const kind: ApplicationEventKind = input.decision ? "decision" : "message_to_candidate";
 
   const movesStage = Boolean(input.toStatus && input.toStatus !== app.status);
+  const eventId = newId();
 
   const { slaState } = await db.transaction(async (tx) => {
     if (movesStage) {
@@ -221,7 +233,7 @@ export const respondToApplication = async (
     }
 
     await tx.insert(applicationEvent).values({
-      id: newId(),
+      id: eventId,
       applicationId: input.applicationId,
       kind,
       actorUserId: actor.userId,
@@ -233,6 +245,21 @@ export const respondToApplication = async (
       fromStatus: movesStage ? app.status : null,
       toStatus: movesStage ? input.toStatus : null,
       body,
+      occurredAt: respondedAt,
+    });
+
+    // Written here rather than queued: it is one row, and the candidate should
+    // not learn about a reply a minute later than the reply exists. Keyed on the
+    // event, so it is the same notification however often this runs.
+    await recordNotification(tx, {
+      userId: app.userId,
+      kind: "company_replied",
+      dedupeKey: `replied:${eventId}`,
+      title: `${app.companyName} replied about ${app.jobTitle}`,
+      body,
+      href: `/applications/${input.applicationId}`,
+      applicationId: input.applicationId,
+      companyId: app.companyId,
       occurredAt: respondedAt,
     });
 
@@ -524,8 +551,10 @@ export const companySlaDashboard = async (
 /**
  * Recomputes and stores a company's public response figures.
  *
- * Called by the hourly sweep. Writes null when unmeasurable, for the same reason
- * the dashboard reports null.
+ * Both figures pass through `publishableRecord`, which withholds them below a
+ * minimum sample. Without that, a company's first reply publishes "100% on time,
+ * under an hour" on every role it posts — as confident a claim about as little
+ * evidence as the "0%" the honesty contract already forbids (§6.4 rule 2).
  */
 export const refreshCompanyResponseStats = async (
   db: Database,
@@ -541,31 +570,32 @@ export const refreshCompanyResponseStats = async (
     .innerJoin(job, eq(job.id, application.jobId))
     .where(and(eq(job.companyId, companyId), ne(application.slaState, "cancelled")));
 
-  const measurable = rows.filter(
-    (r) => r.slaState === "answered" || r.slaState === "breached",
-  );
-  const answered = measurable.filter((r) => r.slaState === "answered").length;
+  const answered = rows.filter((r) => r.slaState === "answered").length;
+  const breached = rows.filter((r) => r.slaState === "breached").length;
 
   const responseHours = rows
     .filter((r) => r.firstResponseAt !== null)
-    .map((r) => (r.firstResponseAt!.getTime() - r.appliedAt.getTime()) / 3_600_000)
-    .sort((a, b) => a - b);
+    .map((r) => (r.firstResponseAt!.getTime() - r.appliedAt.getTime()) / 3_600_000);
 
-  const middle = Math.floor(responseHours.length / 2);
-  const median =
-    responseHours.length === 0
-      ? null
-      : responseHours.length % 2 === 0
-        ? (responseHours[middle - 1] + responseHours[middle]) / 2
-        : responseHours[middle];
+  const record = publishableRecord({
+    answered,
+    breached,
+    medianFirstResponseHours: computeMedianResponseHours(responseHours),
+  });
 
   await db
     .update(company)
     .set({
       responseRate30d:
-        measurable.length === 0 ? null : (answered / measurable.length).toFixed(4),
-      medianFirstResponseHours: median === null ? null : Math.round(median),
-      slaBreachCount: measurable.length - answered,
+        record.responseRate === null ? null : record.responseRate.toFixed(4),
+      medianFirstResponseHours:
+        record.medianFirstResponseHours === null
+          ? null
+          : Math.round(record.medianFirstResponseHours),
+      // Kept even while the rate is withheld: the counts are facts, and the
+      // denominator is what lets a reader judge the rate once it appears.
+      slaBreachCount: breached,
+      slaMeasuredCount: record.measured,
     })
     .where(eq(company.id, companyId));
 };

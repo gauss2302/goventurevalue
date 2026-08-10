@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { withDb, type Database } from "@/db/index";
 import { application, applicationEvent, company, companyMember, job, user } from "@/db/schema";
-import { SLA_TERMS_VERSION } from "@/config/brand";
+import { MIN_MEASURED_APPLICATIONS, SLA_TERMS_VERSION } from "@/config/brand";
 import { loadActor, ForbiddenError, type Actor } from "@/lib/company/context";
 import {
   acceptInvite,
@@ -557,13 +557,34 @@ describe.skipIf(!hasDatabase)("company side, end to end", () => {
       });
     });
 
-    it("persists the public figures onto the company", async () => {
+    it("withholds the public figures until there is enough to stand behind", async () => {
       await withDb(async (db) => {
         await refreshCompanyResponseStats(db, companyId);
 
         const row = await db.query.company.findFirst({ where: eq(company.id, companyId) });
-        expect(Number(row?.responseRate30d)).toBe(1);
+
+        // One reply on the books. "100% on time, under an hour" published on
+        // every role would be as confident a claim about as little evidence as
+        // the "0%" the honesty contract already forbids (§6.4 rule 2).
+        expect(row!.slaMeasuredCount).toBeLessThan(MIN_MEASURED_APPLICATIONS);
+        expect(row?.responseRate30d).toBeNull();
+        expect(row?.medianFirstResponseHours).toBeNull();
+
+        // The counts behind the withheld rate are facts, and are kept.
         expect(row?.slaBreachCount).toBe(0);
+        expect(row?.slaMeasuredCount).toBe(1);
+      });
+    });
+
+    it("still shows the company its own raw numbers", async () => {
+      await withDb(async (db) => {
+        // Withholding is about what we publish, not about hiding a company's own
+        // operational truth from it. The dashboard reports the denominator too,
+        // so "100%" is visibly 100% of one.
+        const dashboard = await companySlaDashboard(db, founder, companyId);
+
+        expect(dashboard.responseRate).toBe(1);
+        expect(dashboard.answered).toBe(1);
       });
     });
   });

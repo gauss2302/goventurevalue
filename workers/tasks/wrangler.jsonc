@@ -1,0 +1,78 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "startup-jobs-tasks",
+  "main": "index.ts",
+
+  // Same as the app: node-postgres behind Hyperdrive needs nodejs_compat.
+  "compatibility_date": "2026-08-07",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "observability": {
+    "enabled": true
+  },
+
+  // Background work is allowed to be slow; a request is not. This is one of the
+  // two reasons this worker is separate from the app (docs/PRODUCT_PLAN.md §5.4).
+  "limits": {
+    "cpu_ms": 30000
+  },
+
+  // Same Postgres, its own Hyperdrive config.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "localConnectionString": "postgresql://postgres:postgres@localhost:5432/startup_jobs"
+    }
+  ],
+
+  // Producer *and* consumer: a breach hands off to a company review rather than
+  // doing it inline, so one slow company cannot hold up the rest of the batch.
+  "queues": {
+    "producers": [
+      {
+        "binding": "TASKS_QUEUE",
+        "queue": "startup-jobs-tasks"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "startup-jobs-tasks",
+        // Small batches: these are single-row writes, and a large batch only
+        // widens the blast radius of one retry.
+        "max_batch_size": 10,
+        "max_batch_timeout": 10,
+        "max_retries": 3,
+        "dead_letter_queue": "startup-jobs-tasks-dlq"
+      },
+      {
+        // Heavy work — resume parsing, embeddings — is a separate queue so a
+        // 25-second parse cannot sit in front of somebody's reply notification.
+        "queue": "startup-jobs-work",
+        "max_batch_size": 5,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "startup-jobs-work-dlq"
+      }
+    ]
+  },
+
+  "triggers": {
+    "crons": [
+      // SLA sweep: remind, record breaches, refresh figures, advance warnings.
+      // Hourly is deliberate. The candidate's own view re-derives the deadline on
+      // read, so nobody is waiting on this to learn they were missed; only the
+      // aggregate and the notification lag, and an hour of lag on a seven-day
+      // promise is not worth a minutely scan of the table.
+      "0 * * * *",
+      // Ingest prospect sources — Phase 2.
+      "0 3 * * *",
+      // Reverify published roles and archive vanished ones — Phase 2.
+      "0 4 * * *"
+    ]
+  },
+
+  "vars": {
+    "APP_ENV": "development"
+  }
+}

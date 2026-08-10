@@ -5,6 +5,8 @@ import { z } from "zod";
 import { company, companyMember } from "@/db/schema";
 import { withRequestContext } from "@/lib/server/context";
 import { canCompanyPublish, requireCapability } from "@/lib/company/context";
+import { sanctionsForLevel } from "@/lib/company/slaPolicy";
+import { SLA_MAX_WARNINGS } from "@/config/brand";
 import {
   acceptSla,
   createCompany,
@@ -65,6 +67,7 @@ export const listMyCompanies = createServerFn({ method: "GET" }).handler(async (
         domainVerifiedAt: company.domainVerifiedAt,
         slaAcceptedAt: company.slaAcceptedAt,
         suspendedForSlaAt: company.suspendedForSlaAt,
+        slaWarningLevel: company.slaWarningLevel,
       })
       .from(company)
       .where(
@@ -159,6 +162,14 @@ export const getCompanyOverview = createServerFn({ method: "GET" })
         blockedReason: publish.allowed ? null : (publish.reason ?? null),
         memberCount: memberCount.length,
         dashboard,
+        // Where the company stands on the ladder, and what the next rung costs.
+        // Shown to them on every screen, because a sanction nobody saw coming is
+        // one they can fairly complain about (§6.7).
+        standing: {
+          ...sanctionsForLevel(row.slaWarningLevel),
+          markedAt: row.slaMarkedAt,
+          maxWarnings: SLA_MAX_WARNINGS,
+        },
       };
     }),
   );

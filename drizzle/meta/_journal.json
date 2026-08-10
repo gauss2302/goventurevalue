@@ -15,6 +15,13 @@
       "when": 1786338673892,
       "tag": "0001_cool_madame_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786358033398,
+      "tag": "0002_silent_maggott",
+      "breakpoints": true
     }
   ]
 }

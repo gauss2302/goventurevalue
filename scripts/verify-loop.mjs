@@ -245,6 +245,16 @@ try {
   text = await candidate.locator("body").innerText();
   expect(!text.includes("New"), "reading the flow must clear the unread marker");
 
+  // The reply is also recorded as a notification, which is what an email will
+  // eventually be sent from.
+  await candidate.goto(`${BASE}/notifications`, { waitUntil: "networkidle" });
+  await shot(candidate, "loop-14-notifications");
+  text = await candidate.locator("body").innerText();
+  expect(
+    text.includes("Loop Co replied about Senior Backend Engineer"),
+    "a reply must be recorded as a notification the candidate can read",
+  );
+
   // --- Company: sees the candidate's message ------------------------------
   await company.reload({ waitUntil: "networkidle" });
   await company.waitForTimeout(1500);

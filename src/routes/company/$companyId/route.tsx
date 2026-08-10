@@ -25,7 +25,7 @@ function CompanyLayout() {
   const { companyId } = Route.useParams();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const { dashboard } = overview;
+  const { dashboard, standing } = overview;
 
   return (
     <div className="min-h-screen bg-[var(--page)]">
@@ -92,6 +92,42 @@ function CompanyLayout() {
           </nav>
         </div>
       </header>
+
+      {/* Where they stand, on every screen. A sanction that arrives without
+          warning is one a company can fairly dispute, so the ladder is never
+          hidden behind a settings page (§6.7). */}
+      {standing.level > 0 && (
+        <div
+          className="border-b px-6 py-3"
+          style={{
+            borderColor: "color-mix(in srgb, var(--destructive) 25%, transparent)",
+            background: "color-mix(in srgb, var(--destructive) 6%, transparent)",
+          }}
+        >
+          <div className="mx-auto flex max-w-[1100px] flex-wrap items-center gap-x-3 gap-y-1">
+            <Badge variant="danger">
+              {standing.suspended
+                ? "Suspended"
+                : `Warning ${standing.level} of ${standing.maxWarnings}`}
+            </Badge>
+            <span className="text-sm text-[var(--brand-ink)]">
+              {standing.suspended
+                ? "Your roles are unlisted for leaving applicants unanswered. Talk to us to reopen."
+                : standing.publishBlocked
+                  ? "You cannot publish new roles until you have answered the applicants you have."
+                  : standing.publicMark
+                    ? "Candidates can see that you have missed reply deadlines."
+                    : "Nothing is public yet. One more missed week and candidates are told."}
+            </span>
+            {!standing.suspended && (
+              <span className="text-xs text-[var(--brand-muted)]">
+                {standing.warningsRemaining} warning
+                {standing.warningsRemaining === 1 ? "" : "s"} before your roles come down.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-[1100px] px-6 py-8">
         <Outlet />

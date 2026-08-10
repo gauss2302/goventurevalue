@@ -336,6 +336,27 @@ export const applicationEventKindEnum = pgEnum("application_event_kind", [
   "candidate_withdrew",
 ]);
 
+/**
+ * Things worth telling somebody about (§3.2).
+ *
+ * Short on purpose. Every kind here corresponds to a fact that changed —
+ * a message arrived, a deadline passed, a sanction was applied. There is no
+ * "still waiting" kind, because the deadline was known on the day of the
+ * application and repeating it is not news; a notification that says nothing
+ * teaches people to ignore the ones that do.
+ */
+export const notificationKindEnum = pgEnum("notification_kind", [
+  // To the candidate.
+  "company_replied",
+  "reply_deadline_missed",
+  // To the company member accountable for the reply.
+  "reply_due_soon",
+  "reply_overdue",
+  // To the company's owners and SLA contact.
+  "sla_warning",
+  "company_suspended",
+]);
+
 export const dataRequestKindEnum = pgEnum("data_request_kind", ["export", "delete"]);
 
 export const dataRequestStateEnum = pgEnum("data_request_state", [
@@ -404,6 +425,25 @@ export const company = pgTable(
     responseRate30d: numeric("response_rate_30d", { precision: 5, scale: 4 }),
     medianFirstResponseHours: integer("median_first_response_hours"),
     slaBreachCount: integer("sla_breach_count").default(0).notNull(),
+    /**
+     * Resolved applications behind the two figures above.
+     *
+     * Stored because the figures are meaningless without it: a rate is only
+     * publishable over a large enough sample, and the reader deserves the
+     * denominator (§6.4, src/lib/company/slaPolicy.ts).
+     */
+    slaMeasuredCount: integer("sla_measured_count").default(0).notNull(),
+
+    /**
+     * Warnings inside the decay horizon.
+     *
+     * Denormalised from `sla_warning` by the sweep, in the same way the response
+     * rate is: the public role page reads it on every request and must not join
+     * and aggregate to find out whether a company is marked.
+     */
+    slaWarningLevel: integer("sla_warning_level").default(0).notNull(),
+    /** When the mark became visible to candidates. Null while unmarked. */
+    slaMarkedAt: timestamp("sla_marked_at"),
     suspendedForSlaAt: timestamp("suspended_for_sla_at"),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1175,6 +1215,100 @@ export const companyClaim = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("company_claim_company_id_idx").on(table.companyId)],
+);
+
+// ---------------------------------------------------------------------------
+// Enforcement and notification (§3.2, §6.7)
+// ---------------------------------------------------------------------------
+
+/**
+ * One warning issued to a company for a week in which it missed deadlines.
+ *
+ * The unique index on (company, window) is the whole idempotency story: the
+ * hourly sweep re-derives which weeks earned a warning and inserts with
+ * `ON CONFLICT DO NOTHING`, so running it twice — or replaying a queue message,
+ * which Cloudflare Queues guarantees will happen sooner or later — cannot walk a
+ * company up the ladder twice for the same week.
+ *
+ * `level` records where the ladder stood when this warning was issued, so the
+ * company's history reads correctly even after older warnings decay out of the
+ * current level.
+ */
+export const slaWarning = pgTable(
+  "sla_warning",
+  {
+    id: text("id").primaryKey(),
+    companyId: text("company_id")
+      .notNull()
+      .references(() => company.id, { onDelete: "cascade" }),
+    /** ISO date of the Monday the window began (src/lib/company/slaPolicy.ts). */
+    windowStart: date("window_start").notNull(),
+    level: integer("level").notNull(),
+    /** Applications that breached inside this window. */
+    breachCount: integer("breach_count").notNull(),
+    issuedAt: timestamp("issued_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("sla_warning_company_window_idx").on(table.companyId, table.windowStart),
+    index("sla_warning_company_issued_idx").on(table.companyId, table.issuedAt),
+  ],
+);
+
+/**
+ * Something we have told a person.
+ *
+ * Exists for two reasons beyond display. First, at-least-once delivery: the
+ * unique `dedupe_key` means the winning insert earns the right to send, so a
+ * replayed queue message cannot email someone twice. Second, fairness: we should
+ * not sanction a company for missing a deadline we never reminded it about, so
+ * the reminder has to be a record rather than a side effect.
+ *
+ * `email_sent_at` stays null until there is a sending domain (§11.1). That is an
+ * honest null, not a failure — the notification exists and is readable in the
+ * product either way.
+ */
+export const notification = pgTable(
+  "notification",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: notificationKindEnum("kind").notNull(),
+
+    /** What it is about. Both null for account-level messages. */
+    applicationId: text("application_id").references(() => application.id, {
+      onDelete: "cascade",
+    }),
+    companyId: text("company_id").references(() => company.id, { onDelete: "cascade" }),
+
+    title: text("title").notNull(),
+    body: text("body"),
+    /** Where reading it should take the person. */
+    href: text("href"),
+
+    /**
+     * Globally unique natural key for this exact notification.
+     *
+     * Composed at the call site from the facts it describes, e.g.
+     * `replied:{eventId}`. Never a timestamp or a random value — the point is
+     * that the same fact produces the same key.
+     */
+    dedupeKey: text("dedupe_key").notNull(),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    readAt: timestamp("read_at"),
+    emailSentAt: timestamp("email_sent_at"),
+    emailError: text("email_error"),
+  },
+  (table) => [
+    uniqueIndex("notification_dedupe_key_idx").on(table.dedupeKey),
+    index("notification_user_created_idx").on(table.userId, table.createdAt),
+    // Drives the unread count without scanning a person's whole history.
+    index("notification_user_unread_idx")
+      .on(table.userId)
+      .where(sql`${table.readAt} IS NULL`),
+  ],
 );
 
 // ---------------------------------------------------------------------------
